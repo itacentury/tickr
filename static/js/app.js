@@ -52,6 +52,14 @@ const editItemForm = document.getElementById("editItemForm");
 const editItemText = document.getElementById("editItemText");
 const cancelEditItem = document.getElementById("cancelEditItem");
 
+// Delete Confirmation Modal
+const deleteConfirmModal = document.getElementById("deleteConfirmModal");
+const deleteConfirmTitle = document.getElementById("deleteConfirmTitle");
+const deleteConfirmMessage = document.getElementById("deleteConfirmMessage");
+const cancelDelete = document.getElementById("cancelDelete");
+const confirmDelete = document.getElementById("confirmDelete");
+let deleteTarget = { type: null, id: null };
+
 // Icons SVG map
 const icons = {
   list: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -311,9 +319,7 @@ function renderItems() {
 
     const deleteBtn = itemEl.querySelector(".item-delete-btn");
     deleteBtn.addEventListener("click", () => {
-      if (confirm("Eintrag wirklich löschen?")) {
-        deleteItem(itemId);
-      }
+      openDeleteConfirmModal("item", itemId, item.text);
     });
   });
 }
@@ -473,6 +479,32 @@ function openEditItemModal(itemId, text) {
   }, 100);
 }
 
+/**
+ * Opens the delete confirmation modal for a list or item.
+ */
+function openDeleteConfirmModal(type, id, name) {
+  deleteTarget = { type, id };
+
+  if (type === "list") {
+    deleteConfirmTitle.textContent = "Liste löschen";
+    deleteConfirmMessage.textContent = `Möchtest du die Liste "${name}" wirklich löschen? Alle Einträge in dieser Liste werden ebenfalls gelöscht.`;
+  } else {
+    deleteConfirmTitle.textContent = "Eintrag löschen";
+    deleteConfirmMessage.textContent = `Möchtest du den Eintrag "${name}" wirklich löschen?`;
+  }
+
+  deleteConfirmModal.classList.add("open");
+  setTimeout(() => confirmDelete.focus(), 100);
+}
+
+/**
+ * Closes the delete confirmation modal and resets the target.
+ */
+function closeDeleteConfirmModal() {
+  deleteConfirmModal.classList.remove("open");
+  deleteTarget = { type: null, id: null };
+}
+
 // Event Listeners
 
 // Sidebar toggle (desktop)
@@ -526,9 +558,7 @@ editListBtn.addEventListener("click", openEditListModal);
 deleteListBtn.addEventListener("click", () => {
   if (currentListId && lists.length > 0) {
     const list = lists.find((l) => l.id === currentListId);
-    if (confirm(`Liste "${list.name}" wirklich löschen?`)) {
-      deleteList(currentListId);
-    }
+    openDeleteConfirmModal("list", currentListId, list.name);
   }
 });
 
@@ -610,6 +640,19 @@ cancelEditItem.addEventListener("click", () => {
   editingItemId = null;
 });
 
+// Cancel delete
+cancelDelete.addEventListener("click", closeDeleteConfirmModal);
+
+// Confirm delete
+confirmDelete.addEventListener("click", async () => {
+  if (deleteTarget.type === "list") {
+    await deleteList(deleteTarget.id);
+  } else if (deleteTarget.type === "item") {
+    await deleteItem(deleteTarget.id);
+  }
+  closeDeleteConfirmModal();
+});
+
 // Close modals on background click
 newListModal.addEventListener("click", (e) => {
   if (e.target === newListModal) {
@@ -630,6 +673,12 @@ editItemModal.addEventListener("click", (e) => {
   }
 });
 
+deleteConfirmModal.addEventListener("click", (e) => {
+  if (e.target === deleteConfirmModal) {
+    closeDeleteConfirmModal();
+  }
+});
+
 // Keyboard shortcuts
 document.addEventListener("keydown", (e) => {
   // Escape to close modals/panels
@@ -638,6 +687,7 @@ document.addEventListener("keydown", (e) => {
     editListModal.classList.remove("open");
     editItemModal.classList.remove("open");
     editingItemId = null;
+    closeDeleteConfirmModal();
     historyPanel.classList.remove("open");
     overlay.classList.remove("visible");
     closeMobileMenu();

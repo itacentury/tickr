@@ -889,6 +889,26 @@ ul {
   background: var(--accent-hover);
 }
 
+.btn-delete {
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  background: var(--danger);
+  color: white;
+}
+
+.btn-delete:hover {
+  background: #dc2626;
+}
+
+.delete-confirm-message {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .sidebar {
