@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# Type checkers / Linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pylint.d/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# VS Code (keep workspace file, ignore local settings)
+.vscode/
+
+# Database (uncomment if you don't want to track the database)
+# todo.db
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+*.db
