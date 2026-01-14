@@ -1,7 +1,7 @@
 {
-    "name": "Todo Listen",
-    "short_name": "Todos",
-    "description": "Einfache Todo-Listen App",
+    "name": "Tickr",
+    "short_name": "Tickr",
+    "description": "Deine Aufgaben, einfach erledigt",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#0a0a0a",

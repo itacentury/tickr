@@ -1,4 +1,4 @@
-# Todo Listen App
+# Tickr
 
 Eine moderne, PWA-fähige Todo-Listen Anwendung mit FastAPI Backend und Vanilla JavaScript Frontend.
 
@@ -10,19 +10,27 @@ Eine moderne, PWA-fähige Todo-Listen Anwendung mit FastAPI Backend und Vanilla 
 - ✅ PWA-Ready (installierbar auf Smartphone/Desktop)
 - ✅ Verlaufsansicht für jede Liste
 - ✅ SQLite Datenbank
-- ✅ Radio-Button Style für erledigte Einträge
+- ✅ Docker-Support
 
 ## Installation
 
-### 1. Python-Abhängigkeiten installieren
+### Option 1: Docker (empfohlen)
 
 ```bash
-pip install -r requirements.txt
+# Image bauen
+docker build -t tickr .
+
+# Container starten
+docker run -d -p 8000:8000 -v tickr-data:/app/data --name tickr tickr
 ```
 
-### 2. Server starten
+### Option 2: Lokal
 
 ```bash
+# Python-Abhängigkeiten installieren
+pip install -r requirements.txt
+
+# Server starten
 python main.py
 ```
 
@@ -32,7 +40,7 @@ Oder mit uvicorn direkt:
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 3. Im Browser öffnen
+### Im Browser öffnen
 
 Navigiere zu `http://localhost:8000`
 
@@ -45,51 +53,54 @@ FastAPI generiert automatisch eine interaktive API-Dokumentation:
 
 ## Projektstruktur
 
-```
-todo-app/
+```plaintext
+tickr/
 ├── main.py              # FastAPI Backend
 ├── requirements.txt     # Python-Abhängigkeiten
-├── todo.db             # SQLite Datenbank (wird automatisch erstellt)
+├── Dockerfile           # Docker Container Definition
+├── .dockerignore        # Docker Build Ausschlüsse
+├── data/
+│   └── tickr.db         # SQLite Datenbank (wird automatisch erstellt)
 ├── templates/
-│   └── index.html      # HTML Template
+│   └── index.html       # HTML Template
 └── static/
     ├── css/
-    │   └── style.css   # Styles
+    │   └── style.css    # Styles
     ├── js/
-    │   └── app.js      # Frontend JavaScript
+    │   └── app.js       # Frontend JavaScript
     ├── icons/
     │   ├── icon.svg
     │   ├── icon-192.png
     │   └── icon-512.png
-    ├── manifest.json   # PWA Manifest
-    └── sw.js           # Service Worker
+    ├── manifest.json    # PWA Manifest
+    └── sw.js            # Service Worker
 ```
 
 ## API Endpunkte
 
 ### Listen
 
-| Methode | Endpunkt | Beschreibung |
-|---------|----------|--------------|
-| GET | `/api/lists` | Alle Listen abrufen |
-| POST | `/api/lists` | Neue Liste erstellen |
-| PUT | `/api/lists/{id}` | Liste aktualisieren |
-| DELETE | `/api/lists/{id}` | Liste löschen |
+| Methode | Endpunkt          | Beschreibung         |
+| ------- | ----------------- | -------------------- |
+| GET     | `/api/lists`      | Alle Listen abrufen  |
+| POST    | `/api/lists`      | Neue Liste erstellen |
+| PUT     | `/api/lists/{id}` | Liste aktualisieren  |
+| DELETE  | `/api/lists/{id}` | Liste löschen        |
 
 ### Einträge
 
-| Methode | Endpunkt | Beschreibung |
-|---------|----------|--------------|
-| GET | `/api/lists/{id}/items` | Einträge einer Liste |
-| POST | `/api/lists/{id}/items` | Neuen Eintrag erstellen |
-| PUT | `/api/items/{id}` | Eintrag aktualisieren |
-| DELETE | `/api/items/{id}` | Eintrag löschen |
+| Methode | Endpunkt                | Beschreibung            |
+| ------- | ----------------------- | ----------------------- |
+| GET     | `/api/lists/{id}/items` | Einträge einer Liste    |
+| POST    | `/api/lists/{id}/items` | Neuen Eintrag erstellen |
+| PUT     | `/api/items/{id}`       | Eintrag aktualisieren   |
+| DELETE  | `/api/items/{id}`       | Eintrag löschen         |
 
 ### Verlauf
 
-| Methode | Endpunkt | Beschreibung |
-|---------|----------|--------------|
-| GET | `/api/lists/{id}/history` | Verlauf einer Liste |
+| Methode | Endpunkt                  | Beschreibung        |
+| ------- | ------------------------- | ------------------- |
+| GET     | `/api/lists/{id}/history` | Verlauf einer Liste |
 
 ## PWA Installation
 

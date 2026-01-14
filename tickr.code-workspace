@@ -55,6 +55,12 @@
 			"editor.formatOnPaste": true,
 			"editor.tabSize": 2,
 		},
+		"[markdown]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode",
+			"editor.formatOnSave": true,
+			"editor.formatOnPaste": true,
+			"editor.wordWrap": "on",
+		},
 
 		// General Editor Settings
 		"editor.tabSize": 4,

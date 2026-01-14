@@ -1,23 +1,36 @@
 """
-Todo App Backend - FastAPI + SQLite
+Tickr Backend - FastAPI REST API with SQLite persistence.
+
+Provides endpoints for managing todo lists, items, and history tracking.
 """
 
 import sqlite3
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Optional
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-app = FastAPI(title="Todo App", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Initialize database on startup."""
+    init_db()
+    yield
+
+
+app = FastAPI(title="Tickr", version="1.0.0", lifespan=lifespan)
 
 # Database setup
-DATABASE = "todo.db"
+DATABASE = "data/tickr.db"
 
 
 def get_db():
+    """Yield a database connection for dependency injection."""
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     try:
@@ -27,6 +40,8 @@ def get_db():
 
 
 def init_db():
+    """Create database tables and insert default data if empty."""
+    Path(DATABASE).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
@@ -83,22 +98,30 @@ def init_db():
 
 # Pydantic models
 class ListCreate(BaseModel):
+    """Request model for creating a new list."""
+
     name: str
     icon: str = "list"
 
 
 class ListUpdate(BaseModel):
-    name: Optional[str] = None
-    icon: Optional[str] = None
+    """Request model for updating an existing list."""
+
+    name: str | None = None
+    icon: str | None = None
 
 
 class ItemCreate(BaseModel):
+    """Request model for creating a new item."""
+
     text: str
 
 
 class ItemUpdate(BaseModel):
-    text: Optional[str] = None
-    completed: Optional[bool] = None
+    """Request model for updating an existing item."""
+
+    text: str | None = None
+    completed: bool | None = None
 
 
 # API Routes
@@ -107,6 +130,7 @@ class ItemUpdate(BaseModel):
 # Lists
 @app.get("/api/lists")
 def get_lists(db: sqlite3.Connection = Depends(get_db)):
+    """Return all lists with item counts."""
     cursor = db.cursor()
     cursor.execute(
         """
@@ -125,6 +149,7 @@ def get_lists(db: sqlite3.Connection = Depends(get_db)):
 
 @app.post("/api/lists")
 def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db)):
+    """Create a new list and log to history."""
     cursor = db.cursor()
     cursor.execute("INSERT INTO lists (name, icon) VALUES (?, ?)", (list_data.name, list_data.icon))
     db.commit()
@@ -142,10 +167,11 @@ def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db))
 
 @app.put("/api/lists/{list_id}")
 def update_list(list_id: int, list_data: ListUpdate, db: sqlite3.Connection = Depends(get_db)):
+    """Update list name and/or icon."""
     cursor = db.cursor()
 
-    updates = []
-    values = []
+    updates: list[str] = []
+    values: list[str | int] = []
     if list_data.name is not None:
         updates.append("name = ?")
         values.append(list_data.name)
@@ -163,6 +189,7 @@ def update_list(list_id: int, list_data: ListUpdate, db: sqlite3.Connection = De
 
 @app.delete("/api/lists/{list_id}")
 def delete_list(list_id: int, db: sqlite3.Connection = Depends(get_db)):
+    """Delete a list and its associated history."""
     cursor = db.cursor()
     cursor.execute("DELETE FROM lists WHERE id = ?", (list_id,))
     cursor.execute("DELETE FROM history WHERE list_id = ?", (list_id,))
@@ -175,6 +202,7 @@ def delete_list(list_id: int, db: sqlite3.Connection = Depends(get_db)):
 def get_items(
     list_id: int, include_completed: bool = False, db: sqlite3.Connection = Depends(get_db)
 ):
+    """Return items for a list, optionally including completed ones."""
     cursor = db.cursor()
     if include_completed:
         cursor.execute(
@@ -191,6 +219,7 @@ def get_items(
 
 @app.post("/api/lists/{list_id}/items")
 def create_item(list_id: int, item_data: ItemCreate, db: sqlite3.Connection = Depends(get_db)):
+    """Create a new item in a list and log to history."""
     cursor = db.cursor()
     cursor.execute("INSERT INTO items (list_id, text) VALUES (?, ?)", (list_id, item_data.text))
     db.commit()
@@ -208,6 +237,7 @@ def create_item(list_id: int, item_data: ItemCreate, db: sqlite3.Connection = De
 
 @app.put("/api/items/{item_id}")
 def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = Depends(get_db)):
+    """Update item text and/or completion status with history logging."""
     cursor = db.cursor()
 
     # Get current item data
@@ -216,8 +246,8 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    updates = []
-    values = []
+    updates: list[str] = []
+    values: list[str | int | bool] = []
 
     if item_data.text is not None and item_data.text != item["text"]:
         updates.append("text = ?")
@@ -260,6 +290,7 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
 
 @app.delete("/api/items/{item_id}")
 def delete_item(item_id: int, db: sqlite3.Connection = Depends(get_db)):
+    """Delete an item and log to history."""
     cursor = db.cursor()
 
     # Get item data for history
@@ -280,6 +311,7 @@ def delete_item(item_id: int, db: sqlite3.Connection = Depends(get_db)):
 # History
 @app.get("/api/lists/{list_id}/history")
 def get_history(list_id: int, db: sqlite3.Connection = Depends(get_db)):
+    """Return the last 100 history entries for a list."""
     cursor = db.cursor()
     # Get history entries with current item status
     cursor.execute(
@@ -303,23 +335,20 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def read_root():
+    """Serve the main HTML page."""
     return FileResponse("templates/index.html")
 
 
 @app.get("/manifest.json")
 def manifest():
+    """Serve the PWA manifest file."""
     return FileResponse("static/manifest.json")
 
 
 @app.get("/sw.js")
 def service_worker():
+    """Serve the service worker script."""
     return FileResponse("static/sw.js", media_type="application/javascript")
-
-
-# Initialize database on startup
-@app.on_event("startup")
-def startup():
-    init_db()
 
 
 if __name__ == "__main__":

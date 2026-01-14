@@ -41,8 +41,8 @@ dist/
 # VS Code (keep workspace file, ignore local settings)
 .vscode/
 
-# Database (uncomment if you don't want to track the database)
-# todo.db
+# Database
+data/
 
 # OS
 .DS_Store
@@ -57,5 +57,3 @@ logs/
 tmp/
 temp/
 *.tmp
-
-*.db
