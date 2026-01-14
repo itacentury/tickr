@@ -8,6 +8,10 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# Install su-exec for dropping privileges in entrypoint
+RUN apt-get update && apt-get install -y --no-install-recommends su-exec \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user for security
 RUN useradd --create-home --shell /bin/bash appuser
 
@@ -20,14 +24,17 @@ COPY main.py .
 COPY templates/ templates/
 COPY static/ static/
 
-# Create data directory for SQLite database and set ownership
+# Create data directory for SQLite database
 RUN mkdir -p /app/data && chown -R appuser:appuser /app
 
-# Declare volume so permissions are preserved when mounted
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Declare volume for data persistence
 VOLUME /app/data
 
-# Switch to non-root user
-USER appuser
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Expose the application port
 EXPOSE 8000
