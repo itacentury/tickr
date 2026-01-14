@@ -60,6 +60,9 @@ const cancelDelete = document.getElementById("cancelDelete");
 const confirmDelete = document.getElementById("confirmDelete");
 let deleteTarget = { type: null, id: null };
 
+// Edit List Sort Select
+const editListSort = document.getElementById("editListSort");
+
 // Icons SVG map
 const icons = {
   list: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -134,18 +137,20 @@ async function createList(name, icon) {
   selectList(newList.id);
 }
 
-async function updateList(listId, name, icon) {
+async function updateList(listId, name, icon, itemSort) {
   await fetch(`/api/lists/${listId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, icon }),
+    body: JSON.stringify({ name, icon, item_sort: itemSort }),
   });
   await fetchLists();
 
-  // Update title if it's the current list
+  // Update title and reload items if it's the current list
   if (listId === currentListId) {
     listTitle.textContent = name;
     document.title = `${name} - Todos`;
+    // Reload items to apply new sorting
+    await fetchItems(currentListId);
   }
 }
 
@@ -263,12 +268,8 @@ function renderItems() {
 
   emptyState.classList.remove("visible");
 
-  // Sort by creation date (newest first)
-  const sortedItems = [...items].sort((a, b) => {
-    return new Date(b.created_at) - new Date(a.created_at);
-  });
-
-  itemsList.innerHTML = sortedItems
+  // Items are already sorted by the server according to settings
+  itemsList.innerHTML = items
     .map(
       (item) => `
         <li class="item" data-id="${item.id}">
@@ -460,6 +461,7 @@ function openEditListModal() {
 
   editListName.value = list.name;
   editSelectedIcon = list.icon || "list";
+  editListSort.value = list.item_sort || "alphabetical";
 
   editIconOptions.forEach((opt) => {
     opt.classList.toggle("selected", opt.dataset.icon === editSelectedIcon);
@@ -613,7 +615,7 @@ editListForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = editListName.value.trim();
   if (name && currentListId) {
-    await updateList(currentListId, name, editSelectedIcon);
+    await updateList(currentListId, name, editSelectedIcon, editListSort.value);
     editListModal.classList.remove("open");
   }
 });

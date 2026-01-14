@@ -52,10 +52,17 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             icon TEXT DEFAULT 'list',
+            item_sort TEXT DEFAULT 'alphabetical',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """
     )
+
+    # Migration: Add item_sort column if it doesn't exist (for existing databases)
+    cursor.execute("PRAGMA table_info(lists)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if "item_sort" not in columns:
+        cursor.execute("ALTER TABLE lists ADD COLUMN item_sort TEXT DEFAULT 'alphabetical'")
 
     # Items table
     cursor.execute(
@@ -109,6 +116,7 @@ class ListUpdate(BaseModel):
 
     name: str | None = None
     icon: str | None = None
+    item_sort: str | None = None
 
 
 class ItemCreate(BaseModel):
@@ -122,6 +130,10 @@ class ItemUpdate(BaseModel):
 
     text: str | None = None
     completed: bool | None = None
+
+
+# Valid sort options for items
+VALID_SORT_OPTIONS = ["alphabetical", "alphabetical_desc", "created_desc", "created_asc"]
 
 
 # API Routes
@@ -167,8 +179,15 @@ def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db))
 
 @app.put("/api/lists/{list_id}")
 def update_list(list_id: int, list_data: ListUpdate, db: sqlite3.Connection = Depends(get_db)):
-    """Update list name and/or icon."""
+    """Update list name, icon, and/or sorting preference."""
     cursor = db.cursor()
+
+    # Validate item_sort if provided
+    if list_data.item_sort is not None and list_data.item_sort not in VALID_SORT_OPTIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid sort option. Valid options: {', '.join(VALID_SORT_OPTIONS)}",
+        )
 
     updates: list[str] = []
     values: list[str | int] = []
@@ -178,6 +197,9 @@ def update_list(list_id: int, list_data: ListUpdate, db: sqlite3.Connection = De
     if list_data.icon is not None:
         updates.append("icon = ?")
         values.append(list_data.icon)
+    if list_data.item_sort is not None:
+        updates.append("item_sort = ?")
+        values.append(list_data.item_sort)
 
     if updates:
         values.append(list_id)
@@ -197,20 +219,36 @@ def delete_list(list_id: int, db: sqlite3.Connection = Depends(get_db)):
     return {"success": True}
 
 
+# Sort option to SQL ORDER BY mapping
+SORT_SQL = {
+    "alphabetical": "text COLLATE NOCASE ASC",
+    "alphabetical_desc": "text COLLATE NOCASE DESC",
+    "created_desc": "created_at DESC",
+    "created_asc": "created_at ASC",
+}
+
+
 # Items
 @app.get("/api/lists/{list_id}/items")
 def get_items(
     list_id: int, include_completed: bool = False, db: sqlite3.Connection = Depends(get_db)
 ):
-    """Return items for a list, optionally including completed ones."""
+    """Return items for a list, sorted according to list settings."""
     cursor = db.cursor()
+
+    # Get sort preference from the list
+    cursor.execute("SELECT item_sort FROM lists WHERE id = ?", (list_id,))
+    row = cursor.fetchone()
+    sort_option = row["item_sort"] if row and row["item_sort"] else "alphabetical"
+    order_by = SORT_SQL.get(sort_option, SORT_SQL["alphabetical"])
+
     if include_completed:
         cursor.execute(
-            "SELECT * FROM items WHERE list_id = ? ORDER BY completed, created_at DESC", (list_id,)
+            f"SELECT * FROM items WHERE list_id = ? ORDER BY completed, {order_by}", (list_id,)
         )
     else:
         cursor.execute(
-            "SELECT * FROM items WHERE list_id = ? AND completed = 0 ORDER BY created_at DESC",
+            f"SELECT * FROM items WHERE list_id = ? AND completed = 0 ORDER BY {order_by}",
             (list_id,),
         )
     rows = cursor.fetchall()
