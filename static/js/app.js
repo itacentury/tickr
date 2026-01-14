@@ -714,6 +714,69 @@ if (localStorage.getItem("sidebarCollapsed") === "true") {
   sidebar.classList.add("collapsed");
 }
 
+// Touch swipe navigation for mobile
+let touchStartX = 0;
+let touchStartY = 0;
+let touchEndX = 0;
+let touchEndY = 0;
+
+const mainContent = document.querySelector(".main-content");
+
+mainContent.addEventListener(
+  "touchstart",
+  (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  },
+  { passive: true }
+);
+
+mainContent.addEventListener(
+  "touchend",
+  (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    touchEndY = e.changedTouches[0].screenY;
+    handleSwipe();
+  },
+  { passive: true }
+);
+
+function handleSwipe() {
+  const deltaX = touchEndX - touchStartX;
+  const deltaY = touchEndY - touchStartY;
+  const minSwipeDistance = 80;
+
+  // Only trigger if horizontal swipe is dominant (more X than Y movement)
+  if (
+    Math.abs(deltaX) < minSwipeDistance ||
+    Math.abs(deltaX) < Math.abs(deltaY)
+  ) {
+    return;
+  }
+
+  // Find current list index
+  const currentIndex = lists.findIndex((l) => l.id === currentListId);
+  if (currentIndex === -1) return;
+
+  if (deltaX < 0) {
+    // Swipe left → next list
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < lists.length) {
+      selectList(lists[nextIndex].id);
+    } else {
+      selectList(lists[0].id);
+    }
+  } else {
+    // Swipe right → previous list
+    const prevIndex = currentIndex - 1;
+    if (prevIndex >= 0) {
+      selectList(lists[prevIndex].id);
+    } else {
+      selectList(lists[lists.length - 1].id);
+    }
+  }
+}
+
 // Initialize
 fetchLists();
 
