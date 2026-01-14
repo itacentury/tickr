@@ -20,8 +20,11 @@ COPY main.py .
 COPY templates/ templates/
 COPY static/ static/
 
-# Create data directory for SQLite database
+# Create data directory for SQLite database and set ownership
 RUN mkdir -p /app/data && chown -R appuser:appuser /app
+
+# Declare volume so permissions are preserved when mounted
+VOLUME /app/data
 
 # Switch to non-root user
 USER appuser
