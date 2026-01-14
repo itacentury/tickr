@@ -8,8 +8,8 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install su-exec for dropping privileges in entrypoint
-RUN apt-get update && apt-get install -y --no-install-recommends su-exec \
+# Install gosu for dropping privileges in entrypoint
+RUN apt-get update && apt-get install -y --no-install-recommends gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security

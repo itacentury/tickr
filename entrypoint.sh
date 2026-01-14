@@ -5,4 +5,4 @@ set -e
 chown -R appuser:appuser /app/data
 
 # Drop privileges and run the command as appuser
-exec su-exec appuser "$@"
+exec gosu appuser "$@"
