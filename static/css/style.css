@@ -60,6 +60,7 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow: hidden;
+  overscroll-behavior-y: none;
 }
 
 button {
@@ -270,6 +271,7 @@ ul {
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-primary);
+  overscroll-behavior-y: contain;
 }
 
 /* Header */
@@ -400,6 +402,8 @@ ul {
   flex: 1;
   overflow-y: auto;
   padding: 8px 24px 24px;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .items-list:empty {
