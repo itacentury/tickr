@@ -32,6 +32,64 @@ async function fetchWithRetry(url, options = {}, retries = 3, delay = 500) {
   }
 }
 
+// Offline cache for items
+const CACHE_KEY = "tickr_items_cache";
+let isOffline = false;
+
+function saveItemsToCache(listId, itemsData) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+    cache[listId] = { items: itemsData, timestamp: Date.now() };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {
+    console.warn("Failed to save items to cache:", e);
+  }
+}
+
+function loadItemsFromCache(listId) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
+    return cache[listId]?.items || null;
+  } catch (e) {
+    console.warn("Failed to load items from cache:", e);
+    return null;
+  }
+}
+
+function saveListsToCache(listsData) {
+  try {
+    localStorage.setItem(CACHE_KEY + "_lists", JSON.stringify(listsData));
+  } catch (e) {
+    console.warn("Failed to save lists to cache:", e);
+  }
+}
+
+function loadListsFromCache() {
+  try {
+    return JSON.parse(localStorage.getItem(CACHE_KEY + "_lists") || "null");
+  } catch (e) {
+    console.warn("Failed to load lists from cache:", e);
+    return null;
+  }
+}
+
+async function prefetchAllItems() {
+  for (const list of lists) {
+    const data = await fetchWithRetry(`/api/lists/${list.id}/items`);
+    if (data) {
+      saveItemsToCache(list.id, data);
+    }
+  }
+}
+
+function updateOfflineIndicator(offline) {
+  isOffline = offline;
+  const indicator = document.getElementById("offlineIndicator");
+  if (indicator) {
+    indicator.classList.toggle("visible", offline);
+  }
+}
+
 // DOM Elements
 const appContainer = document.querySelector(".app");
 const sidebar = document.getElementById("sidebar");
@@ -192,29 +250,55 @@ function updateIconPreview(previewElement, iconKey) {
 // API Functions
 async function fetchLists() {
   const data = await fetchWithRetry("/api/lists");
+
   if (!data) {
-    lists = [];
+    // Try to load from cache when offline
+    const cachedLists = loadListsFromCache();
+    if (cachedLists) {
+      lists = cachedLists;
+      updateOfflineIndicator(true);
+    } else {
+      lists = [];
+    }
     renderNavigation();
+    if (lists.length > 0 && !currentListId) {
+      selectList(lists[0].id);
+    }
     return;
   }
 
+  updateOfflineIndicator(false);
   lists = data;
+  saveListsToCache(data);
   renderNavigation();
 
   if (lists.length > 0 && !currentListId) {
     selectList(lists[0].id);
   }
+
+  // Prefetch all items in background for offline use
+  prefetchAllItems();
 }
 
 async function fetchItems(listId) {
   const data = await fetchWithRetry(`/api/lists/${listId}/items`);
+
   if (!data) {
-    items = [];
+    // Try to load from cache when offline
+    const cachedItems = loadItemsFromCache(listId);
+    if (cachedItems) {
+      items = cachedItems;
+      updateOfflineIndicator(true);
+    } else {
+      items = [];
+    }
     renderItems();
     return;
   }
 
+  updateOfflineIndicator(false);
   items = data;
+  saveItemsToCache(listId, data);
   renderItems();
 }
 
@@ -925,6 +1009,16 @@ function handleSwipe() {
 
 // Initialize
 fetchLists();
+
+// Online/Offline detection
+window.addEventListener("online", () => {
+  updateOfflineIndicator(false);
+  fetchLists(); // Refresh data when back online
+});
+
+window.addEventListener("offline", () => {
+  updateOfflineIndicator(true);
+});
 
 // Register Service Worker with update detection
 if ("serviceWorker" in navigator) {
