@@ -655,17 +655,25 @@ function openEditListModal() {
   editIconOptionsContainer.classList.remove("expanded");
 
   editListModal.classList.add("open");
-  setTimeout(() => editListName.focus(), 100);
+
+  // Only auto-focus on desktop to avoid keyboard popup on mobile
+  if (window.matchMedia("(hover: hover)").matches) {
+    setTimeout(() => editListName.focus(), 100);
+  }
 }
 
 function openEditItemModal(itemId, text) {
   editingItemId = itemId;
   editItemText.value = text;
   editItemModal.classList.add("open");
-  setTimeout(() => {
-    editItemText.focus();
-    editItemText.select();
-  }, 100);
+
+  // Only auto-focus on desktop to avoid keyboard popup on mobile
+  if (window.matchMedia("(hover: hover)").matches) {
+    setTimeout(() => {
+      editItemText.focus();
+      editItemText.select();
+    }, 100);
+  }
 }
 
 /**
