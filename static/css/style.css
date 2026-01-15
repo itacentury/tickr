@@ -311,6 +311,7 @@ ul {
   gap: 8px;
 }
 
+.refresh-btn,
 .edit-list-btn,
 .history-btn,
 .delete-list-btn {
@@ -324,6 +325,7 @@ ul {
   transition: all var(--transition-fast);
 }
 
+.refresh-btn:hover,
 .edit-list-btn:hover,
 .history-btn:hover {
   background: var(--bg-hover);
@@ -335,6 +337,7 @@ ul {
   color: var(--danger);
 }
 
+.refresh-btn svg,
 .edit-list-btn svg,
 .history-btn svg,
 .delete-list-btn svg {

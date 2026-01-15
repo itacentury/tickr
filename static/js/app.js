@@ -22,6 +22,7 @@ const addItemInput = document.getElementById("addItemInput");
 const itemsList = document.getElementById("itemsList");
 const emptyState = document.getElementById("emptyState");
 const historyBtn = document.getElementById("historyBtn");
+const refreshBtn = document.getElementById("refreshBtn");
 const historyPanel = document.getElementById("historyPanel");
 const historyList = document.getElementById("historyList");
 const closeHistoryBtn = document.getElementById("closeHistoryBtn");
@@ -624,6 +625,14 @@ historyBtn.addEventListener("click", () => {
     fetchHistory(currentListId);
     historyPanel.classList.add("open");
     overlay.classList.add("visible");
+  }
+});
+
+// Refresh button
+refreshBtn.addEventListener("click", async () => {
+  if (currentListId) {
+    await fetchLists();
+    await fetchItems(currentListId);
   }
 });
 
