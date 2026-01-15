@@ -1,6 +1,10 @@
-const CACHE_NAME = "todo-app-v1";
+// Generate dynamic cache name with timestamp - changes on each deployment
+const CACHE_VERSION = "1.0.0"; // Update this manually or via build process
+const CACHE_NAME = `tickr-v${CACHE_VERSION}-${
+  self.registration?.scope || "default"
+}`;
+
 const STATIC_ASSETS = [
-  "/",
   "/static/css/style.css",
   "/static/js/app.js",
   "/static/manifest.json",
@@ -38,12 +42,12 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch event - network first for API, cache first for static
+// Fetch event - smart caching strategy
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API requests - network first
+  // API requests - network first, no caching
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(request)
@@ -61,20 +65,47 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets - cache first
+  // HTML pages - network first (always check for updates)
+  if (
+    request.headers.get("accept")?.includes("text/html") ||
+    url.pathname === "/"
+  ) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Cache the updated HTML
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cached HTML when offline
+          return caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            return new Response("Offline - no cached version available", {
+              status: 503,
+              headers: { "Content-Type": "text/plain" },
+            });
+          });
+        })
+    );
+    return;
+  }
+
+  // Static assets (CSS, JS, images) - stale-while-revalidate
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
-      return fetch(request).then((response) => {
+      const fetchPromise = fetch(request).then((response) => {
         // Don't cache non-successful responses
         if (!response || response.status !== 200 || response.type !== "basic") {
           return response;
         }
 
-        // Clone response for caching
+        // Update cache in background
         const responseToCache = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(request, responseToCache);
@@ -82,6 +113,9 @@ self.addEventListener("fetch", (event) => {
 
         return response;
       });
+
+      // Return cached response immediately if available, but update cache in background
+      return cachedResponse || fetchPromise;
     })
   );
 });
@@ -97,3 +131,10 @@ async function syncItems() {
   // Implementation for syncing offline-created items
   console.log("Syncing items...");
 }
+
+// Listen for skip waiting message from client
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});

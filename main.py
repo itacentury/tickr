@@ -373,20 +373,33 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def read_root():
-    """Serve the main HTML page."""
-    return FileResponse("templates/index.html")
+    """Serve the main HTML page with no-cache headers."""
+    response = FileResponse("templates/index.html")
+    # Prevent caching of the main HTML page to ensure users get updates
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @app.get("/manifest.json")
 def manifest():
-    """Serve the PWA manifest file."""
-    return FileResponse("static/manifest.json")
+    """Serve the PWA manifest file with short cache."""
+    response = FileResponse("static/manifest.json")
+    # Cache manifest for 1 hour, but allow revalidation
+    response.headers["Cache-Control"] = "public, max-age=3600, must-revalidate"
+    return response
 
 
 @app.get("/sw.js")
 def service_worker():
-    """Serve the service worker script."""
-    return FileResponse("static/sw.js", media_type="application/javascript")
+    """Serve the service worker script with no-cache headers."""
+    response = FileResponse("static/sw.js", media_type="application/javascript")
+    # Service worker must not be cached to ensure updates are detected
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 if __name__ == "__main__":

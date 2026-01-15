@@ -780,12 +780,126 @@ function handleSwipe() {
 // Initialize
 fetchLists();
 
-// Register Service Worker
+// Register Service Worker with update detection
 if ("serviceWorker" in navigator) {
+  let refreshing = false;
+
+  // Reload page when new service worker takes control
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/sw.js")
-      .then((reg) => console.log("Service Worker registered"))
+      .then((reg) => {
+        console.log("Service Worker registered");
+
+        // Check for updates every 60 seconds
+        setInterval(() => {
+          reg.update();
+        }, 60000);
+
+        // Handle waiting service worker
+        if (reg.waiting) {
+          showUpdateNotification(reg.waiting);
+        }
+
+        // Handle installing service worker
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener("statechange", () => {
+            if (
+              newWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
+              // New service worker available
+              showUpdateNotification(newWorker);
+            }
+          });
+        });
+      })
       .catch((err) => console.log("Service Worker registration failed:", err));
   });
+
+  /**
+   * Show update notification to user.
+   *
+   * @param {ServiceWorker} worker - The waiting service worker
+   */
+  function showUpdateNotification(worker) {
+    const notification = document.createElement("div");
+    notification.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #4a5568;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+      animation: slideUp 0.3s ease-out;
+    `;
+
+    notification.innerHTML = `
+      <span>New version available!</span>
+      <button id="update-btn" style="
+        background: #48bb78;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+      ">Update</button>
+      <button id="dismiss-btn" style="
+        background: transparent;
+        color: white;
+        border: 1px solid white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      ">Later</button>
+    `;
+
+    // Add animation keyframes
+    if (!document.querySelector("#sw-update-styles")) {
+      const style = document.createElement("style");
+      style.id = "sw-update-styles";
+      style.textContent = `
+        @keyframes slideUp {
+          from {
+            transform: translateX(-50%) translateY(100px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.body.appendChild(notification);
+
+    // Update button handler
+    document.getElementById("update-btn").addEventListener("click", () => {
+      worker.postMessage({ type: "SKIP_WAITING" });
+      notification.remove();
+    });
+
+    // Dismiss button handler
+    document.getElementById("dismiss-btn").addEventListener("click", () => {
+      notification.remove();
+    });
+  }
 }
