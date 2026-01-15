@@ -10,6 +10,28 @@ let selectedIcon = "list";
 let editingItemId = null;
 let editSelectedIcon = "list";
 
+// API Helper with retry logic
+async function fetchWithRetry(url, options = {}, retries = 3, delay = 500) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      if (attempt === retries) {
+        console.error(
+          `Failed to fetch ${url} after ${retries} attempts:`,
+          error
+        );
+        return null;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay * attempt));
+    }
+  }
+}
+
 // DOM Elements
 const appContainer = document.querySelector(".app");
 const sidebar = document.getElementById("sidebar");
@@ -169,8 +191,14 @@ function updateIconPreview(previewElement, iconKey) {
 
 // API Functions
 async function fetchLists() {
-  const response = await fetch("/api/lists");
-  lists = await response.json();
+  const data = await fetchWithRetry("/api/lists");
+  if (!data) {
+    lists = [];
+    renderNavigation();
+    return;
+  }
+
+  lists = data;
   renderNavigation();
 
   if (lists.length > 0 && !currentListId) {
@@ -179,8 +207,14 @@ async function fetchLists() {
 }
 
 async function fetchItems(listId) {
-  const response = await fetch(`/api/lists/${listId}/items`);
-  items = await response.json();
+  const data = await fetchWithRetry(`/api/lists/${listId}/items`);
+  if (!data) {
+    items = [];
+    renderItems();
+    return;
+  }
+
+  items = data;
   renderItems();
 }
 
