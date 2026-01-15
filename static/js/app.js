@@ -36,6 +36,9 @@ const newListForm = document.getElementById("newListForm");
 const newListName = document.getElementById("newListName");
 const cancelNewList = document.getElementById("cancelNewList");
 const iconOptions = document.querySelectorAll("#iconOptions .icon-option");
+const iconPickerToggle = document.getElementById("iconPickerToggle");
+const iconOptionsContainer = document.getElementById("iconOptions");
+const iconPreview = document.getElementById("iconPreview");
 
 // Edit List Modal
 const editListModal = document.getElementById("editListModal");
@@ -45,6 +48,9 @@ const cancelEditList = document.getElementById("cancelEditList");
 const editIconOptions = document.querySelectorAll(
   "#editIconOptions .icon-option"
 );
+const editIconPickerToggle = document.getElementById("editIconPickerToggle");
+const editIconOptionsContainer = document.getElementById("editIconOptions");
+const editIconPreview = document.getElementById("editIconPreview");
 
 // Edit Item Modal
 const editItemModal = document.getElementById("editItemModal");
@@ -101,7 +107,64 @@ const icons = {
         <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
         <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
     </svg>`,
+  book: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+    </svg>`,
+  film: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+        <line x1="7" y1="2" x2="7" y2="22"></line>
+        <line x1="17" y1="2" x2="17" y2="22"></line>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <line x1="2" y1="7" x2="7" y2="7"></line>
+        <line x1="2" y1="17" x2="7" y2="17"></line>
+        <line x1="17" y1="17" x2="22" y2="17"></line>
+        <line x1="17" y1="7" x2="22" y2="7"></line>
+    </svg>`,
+  server: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+        <line x1="6" y1="6" x2="6.01" y2="6"></line>
+        <line x1="6" y1="18" x2="6.01" y2="18"></line>
+    </svg>`,
+  disc: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="3"></circle>
+    </svg>`,
+  shoppingBag: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <path d="M16 10a4 4 0 0 1-8 0"></path>
+    </svg>`,
+  package: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line>
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+    </svg>`,
+  tool: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+    </svg>`,
+  tv: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+        <polyline points="17 2 12 7 7 2"></polyline>
+    </svg>`,
+  activity: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+    </svg>`,
 };
+
+/**
+ * Update the icon preview in the toggle button.
+ *
+ * @param {HTMLElement} previewElement - The preview container element
+ * @param {string} iconKey - The icon key from the icons object
+ */
+function updateIconPreview(previewElement, iconKey) {
+  if (previewElement && icons[iconKey]) {
+    previewElement.innerHTML = icons[iconKey];
+  }
+}
 
 // API Functions
 async function fetchLists() {
@@ -463,9 +526,14 @@ function openEditListModal() {
   editSelectedIcon = list.icon || "list";
   editListSort.value = list.item_sort || "alphabetical";
 
+  updateIconPreview(editIconPreview, editSelectedIcon);
   editIconOptions.forEach((opt) => {
     opt.classList.toggle("selected", opt.dataset.icon === editSelectedIcon);
   });
+
+  // Reset icon picker to collapsed state
+  editIconPickerToggle.classList.remove("open");
+  editIconOptionsContainer.classList.remove("expanded");
 
   editListModal.classList.add("open");
   setTimeout(() => editListName.focus(), 100);
@@ -528,6 +596,18 @@ overlay.addEventListener("click", () => {
   overlay.classList.remove("visible");
 });
 
+// Icon picker toggle for new list modal
+iconPickerToggle.addEventListener("click", () => {
+  iconPickerToggle.classList.toggle("open");
+  iconOptionsContainer.classList.toggle("expanded");
+});
+
+// Icon picker toggle for edit list modal
+editIconPickerToggle.addEventListener("click", () => {
+  editIconPickerToggle.classList.toggle("open");
+  editIconOptionsContainer.classList.toggle("expanded");
+});
+
 // Add item form
 addItemForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -569,9 +649,13 @@ addListBtn.addEventListener("click", () => {
   newListModal.classList.add("open");
   newListName.value = "";
   selectedIcon = "list";
+  updateIconPreview(iconPreview, selectedIcon);
   iconOptions.forEach((opt) => {
     opt.classList.toggle("selected", opt.dataset.icon === selectedIcon);
   });
+  // Reset icon picker to collapsed state
+  iconPickerToggle.classList.remove("open");
+  iconOptionsContainer.classList.remove("expanded");
   setTimeout(() => newListName.focus(), 100);
 });
 
@@ -579,6 +663,7 @@ addListBtn.addEventListener("click", () => {
 iconOptions.forEach((option) => {
   option.addEventListener("click", () => {
     selectedIcon = option.dataset.icon;
+    updateIconPreview(iconPreview, selectedIcon);
     iconOptions.forEach((opt) => {
       opt.classList.toggle("selected", opt.dataset.icon === selectedIcon);
     });
@@ -589,6 +674,7 @@ iconOptions.forEach((option) => {
 editIconOptions.forEach((option) => {
   option.addEventListener("click", () => {
     editSelectedIcon = option.dataset.icon;
+    updateIconPreview(editIconPreview, editSelectedIcon);
     editIconOptions.forEach((opt) => {
       opt.classList.toggle("selected", opt.dataset.icon === editSelectedIcon);
     });
