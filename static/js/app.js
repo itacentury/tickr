@@ -853,23 +853,40 @@ function handleSwipe() {
   const currentIndex = lists.findIndex((l) => l.id === currentListId);
   if (currentIndex === -1) return;
 
-  if (deltaX < 0) {
+  // Determine direction and target list
+  let targetListId;
+  const swipeLeft = deltaX < 0;
+
+  if (swipeLeft) {
     // Swipe left → next list
     const nextIndex = currentIndex + 1;
-    if (nextIndex < lists.length) {
-      selectList(lists[nextIndex].id);
-    } else {
-      selectList(lists[0].id);
-    }
+    targetListId = nextIndex < lists.length ? lists[nextIndex].id : lists[0].id;
   } else {
     // Swipe right → previous list
     const prevIndex = currentIndex - 1;
-    if (prevIndex >= 0) {
-      selectList(lists[prevIndex].id);
-    } else {
-      selectList(lists[lists.length - 1].id);
-    }
+    targetListId =
+      prevIndex >= 0 ? lists[prevIndex].id : lists[lists.length - 1].id;
   }
+
+  // Animate the transition
+  const outClass = swipeLeft ? "swipe-out-left" : "swipe-out-right";
+  const inClass = swipeLeft ? "swipe-in-left" : "swipe-in-right";
+
+  itemsList.classList.add(outClass);
+  listTitle.classList.add("fade-out");
+
+  setTimeout(() => {
+    itemsList.classList.remove(outClass);
+    listTitle.classList.remove("fade-out");
+    selectList(targetListId);
+    itemsList.classList.add(inClass);
+    listTitle.classList.add("fade-in");
+
+    setTimeout(() => {
+      itemsList.classList.remove(inClass);
+      listTitle.classList.remove("fade-in");
+    }, 150);
+  }, 150);
 }
 
 // Initialize
