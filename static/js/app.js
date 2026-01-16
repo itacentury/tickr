@@ -330,7 +330,7 @@ async function updateList(listId, name, icon, itemSort) {
   // Update title and reload items if it's the current list
   if (listId === currentListId) {
     listTitle.textContent = name;
-    document.title = `${name} - Todos`;
+    document.title = `${name} - Tickr`;
     // Reload items to apply new sorting
     await fetchItems(currentListId);
   }
@@ -582,7 +582,7 @@ function selectList(listId) {
   const list = lists.find((l) => l.id === listId);
   if (list) {
     listTitle.textContent = list.name;
-    document.title = `${list.name} - Todos`;
+    document.title = `${list.name} - Tickr`;
   }
 
   // Update active state in navigation
