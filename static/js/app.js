@@ -657,6 +657,11 @@ function selectList(listId) {
   if (list) {
     listTitle.textContent = list.name;
     document.title = `${list.name} - Tickr`;
+    // Update header icon
+    const listTitleIcon = document.getElementById("listTitleIcon");
+    if (listTitleIcon) {
+      listTitleIcon.innerHTML = icons[list.icon] || icons.list;
+    }
   }
 
   // Update active state in navigation
