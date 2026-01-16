@@ -32,6 +32,35 @@ async function fetchWithRetry(url, options = {}, retries = 3, delay = 500) {
   }
 }
 
+// API Helper for write operations (POST, PUT, DELETE) with retry logic
+async function fetchWriteWithRetry(
+  url,
+  options = {},
+  retries = 2,
+  delay = 500
+) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      // Return JSON if there's content, otherwise return true for success
+      const text = await response.text();
+      return text ? JSON.parse(text) : true;
+    } catch (error) {
+      if (attempt === retries) {
+        console.error(
+          `Failed to write ${url} after ${retries} attempts:`,
+          error
+        );
+        return null;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay * attempt));
+    }
+  }
+}
+
 // Offline cache for items
 const CACHE_KEY = "tickr_items_cache";
 let isOffline = false;
@@ -83,10 +112,13 @@ async function prefetchAllItems() {
 }
 
 function updateOfflineIndicator(offline) {
-  isOffline = offline;
+  // Only show offline indicator if browser also reports offline
+  // This prevents false positives from single failed requests
+  const actuallyOffline = offline && !navigator.onLine;
+  isOffline = actuallyOffline;
   const indicator = document.getElementById("offlineIndicator");
   if (indicator) {
-    indicator.classList.toggle("visible", offline);
+    indicator.classList.toggle("visible", actuallyOffline);
   }
 }
 
@@ -309,22 +341,33 @@ async function fetchHistory(listId) {
 }
 
 async function createList(name, icon) {
-  const response = await fetch("/api/lists", {
+  const newList = await fetchWriteWithRetry("/api/lists", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, icon }),
   });
-  const newList = await response.json();
+
+  if (!newList) {
+    console.warn("Failed to create list");
+    return;
+  }
+
   await fetchLists();
   selectList(newList.id);
 }
 
 async function updateList(listId, name, icon, itemSort) {
-  await fetch(`/api/lists/${listId}`, {
+  const result = await fetchWriteWithRetry(`/api/lists/${listId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, icon, item_sort: itemSort }),
   });
+
+  if (!result) {
+    console.warn("Failed to update list, will retry on next sync");
+    return;
+  }
+
   await fetchLists();
 
   // Update title and reload items if it's the current list
@@ -337,7 +380,15 @@ async function updateList(listId, name, icon, itemSort) {
 }
 
 async function deleteList(listId) {
-  await fetch(`/api/lists/${listId}`, { method: "DELETE" });
+  const result = await fetchWriteWithRetry(`/api/lists/${listId}`, {
+    method: "DELETE",
+  });
+
+  if (!result) {
+    console.warn("Failed to delete list");
+    return;
+  }
+
   await fetchLists();
 
   if (lists.length > 0) {
@@ -351,21 +402,36 @@ async function deleteList(listId) {
 }
 
 async function createItem(text) {
-  await fetch(`/api/lists/${currentListId}/items`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
+  const result = await fetchWriteWithRetry(
+    `/api/lists/${currentListId}/items`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    }
+  );
+
+  if (!result) {
+    console.warn("Failed to create item");
+    return;
+  }
+
   await fetchItems(currentListId);
   await fetchLists();
 }
 
 async function updateItem(itemId, data) {
-  await fetch(`/api/items/${itemId}`, {
+  const result = await fetchWriteWithRetry(`/api/items/${itemId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+
+  if (!result) {
+    console.warn("Failed to update item");
+    return;
+  }
+
   await fetchItems(currentListId);
   await fetchLists();
 
@@ -376,7 +442,15 @@ async function updateItem(itemId, data) {
 }
 
 async function deleteItem(itemId) {
-  await fetch(`/api/items/${itemId}`, { method: "DELETE" });
+  const result = await fetchWriteWithRetry(`/api/items/${itemId}`, {
+    method: "DELETE",
+  });
+
+  if (!result) {
+    console.warn("Failed to delete item");
+    return;
+  }
+
   await fetchItems(currentListId);
   await fetchLists();
 }
