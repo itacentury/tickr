@@ -9,6 +9,7 @@ let items = [];
 let selectedIcon = "list";
 let editingItemId = null;
 let editSelectedIcon = "list";
+let appSettings = { list_sort: "alphabetical" };
 
 // API Helper with retry logic
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 500) {
@@ -280,6 +281,50 @@ function updateIconPreview(previewElement, iconKey) {
 }
 
 // API Functions
+async function fetchSettings() {
+  const data = await fetchWithRetry("/api/settings");
+  if (data) {
+    appSettings = data;
+  }
+}
+
+async function updateSettings(settings) {
+  console.log("updateSettings called with:", settings);
+  const result = await fetchWriteWithRetry("/api/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  console.log("API result:", result);
+
+  if (!result) {
+    console.warn("Failed to update settings");
+    return false;
+  }
+
+  // Update local state and refresh lists
+  Object.assign(appSettings, settings);
+  console.log("appSettings updated:", appSettings);
+  await fetchLists();
+  console.log("Lists refreshed");
+  return true;
+}
+
+async function reorderLists(listIds) {
+  const result = await fetchWriteWithRetry("/api/lists/reorder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ list_ids: listIds }),
+  });
+
+  if (!result) {
+    console.warn("Failed to reorder lists");
+    return false;
+  }
+
+  return true;
+}
+
 async function fetchLists() {
   const data = await fetchWithRetry("/api/lists");
 
@@ -467,6 +512,8 @@ function updateNoListsState() {
 // Render Functions
 function renderNavigation() {
   updateNoListsState();
+  const isCustomSort = appSettings.list_sort === "custom";
+
   navList.innerHTML = lists
     .map((list) => {
       const totalItems = list.total_items || 0;
@@ -474,7 +521,9 @@ function renderNavigation() {
       const remainingItems = totalItems - completedItems;
 
       return `
-            <li class="nav-item">
+            <li class="nav-item" data-list-id="${list.id}" ${
+        isCustomSort ? 'draggable="true"' : ""
+      }>
                 <button class="nav-link ${
                   list.id === currentListId ? "active" : ""
                 }"
@@ -502,6 +551,89 @@ function renderNavigation() {
       closeMobileMenu();
     });
   });
+
+  // Add drag & drop handlers if custom sort is enabled
+  if (isCustomSort) {
+    setupDragAndDrop();
+  }
+}
+
+let draggedItem = null;
+
+function setupDragAndDrop() {
+  const navItems = navList.querySelectorAll(".nav-item");
+
+  navItems.forEach((item) => {
+    item.addEventListener("dragstart", handleDragStart);
+    item.addEventListener("dragend", handleDragEnd);
+    item.addEventListener("dragover", handleDragOver);
+    item.addEventListener("dragenter", handleDragEnter);
+    item.addEventListener("dragleave", handleDragLeave);
+    item.addEventListener("drop", handleDrop);
+  });
+}
+
+function handleDragStart(e) {
+  draggedItem = this;
+  this.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", this.dataset.listId);
+}
+
+function handleDragEnd() {
+  this.classList.remove("dragging");
+  navList.querySelectorAll(".nav-item").forEach((item) => {
+    item.classList.remove("drag-over");
+  });
+  draggedItem = null;
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+}
+
+function handleDragEnter(e) {
+  e.preventDefault();
+  if (this !== draggedItem) {
+    this.classList.add("drag-over");
+  }
+}
+
+function handleDragLeave() {
+  this.classList.remove("drag-over");
+}
+
+async function handleDrop(e) {
+  e.preventDefault();
+  this.classList.remove("drag-over");
+
+  if (this === draggedItem) {
+    return;
+  }
+
+  // Get new order
+  const navItems = Array.from(navList.querySelectorAll(".nav-item"));
+  const draggedIndex = navItems.indexOf(draggedItem);
+  const dropIndex = navItems.indexOf(this);
+
+  // Move the dragged item in the DOM
+  if (draggedIndex < dropIndex) {
+    this.parentNode.insertBefore(draggedItem, this.nextSibling);
+  } else {
+    this.parentNode.insertBefore(draggedItem, this);
+  }
+
+  // Get new list order
+  const newOrder = Array.from(navList.querySelectorAll(".nav-item")).map(
+    (item) => parseInt(item.dataset.listId)
+  );
+
+  // Save to server
+  await reorderLists(newOrder);
+
+  // Refresh to get updated sort_order values
+  await fetchLists();
 }
 
 function renderItems() {
@@ -981,6 +1113,37 @@ deleteConfirmModal.addEventListener("click", (e) => {
   }
 });
 
+// Settings modal
+const settingsModal = document.getElementById("settingsModal");
+const settingsBtn = document.getElementById("settingsBtn");
+const listSortSetting = document.getElementById("listSortSetting");
+const cancelSettings = document.getElementById("cancelSettings");
+const saveSettings = document.getElementById("saveSettings");
+
+settingsBtn.addEventListener("click", () => {
+  listSortSetting.value = appSettings.list_sort || "alphabetical";
+  settingsModal.classList.add("open");
+  closeMobileMenu();
+});
+
+cancelSettings.addEventListener("click", () => {
+  settingsModal.classList.remove("open");
+});
+
+saveSettings.addEventListener("click", async () => {
+  const newListSort = listSortSetting.value;
+  console.log("Saving settings:", { list_sort: newListSort });
+  const success = await updateSettings({ list_sort: newListSort });
+  console.log("Settings saved:", success);
+  settingsModal.classList.remove("open");
+});
+
+settingsModal.addEventListener("click", (e) => {
+  if (e.target === settingsModal) {
+    settingsModal.classList.remove("open");
+  }
+});
+
 // Keyboard shortcuts
 document.addEventListener("keydown", (e) => {
   // Escape to close modals/panels
@@ -988,6 +1151,7 @@ document.addEventListener("keydown", (e) => {
     newListModal.classList.remove("open");
     editListModal.classList.remove("open");
     editItemModal.classList.remove("open");
+    settingsModal.classList.remove("open");
     editingItemId = null;
     closeDeleteConfirmModal();
     historyPanel.classList.remove("open");
@@ -1095,7 +1259,11 @@ function handleSwipe() {
 }
 
 // Initialize
-fetchLists();
+async function init() {
+  await fetchSettings();
+  await fetchLists();
+}
+init();
 
 // Online/Offline detection
 window.addEventListener("online", () => {

@@ -53,16 +53,46 @@ def init_db():
             name TEXT NOT NULL,
             icon TEXT DEFAULT 'list',
             item_sort TEXT DEFAULT 'alphabetical',
+            sort_order INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """
     )
 
-    # Migration: Add item_sort column if it doesn't exist (for existing databases)
+    # Migration: Add columns if they don't exist (for existing databases)
     cursor.execute("PRAGMA table_info(lists)")
     columns = [row[1] for row in cursor.fetchall()]
     if "item_sort" not in columns:
         cursor.execute("ALTER TABLE lists ADD COLUMN item_sort TEXT DEFAULT 'alphabetical'")
+    if "sort_order" not in columns:
+        cursor.execute("ALTER TABLE lists ADD COLUMN sort_order INTEGER DEFAULT 0")
+        # Initialize sort_order based on existing order
+        cursor.execute("SELECT id FROM lists ORDER BY created_at")
+        for idx, row in enumerate(cursor.fetchall()):
+            cursor.execute("UPDATE lists SET sort_order = ? WHERE id = ?", (idx, row[0]))
+
+    # Settings table for global app settings
+    # Migration: Check if old settings table exists with wrong schema
+    cursor.execute("PRAGMA table_info(settings)")
+    settings_columns = [row[1] for row in cursor.fetchall()]
+    if settings_columns and "key" not in settings_columns:
+        # Old schema detected, drop and recreate
+        cursor.execute("DROP TABLE settings")
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    """
+    )
+
+    # Initialize default settings
+    cursor.execute(
+        "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+        ("list_sort", "alphabetical"),
+    )
 
     # Items table
     cursor.execute(
@@ -132,8 +162,29 @@ class ItemUpdate(BaseModel):
     completed: bool | None = None
 
 
+class SettingsUpdate(BaseModel):
+    """Request model for updating app settings."""
+
+    list_sort: str | None = None
+
+
+class ListReorder(BaseModel):
+    """Request model for reordering lists."""
+
+    list_ids: list[int]
+
+
 # Valid sort options for items
 VALID_SORT_OPTIONS = ["alphabetical", "alphabetical_desc", "created_desc", "created_asc"]
+
+# Valid sort options for lists
+VALID_LIST_SORT_OPTIONS = [
+    "alphabetical",
+    "alphabetical_desc",
+    "created_desc",
+    "created_asc",
+    "custom",
+]
 
 
 # API Routes
@@ -142,17 +193,33 @@ VALID_SORT_OPTIONS = ["alphabetical", "alphabetical_desc", "created_desc", "crea
 # Lists
 @app.get("/api/lists")
 def get_lists(db: sqlite3.Connection = Depends(get_db)):
-    """Return all lists with item counts."""
+    """Return all lists with item counts, sorted according to settings."""
     cursor = db.cursor()
+
+    # Get list sort preference from settings
+    cursor.execute("SELECT value FROM settings WHERE key = 'list_sort'")
+    row = cursor.fetchone()
+    list_sort = row["value"] if row else "alphabetical"
+
+    # Determine ORDER BY clause based on sort preference
+    list_sort_sql = {
+        "alphabetical": "l.name COLLATE NOCASE ASC",
+        "alphabetical_desc": "l.name COLLATE NOCASE DESC",
+        "created_desc": "l.created_at DESC",
+        "created_asc": "l.created_at ASC",
+        "custom": "l.sort_order, l.created_at",
+    }
+    order_by = list_sort_sql.get(list_sort, list_sort_sql["alphabetical"])
+
     cursor.execute(
-        """
+        f"""
         SELECT l.*,
                COUNT(i.id) as total_items,
                SUM(CASE WHEN i.completed = 1 THEN 1 ELSE 0 END) as completed_items
         FROM lists l
         LEFT JOIN items i ON l.id = i.list_id
         GROUP BY l.id
-        ORDER BY l.created_at
+        ORDER BY {order_by}
     """
     )
     rows = cursor.fetchall()
@@ -163,7 +230,15 @@ def get_lists(db: sqlite3.Connection = Depends(get_db)):
 def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db)):
     """Create a new list and log to history."""
     cursor = db.cursor()
-    cursor.execute("INSERT INTO lists (name, icon) VALUES (?, ?)", (list_data.name, list_data.icon))
+
+    # Get next sort_order value
+    cursor.execute("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM lists")
+    next_sort_order = cursor.fetchone()[0]
+
+    cursor.execute(
+        "INSERT INTO lists (name, icon, sort_order) VALUES (?, ?, ?)",
+        (list_data.name, list_data.icon, next_sort_order),
+    )
     db.commit()
     list_id = cursor.lastrowid
 
@@ -342,6 +417,49 @@ def delete_item(item_id: int, db: sqlite3.Connection = Depends(get_db)):
         )
 
     cursor.execute("DELETE FROM items WHERE id = ?", (item_id,))
+    db.commit()
+    return {"success": True}
+
+
+# Settings
+@app.get("/api/settings")
+def get_settings(db: sqlite3.Connection = Depends(get_db)):
+    """Return all app settings."""
+    cursor = db.cursor()
+    cursor.execute("SELECT key, value FROM settings")
+    rows = cursor.fetchall()
+    return {row["key"]: row["value"] for row in rows}
+
+
+@app.put("/api/settings")
+def update_settings(settings_data: SettingsUpdate, db: sqlite3.Connection = Depends(get_db)):
+    """Update app settings."""
+    cursor = db.cursor()
+
+    if settings_data.list_sort is not None:
+        if settings_data.list_sort not in VALID_LIST_SORT_OPTIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid list sort option. Valid: {', '.join(VALID_LIST_SORT_OPTIONS)}",
+            )
+        cursor.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+            ("list_sort", settings_data.list_sort),
+        )
+
+    db.commit()
+    return {"success": True}
+
+
+# List reordering
+@app.post("/api/lists/reorder")
+def reorder_lists(reorder_data: ListReorder, db: sqlite3.Connection = Depends(get_db)):
+    """Update the sort order of lists based on provided order."""
+    cursor = db.cursor()
+
+    for idx, list_id in enumerate(reorder_data.list_ids):
+        cursor.execute("UPDATE lists SET sort_order = ? WHERE id = ?", (idx, list_id))
+
     db.commit()
     return {"success": True}
 
