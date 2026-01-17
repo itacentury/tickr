@@ -443,7 +443,9 @@ async function fetchItems(listId) {
 }
 
 async function fetchHistory(listId) {
-  const response = await fetch(`/api/lists/${listId}/history`);
+  const response = await fetch(`/api/lists/${listId}/history`, {
+    cache: "no-store",
+  });
   const history = await response.json();
   renderHistory(history);
 }
@@ -509,15 +511,29 @@ async function deleteList(listId) {
   }
 }
 
-async function createItem(text) {
-  const result = await fetchWriteWithRetry(
-    `/api/lists/${currentListId}/items`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    },
-  );
+async function createItem(listIdOrText, text, undo = false) {
+  // Support both createItem(text) and createItem(listId, text, undo)
+  let listId, itemText, isUndo;
+  if (typeof text === "string") {
+    listId = listIdOrText;
+    itemText = text;
+    isUndo = undo;
+  } else if (typeof text === "boolean") {
+    // createItem(text, undo) format
+    listId = currentListId;
+    itemText = listIdOrText;
+    isUndo = text;
+  } else {
+    listId = currentListId;
+    itemText = listIdOrText;
+    isUndo = false;
+  }
+
+  const result = await fetchWriteWithRetry(`/api/lists/${listId}/items`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: itemText, undo: isUndo }),
+  });
 
   if (!result) {
     console.warn("Failed to create item");
@@ -526,6 +542,11 @@ async function createItem(text) {
 
   await fetchItems(currentListId);
   await fetchLists();
+
+  // Refresh history if panel is open
+  if (historyPanel.classList.contains("open")) {
+    await fetchHistory(currentListId);
+  }
 }
 
 async function updateItem(itemId, data) {
@@ -545,12 +566,13 @@ async function updateItem(itemId, data) {
 
   // Refresh history if panel is open
   if (historyPanel.classList.contains("open")) {
-    fetchHistory(currentListId);
+    await fetchHistory(currentListId);
   }
 }
 
-async function deleteItem(itemId) {
-  const result = await fetchWriteWithRetry(`/api/items/${itemId}`, {
+async function deleteItem(itemId, undo = false) {
+  const url = undo ? `/api/items/${itemId}?undo=true` : `/api/items/${itemId}`;
+  const result = await fetchWriteWithRetry(url, {
     method: "DELETE",
   });
 
@@ -561,6 +583,11 @@ async function deleteItem(itemId) {
 
   await fetchItems(currentListId);
   await fetchLists();
+
+  // Refresh history if panel is open
+  if (historyPanel.classList.contains("open")) {
+    await fetchHistory(currentListId);
+  }
 }
 
 // Helper function to update no-lists state
@@ -790,7 +817,59 @@ function renderHistory(history) {
     item_deleted: { text: "Gelöscht", class: "deleted" },
     item_edited: { text: "Bearbeitet", class: "edited" },
     list_created: { text: "Liste erstellt", class: "created" },
+    // Undo action labels
+    undo_created: { text: "Hinzufügen rückgängig", class: "undo" },
+    undo_completed: { text: "Erledigen rückgängig", class: "undo" },
+    undo_uncompleted: { text: "Öffnen rückgängig", class: "undo" },
+    undo_deleted: { text: "Löschen rückgängig", class: "undo" },
+    undo_edited: { text: "Bearbeitung rückgängig", class: "undo" },
   };
+
+  // Generate undo button HTML based on action type
+  function getUndoButton(entry) {
+    const itemExists = entry.item_current_text !== null;
+
+    switch (entry.action) {
+      case "item_created":
+        // Undo = delete the item (only if it still exists)
+        if (itemExists) {
+          return `<button class="history-undo-btn" data-action="delete" data-item-id="${entry.item_id}">Löschen</button>`;
+        }
+        return "";
+
+      case "item_completed":
+        // Undo = reopen the item (only if it exists and is still completed)
+        if (itemExists && entry.item_current_completed === 1) {
+          return `<button class="history-undo-btn" data-action="uncomplete" data-item-id="${entry.item_id}">Wieder öffnen</button>`;
+        }
+        return "";
+
+      case "item_uncompleted":
+        // Undo = complete the item again (only if it exists and is not completed)
+        if (itemExists && entry.item_current_completed === 0) {
+          return `<button class="history-undo-btn" data-action="complete" data-item-id="${entry.item_id}">Erledigen</button>`;
+        }
+        return "";
+
+      case "item_deleted":
+        // Undo = restore the item by creating a new one with the saved text
+        if (entry.item_text) {
+          return `<button class="history-undo-btn" data-action="restore" data-list-id="${entry.list_id}" data-text="${escapeHtml(entry.item_text)}">Wiederherstellen</button>`;
+        }
+        return "";
+
+      case "item_edited":
+        // Undo = restore the old text (extract from "old → new" format)
+        if (itemExists && entry.item_text && entry.item_text.includes(" → ")) {
+          const oldText = entry.item_text.split(" → ")[0];
+          return `<button class="history-undo-btn" data-action="revert-edit" data-item-id="${entry.item_id}" data-old-text="${escapeHtml(oldText)}">Rückgängig</button>`;
+        }
+        return "";
+
+      default:
+        return "";
+    }
+  }
 
   historyList.innerHTML = history
     .map((entry) => {
@@ -799,11 +878,7 @@ function renderHistory(history) {
         class: "",
       };
 
-      // Show restore button for completed items that still exist and are still completed
-      const showRestoreBtn =
-        entry.action === "item_completed" &&
-        entry.item_id &&
-        entry.item_current_completed === 1;
+      const undoButton = getUndoButton(entry);
 
       return `
             <li class="history-item">
@@ -820,14 +895,8 @@ function renderHistory(history) {
                       entry.timestamp,
                     )}</div>
                     ${
-                      showRestoreBtn
-                        ? `
-                        <div class="history-actions">
-                            <button class="history-restore-btn" data-item-id="${entry.item_id}">
-                                Wieder öffnen
-                            </button>
-                        </div>
-                    `
+                      undoButton
+                        ? `<div class="history-actions">${undoButton}</div>`
                         : ""
                     }
                 </div>
@@ -836,11 +905,45 @@ function renderHistory(history) {
     })
     .join("");
 
-  // Add restore button handlers
-  historyList.querySelectorAll(".history-restore-btn").forEach((btn) => {
+  // Add undo button handlers
+  historyList.querySelectorAll(".history-undo-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const itemId = parseInt(btn.dataset.itemId);
-      await updateItem(itemId, { completed: false });
+      const action = btn.dataset.action;
+
+      switch (action) {
+        case "delete":
+          await deleteItem(parseInt(btn.dataset.itemId), true);
+          break;
+
+        case "uncomplete":
+          await updateItem(parseInt(btn.dataset.itemId), {
+            completed: false,
+            undo: true,
+          });
+          break;
+
+        case "complete":
+          await updateItem(parseInt(btn.dataset.itemId), {
+            completed: true,
+            undo: true,
+          });
+          break;
+
+        case "restore":
+          await createItem(
+            parseInt(btn.dataset.listId),
+            btn.dataset.text,
+            true,
+          );
+          break;
+
+        case "revert-edit":
+          await updateItem(parseInt(btn.dataset.itemId), {
+            text: btn.dataset.oldText,
+            undo: true,
+          });
+          break;
+      }
     });
   });
 }

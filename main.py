@@ -31,7 +31,7 @@ DATABASE = "data/tickr.db"
 
 def get_db():
     """Yield a database connection for dependency injection."""
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect(DATABASE, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -153,6 +153,7 @@ class ItemCreate(BaseModel):
     """Request model for creating a new item."""
 
     text: str
+    undo: bool = False
 
 
 class ItemUpdate(BaseModel):
@@ -160,6 +161,7 @@ class ItemUpdate(BaseModel):
 
     text: str | None = None
     completed: bool | None = None
+    undo: bool = False
 
 
 class SettingsUpdate(BaseModel):
@@ -338,10 +340,11 @@ def create_item(list_id: int, item_data: ItemCreate, db: sqlite3.Connection = De
     db.commit()
     item_id = cursor.lastrowid
 
-    # Log to history
+    # Log to history (use undo action type if this is restoring a deleted item)
+    action = "undo_deleted" if item_data.undo else "item_created"
     cursor.execute(
         "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-        (list_id, item_id, "item_created", item_data.text),
+        (list_id, item_id, action, item_data.text),
     )
     db.commit()
 
@@ -366,10 +369,11 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
         updates.append("text = ?")
         values.append(item_data.text)
 
-        # Log text edit to history
+        # Log text edit to history (use undo action type if this is an undo)
+        action = "undo_edited" if item_data.undo else "item_edited"
         cursor.execute(
             "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-            (item["list_id"], item_id, "item_edited", f"{item['text']} → {item_data.text}"),
+            (item["list_id"], item_id, action, f"{item['text']} → {item_data.text}"),
         )
 
     if item_data.completed is not None:
@@ -379,18 +383,20 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
             updates.append("completed_at = ?")
             values.append(datetime.now().isoformat())
 
-            # Log completion to history
+            # Log completion to history (use undo action type if this is an undo)
+            action = "undo_uncompleted" if item_data.undo else "item_completed"
             cursor.execute(
                 "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-                (item["list_id"], item_id, "item_completed", item_data.text or item["text"]),
+                (item["list_id"], item_id, action, item_data.text or item["text"]),
             )
         else:
             updates.append("completed_at = NULL")
 
-            # Log uncomplete to history
+            # Log uncomplete to history (use undo action type if this is an undo)
+            action = "undo_completed" if item_data.undo else "item_uncompleted"
             cursor.execute(
                 "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-                (item["list_id"], item_id, "item_uncompleted", item_data.text or item["text"]),
+                (item["list_id"], item_id, action, item_data.text or item["text"]),
             )
 
     if updates:
@@ -402,7 +408,7 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
 
 
 @app.delete("/api/items/{item_id}")
-def delete_item(item_id: int, db: sqlite3.Connection = Depends(get_db)):
+def delete_item(item_id: int, undo: bool = False, db: sqlite3.Connection = Depends(get_db)):
     """Delete an item and log to history."""
     cursor = db.cursor()
 
@@ -410,10 +416,11 @@ def delete_item(item_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor.execute("SELECT * FROM items WHERE id = ?", (item_id,))
     item = cursor.fetchone()
     if item:
-        # Log deletion to history
+        # Log deletion to history (use undo action type if undoing a creation)
+        action = "undo_created" if undo else "item_deleted"
         cursor.execute(
             "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-            (item["list_id"], item_id, "item_deleted", item["text"]),
+            (item["list_id"], item_id, action, item["text"]),
         )
 
     cursor.execute("DELETE FROM items WHERE id = ?", (item_id,))
