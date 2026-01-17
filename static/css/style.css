@@ -505,6 +505,7 @@ ul {
   margin-bottom: 8px;
   transition: all var(--transition-fast);
   animation: slideIn var(--transition-normal) ease-out;
+  cursor: pointer;
 }
 
 @keyframes slideIn {
@@ -598,45 +599,6 @@ ul {
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 4px;
-}
-
-.item-actions {
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.item:hover .item-actions {
-  opacity: 1;
-}
-
-.item-edit-btn,
-.item-delete-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  transition: all var(--transition-fast);
-}
-
-.item-edit-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.item-delete-btn:hover {
-  background: var(--danger-subtle);
-  color: var(--danger);
-}
-
-.item-edit-btn svg,
-.item-delete-btn svg {
-  width: 16px;
-  height: 16px;
 }
 
 /* Empty State */
@@ -1090,6 +1052,35 @@ button.icon-picker-toggle.open .chevron {
   justify-content: flex-end;
 }
 
+.modal-actions-split {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-icon-danger {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--danger-subtle);
+  color: var(--danger);
+  transition: all var(--transition-fast);
+}
+
+.btn-icon-danger:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.btn-icon-danger svg {
+  width: 20px;
+  height: 20px;
+}
+
 .btn-cancel,
 .btn-create {
   padding: 12px 24px;
@@ -1118,20 +1109,6 @@ button.icon-picker-toggle.open .chevron {
   background: var(--accent-hover);
 }
 
-.btn-delete {
-  padding: 12px 24px;
-  border-radius: var(--radius-md);
-  font-size: 0.95rem;
-  font-weight: 500;
-  transition: all var(--transition-fast);
-  background: var(--danger);
-  color: white;
-}
-
-.btn-delete:hover {
-  background: #dc2626;
-}
-
 .btn-danger {
   width: 100%;
   padding: 10px 16px;
@@ -1148,12 +1125,6 @@ button.icon-picker-toggle.open .chevron {
   background: var(--danger);
   color: white;
   border-color: var(--danger);
-}
-
-.delete-confirm-message {
-  color: var(--text-secondary);
-  margin-bottom: 20px;
-  line-height: 1.5;
 }
 
 /* Mobile Responsive */
@@ -1211,23 +1182,6 @@ button.icon-picker-toggle.open .chevron {
 
   .items-list {
     padding: 8px 20px 20px;
-  }
-
-  .item-actions {
-    opacity: 1;
-    gap: 8px;
-  }
-
-  .item-edit-btn,
-  .item-delete-btn {
-    width: 44px;
-    height: 44px;
-  }
-
-  .item-edit-btn svg,
-  .item-delete-btn svg {
-    width: 20px;
-    height: 20px;
   }
 
   .history-panel {
@@ -1376,4 +1330,80 @@ button.icon-picker-toggle.open .chevron {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
+}
+
+/* Undo Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 400;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    transform var(--transition-slow),
+    opacity var(--transition-normal),
+    visibility var(--transition-normal);
+  overflow: hidden;
+}
+
+.toast.visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+.toast-message {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.toast-action {
+  padding: 8px 16px;
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.toast-action:hover {
+  background: var(--accent-hover);
+}
+
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--accent);
+  width: 100%;
+  transform-origin: left;
+  transition:
+    transform linear,
+    opacity var(--transition-fast);
+}
+
+@media (max-width: 768px) {
+  .toast {
+    left: 20px;
+    right: 20px;
+    transform: translateX(0) translateY(100px);
+    bottom: 20px;
+  }
+
+  .toast.visible {
+    transform: translateX(0) translateY(0);
+  }
 }

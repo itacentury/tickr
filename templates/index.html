@@ -1030,29 +1030,33 @@
             autocomplete="off"
             required
           />
-          <div class="modal-actions">
-            <button type="button" class="btn-cancel" id="cancelEditItem">
-              Abbrechen
+          <div class="modal-actions-split">
+            <button
+              type="button"
+              class="btn-icon-danger"
+              id="deleteEditItem"
+              title="Löschen"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path
+                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                ></path>
+              </svg>
             </button>
-            <button type="submit" class="btn-create">Speichern</button>
+            <div class="modal-actions">
+              <button type="button" class="btn-cancel" id="cancelEditItem">
+                Abbrechen
+              </button>
+              <button type="submit" class="btn-create">Speichern</button>
+            </div>
           </div>
         </form>
-      </div>
-    </div>
-
-    <!-- Modal for delete confirmation -->
-    <div class="modal" id="deleteConfirmModal">
-      <div class="modal-content">
-        <h2 id="deleteConfirmTitle">Löschen bestätigen</h2>
-        <p id="deleteConfirmMessage" class="delete-confirm-message"></p>
-        <div class="modal-actions">
-          <button type="button" class="btn-cancel" id="cancelDelete">
-            Abbrechen
-          </button>
-          <button type="button" class="btn-delete" id="confirmDelete">
-            Löschen
-          </button>
-        </div>
       </div>
     </div>
 
@@ -1093,6 +1097,13 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Undo Toast -->
+    <div class="toast" id="undoToast">
+      <span class="toast-message" id="toastMessage"></span>
+      <button class="toast-action" id="toastUndo">Rückgängig</button>
+      <div class="toast-progress" id="toastProgress"></div>
     </div>
 
     <script src="/static/js/app.js"></script>

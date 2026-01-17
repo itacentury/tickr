@@ -197,17 +197,20 @@ const editItemModal = document.getElementById("editItemModal");
 const editItemForm = document.getElementById("editItemForm");
 const editItemText = document.getElementById("editItemText");
 const cancelEditItem = document.getElementById("cancelEditItem");
-
-// Delete Confirmation Modal
-const deleteConfirmModal = document.getElementById("deleteConfirmModal");
-const deleteConfirmTitle = document.getElementById("deleteConfirmTitle");
-const deleteConfirmMessage = document.getElementById("deleteConfirmMessage");
-const cancelDelete = document.getElementById("cancelDelete");
-const confirmDelete = document.getElementById("confirmDelete");
-let deleteTarget = { type: null, id: null };
+const deleteEditItem = document.getElementById("deleteEditItem");
 
 // Edit List Sort Select
 const editListSort = document.getElementById("editListSort");
+
+// Undo Toast
+const undoToast = document.getElementById("undoToast");
+const toastMessage = document.getElementById("toastMessage");
+const toastUndo = document.getElementById("toastUndo");
+const toastProgress = document.getElementById("toastProgress");
+let toastTimeout = null;
+let toastUndoCallback = null;
+let toastStartTime = null;
+let toastRemainingTime = 5000;
 
 // Icons SVG map
 const icons = {
@@ -762,20 +765,6 @@ function renderItems() {
             <div class="item-content">
                 <span class="item-text">${escapeHtml(item.text)}</span>
             </div>
-            <div class="item-actions">
-                <button class="item-edit-btn" title="Bearbeiten">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                </button>
-                <button class="item-delete-btn" title="Löschen">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                </button>
-            </div>
         </li>
     `,
     )
@@ -787,18 +776,23 @@ function renderItems() {
     const item = items.find((i) => i.id === itemId);
 
     const checkbox = itemEl.querySelector('input[type="checkbox"]');
-    checkbox.addEventListener("change", () => {
-      updateItem(itemId, { completed: checkbox.checked });
+    checkbox.addEventListener("change", async () => {
+      const isCompleted = checkbox.checked;
+      const itemText = item.text;
+      await updateItem(itemId, { completed: isCompleted });
+
+      if (isCompleted) {
+        showUndoToast(`„${itemText}" erledigt`, async () => {
+          await updateItem(itemId, { completed: false, undo: true });
+        });
+      }
     });
 
-    const editBtn = itemEl.querySelector(".item-edit-btn");
-    editBtn.addEventListener("click", () => {
-      openEditItemModal(itemId, item.text);
-    });
-
-    const deleteBtn = itemEl.querySelector(".item-delete-btn");
-    deleteBtn.addEventListener("click", () => {
-      openDeleteConfirmModal("item", itemId, item.text);
+    // Click anywhere on item opens edit modal (except checkbox)
+    itemEl.addEventListener("click", (e) => {
+      if (!e.target.closest(".item-checkbox")) {
+        openEditItemModal(itemId, item.text);
+      }
     });
   });
 }
@@ -1004,6 +998,98 @@ function formatDateTime(dateString) {
   });
 }
 
+/**
+ * Show an undo toast notification with a 5-second countdown.
+ */
+function showUndoToast(message, undoCallback) {
+  // Clear any existing toast
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+  }
+
+  toastMessage.textContent = message;
+  toastUndoCallback = undoCallback;
+  toastRemainingTime = 5000;
+  toastStartTime = Date.now();
+
+  // Reset and animate progress bar
+  toastProgress.style.transition = "none";
+  toastProgress.style.transform = "scaleX(1)";
+
+  // Show toast
+  undoToast.classList.add("visible");
+
+  // Start progress bar animation after a small delay
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      toastProgress.style.transition = `transform ${toastRemainingTime}ms linear`;
+      toastProgress.style.transform = "scaleX(0)";
+    });
+  });
+
+  // Auto-hide after 5 seconds
+  toastTimeout = setTimeout(() => {
+    hideUndoToast();
+  }, toastRemainingTime);
+}
+
+/**
+ * Hide the undo toast notification.
+ */
+function hideUndoToast() {
+  undoToast.classList.remove("visible");
+  toastUndoCallback = null;
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+    toastTimeout = null;
+  }
+}
+
+/**
+ * Reset and pause the toast timer on hover, hide progress bar.
+ */
+function pauseToast() {
+  // Stop the timeout
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+    toastTimeout = null;
+  }
+
+  // Hide progress bar
+  toastProgress.style.opacity = "0";
+}
+
+/**
+ * Restart the toast timer after hover ends, show progress bar.
+ */
+function resumeToast() {
+  // Reset to full 5 seconds
+  toastRemainingTime = 5000;
+  toastStartTime = Date.now();
+
+  // Show and reset progress bar
+  toastProgress.style.opacity = "1";
+  toastProgress.style.transition = "none";
+  toastProgress.style.transform = "scaleX(1)";
+
+  // Start progress bar animation
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      toastProgress.style.transition = "transform 5s linear";
+      toastProgress.style.transform = "scaleX(0)";
+    });
+  });
+
+  // Start timeout
+  toastTimeout = setTimeout(() => {
+    hideUndoToast();
+  }, 5000);
+}
+
+// Toast hover events
+undoToast.addEventListener("mouseenter", pauseToast);
+undoToast.addEventListener("mouseleave", resumeToast);
+
 function closeMobileMenu() {
   sidebar.classList.remove("mobile-open");
   overlay.classList.remove("visible");
@@ -1051,32 +1137,6 @@ function openEditItemModal(itemId, text) {
       editItemText.select();
     }, 100);
   }
-}
-
-/**
- * Opens the delete confirmation modal for a list or item.
- */
-function openDeleteConfirmModal(type, id, name) {
-  deleteTarget = { type, id };
-
-  if (type === "list") {
-    deleteConfirmTitle.textContent = "Liste löschen";
-    deleteConfirmMessage.textContent = `Möchtest du die Liste "${name}" wirklich löschen? Alle Einträge in dieser Liste werden ebenfalls gelöscht.`;
-  } else {
-    deleteConfirmTitle.textContent = "Eintrag löschen";
-    deleteConfirmMessage.textContent = `Möchtest du den Eintrag "${name}" wirklich löschen?`;
-  }
-
-  deleteConfirmModal.classList.add("open");
-  setTimeout(() => confirmDelete.focus(), 100);
-}
-
-/**
- * Closes the delete confirmation modal and resets the target.
- */
-function closeDeleteConfirmModal() {
-  deleteConfirmModal.classList.remove("open");
-  deleteTarget = { type: null, id: null };
 }
 
 // Event Listeners
@@ -1149,10 +1209,16 @@ closeHistoryBtn.addEventListener("click", () => {
 editListBtn.addEventListener("click", openEditListModal);
 
 // Delete list button
-deleteListBtn.addEventListener("click", () => {
+deleteListBtn.addEventListener("click", async () => {
   if (currentListId && lists.length > 0) {
     const list = lists.find((l) => l.id === currentListId);
-    openDeleteConfirmModal("list", currentListId, list.name);
+    if (!list) return;
+    const listName = list.name;
+    const listIcon = list.icon || "list";
+    await deleteList(currentListId);
+    showUndoToast(`„${listName}" gelöscht`, async () => {
+      await createList(listName, listIcon);
+    });
   }
 });
 
@@ -1240,17 +1306,30 @@ cancelEditItem.addEventListener("click", () => {
   editingItemId = null;
 });
 
-// Cancel delete
-cancelDelete.addEventListener("click", closeDeleteConfirmModal);
+// Delete item from edit modal
+deleteEditItem.addEventListener("click", async () => {
+  if (!editingItemId) return;
 
-// Confirm delete
-confirmDelete.addEventListener("click", async () => {
-  if (deleteTarget.type === "list") {
-    await deleteList(deleteTarget.id);
-  } else if (deleteTarget.type === "item") {
-    await deleteItem(deleteTarget.id);
+  const item = items.find((i) => i.id === editingItemId);
+  const itemText = item ? item.text : "";
+  const listId = currentListId;
+  const itemId = editingItemId;
+
+  editItemModal.classList.remove("open");
+  editingItemId = null;
+
+  await deleteItem(itemId);
+  showUndoToast(`„${itemText}" gelöscht`, async () => {
+    await createItem(listId, itemText, true);
+  });
+});
+
+// Toast Undo button
+toastUndo.addEventListener("click", async () => {
+  if (toastUndoCallback) {
+    await toastUndoCallback();
   }
-  closeDeleteConfirmModal();
+  hideUndoToast();
 });
 
 // Close modals on background click
@@ -1270,12 +1349,6 @@ editItemModal.addEventListener("click", (e) => {
   if (e.target === editItemModal) {
     editItemModal.classList.remove("open");
     editingItemId = null;
-  }
-});
-
-deleteConfirmModal.addEventListener("click", (e) => {
-  if (e.target === deleteConfirmModal) {
-    closeDeleteConfirmModal();
   }
 });
 
@@ -1332,7 +1405,6 @@ document.addEventListener("keydown", (e) => {
     editItemModal.classList.remove("open");
     settingsModal.classList.remove("open");
     editingItemId = null;
-    closeDeleteConfirmModal();
     historyPanel.classList.remove("open");
     overlay.classList.remove("visible");
     closeMobileMenu();
