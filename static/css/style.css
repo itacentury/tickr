@@ -1228,6 +1228,21 @@ button.icon-picker-toggle.open .chevron {
     width: 100%;
     right: -100%;
   }
+
+  /* Adjust modal positioning when keyboard is open */
+  .modal {
+    align-items: flex-start;
+    padding-top: 15vh;
+  }
+
+  .modal.keyboard-open {
+    padding-top: 20px;
+  }
+
+  .modal.keyboard-open .modal-content {
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
 }
 
 /* Scrollbar */
