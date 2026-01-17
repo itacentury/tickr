@@ -1180,7 +1180,7 @@ button.icon-picker-toggle.open .chevron {
   }
 
   .sidebar-toggle {
-    display: none;
+    pointer-events: none;
   }
 
   .mobile-menu-btn {
