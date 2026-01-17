@@ -179,6 +179,7 @@ ul {
   transition: all var(--transition-fast);
   cursor: pointer;
   width: 100%;
+  text-align: left;
 }
 
 .nav-link:hover {
@@ -209,9 +210,9 @@ ul {
 }
 
 .nav-icon {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
