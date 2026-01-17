@@ -1475,23 +1475,17 @@ if ("serviceWorker" in navigator) {
   }
 }
 
-// Virtual keyboard detection for modal positioning
+// Visual viewport tracking for modal positioning (handles virtual keyboard)
 if (window.visualViewport) {
-  const initialHeight = window.visualViewport.height;
-  const modals = document.querySelectorAll(".modal");
+  function updateVisualViewport() {
+    const vv = window.visualViewport;
+    document.documentElement.style.setProperty(
+      "--visual-viewport-height",
+      `${vv.height}px`,
+    );
+  }
 
-  window.visualViewport.addEventListener("resize", () => {
-    const currentHeight = window.visualViewport.height;
-    const heightDiff = initialHeight - currentHeight;
-    // Keyboard is considered open if viewport shrinks by more than 150px
-    const keyboardOpen = heightDiff > 150;
-
-    modals.forEach((modal) => {
-      if (keyboardOpen) {
-        modal.classList.add("keyboard-open");
-      } else {
-        modal.classList.remove("keyboard-open");
-      }
-    });
-  });
+  updateVisualViewport();
+  window.visualViewport.addEventListener("resize", updateVisualViewport);
+  window.visualViewport.addEventListener("scroll", updateVisualViewport);
 }
