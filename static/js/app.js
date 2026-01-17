@@ -24,7 +24,7 @@ async function fetchWithRetry(url, options = {}, retries = 3, delay = 500) {
       if (attempt === retries) {
         console.error(
           `Failed to fetch ${url} after ${retries} attempts:`,
-          error
+          error,
         );
         return null;
       }
@@ -38,7 +38,7 @@ async function fetchWriteWithRetry(
   url,
   options = {},
   retries = 2,
-  delay = 500
+  delay = 500,
 ) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -53,7 +53,7 @@ async function fetchWriteWithRetry(
       if (attempt === retries) {
         console.error(
           `Failed to write ${url} after ${retries} attempts:`,
-          error
+          error,
         );
         return null;
       }
@@ -160,7 +160,7 @@ const editListForm = document.getElementById("editListForm");
 const editListName = document.getElementById("editListName");
 const cancelEditList = document.getElementById("cancelEditList");
 const editIconOptions = document.querySelectorAll(
-  "#editIconOptions .icon-option"
+  "#editIconOptions .icon-option",
 );
 const editIconPickerToggle = document.getElementById("editIconPickerToggle");
 const editIconOptionsContainer = document.getElementById("editIconOptions");
@@ -453,7 +453,7 @@ async function createItem(text) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
-    }
+    },
   );
 
   if (!result) {
@@ -522,8 +522,8 @@ function renderNavigation() {
 
       return `
             <li class="nav-item" data-list-id="${list.id}" ${
-        isCustomSort ? 'draggable="true"' : ""
-      }>
+              isCustomSort ? 'draggable="true"' : ""
+            }>
                 <button class="nav-link ${
                   list.id === currentListId ? "active" : ""
                 }"
@@ -626,7 +626,7 @@ async function handleDrop(e) {
 
   // Get new list order
   const newOrder = Array.from(navList.querySelectorAll(".nav-item")).map(
-    (item) => parseInt(item.dataset.listId)
+    (item) => parseInt(item.dataset.listId),
   );
 
   // Save to server
@@ -687,7 +687,7 @@ function renderItems() {
                 </button>
             </div>
         </li>
-    `
+    `,
     )
     .join("");
 
@@ -747,14 +747,14 @@ function renderHistory(history) {
                 <div class="history-item-content">
                     <div class="history-action">
                         <span class="action-type ${action.class}">${
-        action.text
-      }</span>
+                          action.text
+                        }</span>
                     </div>
                     <div class="history-text">${escapeHtml(
-                      entry.item_text || ""
+                      entry.item_text || "",
                     )}</div>
                     <div class="history-time">${formatDateTime(
-                      entry.timestamp
+                      entry.timestamp,
                     )}</div>
                     ${
                       showRestoreBtn
@@ -920,7 +920,7 @@ toggleSidebar.addEventListener("click", () => {
   sidebar.classList.toggle("collapsed");
   localStorage.setItem(
     "sidebarCollapsed",
-    sidebar.classList.contains("collapsed")
+    sidebar.classList.contains("collapsed"),
   );
 });
 
@@ -1119,6 +1119,7 @@ const settingsBtn = document.getElementById("settingsBtn");
 const listSortSetting = document.getElementById("listSortSetting");
 const cancelSettings = document.getElementById("cancelSettings");
 const saveSettings = document.getElementById("saveSettings");
+const clearCacheBtn = document.getElementById("clearCacheBtn");
 
 settingsBtn.addEventListener("click", () => {
   listSortSetting.value = appSettings.list_sort || "alphabetical";
@@ -1136,6 +1137,18 @@ saveSettings.addEventListener("click", async () => {
   const success = await updateSettings({ list_sort: newListSort });
   console.log("Settings saved:", success);
   settingsModal.classList.remove("open");
+});
+
+clearCacheBtn.addEventListener("click", async () => {
+  if ("caches" in window) {
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map((name) => caches.delete(name)));
+  }
+  if ("serviceWorker" in navigator) {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map((reg) => reg.unregister()));
+  }
+  location.reload();
 });
 
 settingsModal.addEventListener("click", (e) => {
@@ -1192,7 +1205,7 @@ mainContent.addEventListener(
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
   },
-  { passive: true }
+  { passive: true },
 );
 
 mainContent.addEventListener(
@@ -1202,7 +1215,7 @@ mainContent.addEventListener(
     touchEndY = e.changedTouches[0].screenY;
     handleSwipe();
   },
-  { passive: true }
+  { passive: true },
 );
 
 function handleSwipe() {

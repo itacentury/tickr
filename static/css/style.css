@@ -53,7 +53,11 @@ html {
 }
 
 body {
-  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    "DM Sans",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.5;
@@ -98,7 +102,9 @@ ul {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  transition: width var(--transition-slow), min-width var(--transition-slow);
+  transition:
+    width var(--transition-slow),
+    min-width var(--transition-slow);
   z-index: 100;
   overflow: hidden;
 }
@@ -994,8 +1000,10 @@ button.icon-picker-toggle.open .chevron {
   overflow: hidden;
   padding: 0 4px;
   opacity: 0;
-  transition: max-height var(--transition-slow),
-    opacity var(--transition-normal), margin-bottom var(--transition-normal),
+  transition:
+    max-height var(--transition-slow),
+    opacity var(--transition-normal),
+    margin-bottom var(--transition-normal),
     padding var(--transition-normal);
 }
 
@@ -1101,6 +1109,24 @@ button.icon-picker-toggle.open .chevron {
 
 .btn-delete:hover {
   background: #dc2626;
+}
+
+.btn-danger {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
 }
 
 .delete-confirm-message {
