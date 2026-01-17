@@ -115,31 +115,37 @@ ul {
 }
 
 .sidebar-header {
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  padding: 12px;
   border-bottom: 1px solid var(--border);
 }
 
-.toggle-btn {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
+.sidebar-toggle {
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
+  cursor: pointer;
   transition: all var(--transition-fast);
 }
 
-.toggle-btn:hover {
+.sidebar-toggle:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-.toggle-btn svg {
+.toggle-icon {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-icon svg {
   width: 20px;
   height: 20px;
 }
@@ -152,8 +158,16 @@ ul {
   transition: opacity var(--transition-normal);
 }
 
+.sidebar.collapsed .sidebar-toggle {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  justify-content: center;
+}
+
 .sidebar.collapsed .sidebar-title {
-  opacity: 0;
+  display: none;
 }
 
 /* Navigation List */
@@ -1165,7 +1179,7 @@ button.icon-picker-toggle.open .chevron {
     opacity: 1;
   }
 
-  .toggle-btn {
+  .sidebar-toggle {
     display: none;
   }
 

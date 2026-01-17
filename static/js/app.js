@@ -126,7 +126,7 @@ function updateOfflineIndicator(offline) {
 // DOM Elements
 const appContainer = document.querySelector(".app");
 const sidebar = document.getElementById("sidebar");
-const toggleSidebar = document.getElementById("toggleSidebar");
+const sidebarToggle = document.getElementById("sidebarToggle");
 const mobileMenuBtn = document.getElementById("mobileMenuBtn");
 const navList = document.getElementById("navList");
 const listTitle = document.getElementById("listTitle");
@@ -916,7 +916,7 @@ function closeDeleteConfirmModal() {
 // Event Listeners
 
 // Sidebar toggle (desktop)
-toggleSidebar.addEventListener("click", () => {
+sidebarToggle.addEventListener("click", () => {
   sidebar.classList.toggle("collapsed");
   localStorage.setItem(
     "sidebarCollapsed",
