@@ -64,7 +64,6 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow: hidden;
-  overscroll-behavior-y: none;
 }
 
 button {

@@ -1,5 +1,5 @@
 // Generate dynamic cache name with timestamp - changes on each deployment
-const CACHE_VERSION = "1.0.11"; // Update this manually or via build process
+const CACHE_VERSION = "1.0.12"; // Update this manually or via build process
 const CACHE_NAME = `tickr-v${CACHE_VERSION}-${
   self.registration?.scope || "default"
 }`;
