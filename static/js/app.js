@@ -65,6 +65,22 @@ async function fetchWriteWithRetry(
 // Offline cache for items
 const CACHE_KEY = "tickr_items_cache";
 let isOffline = false;
+let currentFetchController = null;
+
+// Check if server is reachable (with short timeout)
+async function checkServerReachable() {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const response = await fetch("/api/settings", {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
 
 function saveItemsToCache(listId, itemsData) {
   try {
@@ -112,14 +128,24 @@ async function prefetchAllItems() {
   }
 }
 
-function updateOfflineIndicator(offline) {
-  // Only show offline indicator if browser also reports offline
-  // This prevents false positives from single failed requests
-  const actuallyOffline = offline && !navigator.onLine;
-  isOffline = actuallyOffline;
+async function updateOfflineIndicator(offline) {
   const indicator = document.getElementById("offlineIndicator");
+
+  if (!offline) {
+    // Server responded successfully - we're online
+    isOffline = false;
+    if (indicator) {
+      indicator.classList.remove("visible");
+    }
+    return;
+  }
+
+  // API request failed - check if server is actually unreachable
+  const serverReachable = await checkServerReachable();
+  isOffline = !serverReachable;
+
   if (indicator) {
-    indicator.classList.toggle("visible", actuallyOffline);
+    indicator.classList.toggle("visible", isOffline);
   }
 }
 
@@ -326,57 +352,94 @@ async function reorderLists(listIds) {
 }
 
 async function fetchLists() {
-  const data = await fetchWithRetry("/api/lists");
-
-  if (!data) {
-    // Try to load from cache when offline
-    const cachedLists = loadListsFromCache();
-    if (cachedLists) {
-      lists = cachedLists;
-      updateOfflineIndicator(true);
-    } else {
-      lists = [];
-    }
+  // Immediately show cached lists (cache-first)
+  const cachedLists = loadListsFromCache();
+  if (cachedLists) {
+    lists = cachedLists;
     renderNavigation();
     if (lists.length > 0 && !currentListId) {
       selectList(lists[0].id);
     }
-    return;
   }
 
-  updateOfflineIndicator(false);
-  lists = data;
-  saveListsToCache(data);
-  renderNavigation();
+  // Then try to fetch fresh data
+  try {
+    const response = await fetch("/api/lists");
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
-  if (lists.length > 0 && !currentListId) {
-    selectList(lists[0].id);
+    const data = await response.json();
+    lists = data;
+    saveListsToCache(data);
+    renderNavigation();
+    updateOfflineIndicator(false);
+
+    if (lists.length > 0 && !currentListId) {
+      selectList(lists[0].id);
+    }
+
+    // Prefetch all items in background for offline use
+    prefetchAllItems();
+  } catch {
+    // Fetch failed - we're already showing cached lists
+    if (!cachedLists || cachedLists.length === 0) {
+      lists = [];
+      renderNavigation();
+    }
+    updateOfflineIndicator(true);
   }
-
-  // Prefetch all items in background for offline use
-  prefetchAllItems();
 }
 
 async function fetchItems(listId) {
-  const data = await fetchWithRetry(`/api/lists/${listId}/items`);
-
-  if (!data) {
-    // Try to load from cache when offline
-    const cachedItems = loadItemsFromCache(listId);
-    if (cachedItems) {
-      items = cachedItems;
-      updateOfflineIndicator(true);
-    } else {
-      items = [];
-    }
-    renderItems();
-    return;
+  // Cancel any pending fetch for a different list
+  if (currentFetchController) {
+    currentFetchController.abort();
   }
 
-  updateOfflineIndicator(false);
-  items = data;
-  saveItemsToCache(listId, data);
-  renderItems();
+  // Immediately show cached items (cache-first)
+  const cachedItems = loadItemsFromCache(listId);
+  if (cachedItems) {
+    items = cachedItems;
+    renderItems();
+  } else {
+    items = [];
+    renderItems();
+  }
+
+  // Then try to fetch fresh data in background
+  const controller = new AbortController();
+  currentFetchController = controller;
+
+  try {
+    const response = await fetch(`/api/lists/${listId}/items`, {
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Only update if this is still the current list
+    if (currentListId === listId) {
+      items = data;
+      saveItemsToCache(listId, data);
+      renderItems();
+      updateOfflineIndicator(false);
+    }
+  } catch (error) {
+    if (error.name === "AbortError") {
+      // Request was cancelled due to list switch - ignore
+      return;
+    }
+    // Fetch failed - we're already showing cached items
+    // Update offline indicator
+    if (currentListId === listId) {
+      updateOfflineIndicator(true);
+    }
+  }
 }
 
 async function fetchHistory(listId) {

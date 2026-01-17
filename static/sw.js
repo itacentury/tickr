@@ -1,5 +1,5 @@
 // Generate dynamic cache name with timestamp - changes on each deployment
-const CACHE_VERSION = "1.0.8"; // Update this manually or via build process
+const CACHE_VERSION = "1.0.9"; // Update this manually or via build process
 const CACHE_NAME = `tickr-v${CACHE_VERSION}-${
   self.registration?.scope || "default"
 }`;
@@ -22,7 +22,7 @@ self.addEventListener("install", (event) => {
         console.log("Caching static assets");
         return cache.addAll(STATIC_ASSETS);
       })
-      .then(() => self.skipWaiting())
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -35,10 +35,10 @@ self.addEventListener("activate", (event) => {
         return Promise.all(
           cacheNames
             .filter((name) => name !== CACHE_NAME)
-            .map((name) => caches.delete(name))
+            .map((name) => caches.delete(name)),
         );
       })
-      .then(() => self.clients.claim())
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -60,7 +60,7 @@ self.addEventListener("fetch", (event) => {
             status: 503,
             headers: { "Content-Type": "application/json" },
           });
-        })
+        }),
     );
     return;
   }
@@ -91,7 +91,7 @@ self.addEventListener("fetch", (event) => {
               headers: { "Content-Type": "text/plain" },
             });
           });
-        })
+        }),
     );
     return;
   }
@@ -116,7 +116,7 @@ self.addEventListener("fetch", (event) => {
 
       // Return cached response immediately if available, but update cache in background
       return cachedResponse || fetchPromise;
-    })
+    }),
   );
 });
 
