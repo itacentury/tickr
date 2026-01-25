@@ -1509,10 +1509,45 @@ function handleSwipe() {
   }, 150);
 }
 
+// SSE connection for real-time updates
+let eventSource = null;
+
+/**
+ * Connect to Server-Sent Events for real-time sync across devices.
+ */
+function connectSSE() {
+  // Close existing connection if any
+  if (eventSource) {
+    eventSource.close();
+  }
+
+  eventSource = new EventSource("/api/events");
+
+  eventSource.onmessage = async (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === "lists_changed") {
+      await fetchLists();
+    }
+
+    if (data.type === "items_changed" && data.list_id === currentListId) {
+      await fetchItems(currentListId);
+    }
+  };
+
+  eventSource.onerror = () => {
+    // EventSource has built-in reconnect logic
+    console.log("SSE connection lost, will reconnect...");
+  };
+
+  return eventSource;
+}
+
 // Initialize
 async function init() {
   await fetchSettings();
   await fetchLists();
+  connectSSE();
 }
 init();
 

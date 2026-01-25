@@ -4,14 +4,18 @@ Tickr Backend - FastAPI REST API with SQLite persistence.
 Provides endpoints for managing todo lists, items, and history tracking.
 """
 
+import asyncio
+import json
 import sqlite3
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
+from queue import Empty, Full, Queue
+from threading import Lock
 
 from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -27,6 +31,21 @@ app = FastAPI(title="Tickr", version="1.0.0", lifespan=lifespan)
 
 # Database setup
 DATABASE = "data/tickr.db"
+
+# SSE client management (thread-safe)
+clients_lock = Lock()
+connected_clients: list[Queue] = []
+
+
+def broadcast_update(event_type: str, list_id: int | None = None) -> None:
+    """Notify all connected SSE clients of a data change."""
+    message = json.dumps({"type": event_type, "list_id": list_id})
+    with clients_lock:
+        for queue in connected_clients:
+            try:
+                queue.put_nowait(message)
+            except Full:
+                pass  # Queue full, skip this client
 
 
 def get_db():
@@ -251,6 +270,7 @@ def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db))
     )
     db.commit()
 
+    broadcast_update("lists_changed")
     return {"id": list_id, "name": list_data.name, "icon": list_data.icon}
 
 
@@ -282,6 +302,7 @@ def update_list(list_id: int, list_data: ListUpdate, db: sqlite3.Connection = De
         values.append(list_id)
         cursor.execute(f"UPDATE lists SET {', '.join(updates)} WHERE id = ?", values)
         db.commit()
+        broadcast_update("lists_changed", list_id)
 
     return {"success": True}
 
@@ -293,6 +314,7 @@ def delete_list(list_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor.execute("DELETE FROM lists WHERE id = ?", (list_id,))
     cursor.execute("DELETE FROM history WHERE list_id = ?", (list_id,))
     db.commit()
+    broadcast_update("lists_changed")
     return {"success": True}
 
 
@@ -348,6 +370,7 @@ def create_item(list_id: int, item_data: ItemCreate, db: sqlite3.Connection = De
     )
     db.commit()
 
+    broadcast_update("items_changed", list_id)
     return {"id": item_id, "list_id": list_id, "text": item_data.text, "completed": False}
 
 
@@ -403,6 +426,7 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
         values.append(item_id)
         cursor.execute(f"UPDATE items SET {', '.join(updates)} WHERE id = ?", values)
         db.commit()
+        broadcast_update("items_changed", item["list_id"])
 
     return {"success": True}
 
@@ -415,6 +439,8 @@ def delete_item(item_id: int, undo: bool = False, db: sqlite3.Connection = Depen
     # Get item data for history
     cursor.execute("SELECT * FROM items WHERE id = ?", (item_id,))
     item = cursor.fetchone()
+    list_id = item["list_id"] if item else None
+
     if item:
         # Log deletion to history (use undo action type if undoing a creation)
         action = "undo_created" if undo else "item_deleted"
@@ -425,6 +451,9 @@ def delete_item(item_id: int, undo: bool = False, db: sqlite3.Connection = Depen
 
     cursor.execute("DELETE FROM items WHERE id = ?", (item_id,))
     db.commit()
+
+    if list_id:
+        broadcast_update("items_changed", list_id)
     return {"success": True}
 
 
@@ -468,6 +497,7 @@ def reorder_lists(reorder_data: ListReorder, db: sqlite3.Connection = Depends(ge
         cursor.execute("UPDATE lists SET sort_order = ? WHERE id = ?", (idx, list_id))
 
     db.commit()
+    broadcast_update("lists_changed")
     return {"success": True}
 
 
@@ -490,6 +520,42 @@ def get_history(list_id: int, db: sqlite3.Connection = Depends(get_db)):
     )
     rows = cursor.fetchall()
     return [dict(row) for row in rows]
+
+
+# SSE endpoint for real-time updates
+@app.get("/api/events")
+async def sse_events():
+    """SSE endpoint for real-time updates to connected clients."""
+    queue: Queue = Queue()
+    with clients_lock:
+        connected_clients.append(queue)
+
+    async def event_generator():
+        """Generate SSE events from the client's message queue."""
+        try:
+            while True:
+                # Non-blocking check with small sleep to allow cancellation
+                try:
+                    data = queue.get_nowait()
+                    yield f"data: {data}\n\n"
+                except Empty:
+                    await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
+            pass  # Client disconnected
+        finally:
+            with clients_lock:
+                if queue in connected_clients:
+                    connected_clients.remove(queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # Serve static files
