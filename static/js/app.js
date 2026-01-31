@@ -390,7 +390,19 @@ async function fetchLists() {
     renderNavigation();
     updateOfflineIndicator(false);
 
-    if (lists.length > 0 && !currentListId) {
+    // Handle case where current list was deleted on another device
+    if (currentListId && !lists.some((l) => l.id === currentListId)) {
+      if (lists.length > 0) {
+        selectList(lists[0].id);
+      } else {
+        currentListId = null;
+        localStorage.removeItem("tickr_current_list");
+        items = [];
+        renderItems();
+        listTitle.textContent = "Keine Listen";
+        document.title = "Tickr";
+      }
+    } else if (lists.length > 0 && !currentListId) {
       selectList(getInitialListId());
     }
 
