@@ -1230,9 +1230,54 @@ deleteListBtn.addEventListener("click", async () => {
     if (!list) return;
     const listName = list.name;
     const listIcon = list.icon || "list";
+    const listSort = list.item_sort || "alphabetical";
+
+    // Fetch all items (including completed) before deleting for undo
+    const allItems = await fetchWithRetry(
+      `/api/lists/${currentListId}/items?include_completed=true`,
+    );
+    const savedItems = allItems || [];
+
     await deleteList(currentListId);
     showUndoToast(`„${listName}" gelöscht`, async () => {
-      await createList(listName, listIcon);
+      // Restore list
+      const newList = await fetchWriteWithRetry("/api/lists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: listName, icon: listIcon }),
+      });
+
+      if (newList && newList.id) {
+        // Restore list sort setting
+        await fetchWriteWithRetry(`/api/lists/${newList.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ item_sort: listSort }),
+        });
+
+        // Restore all items
+        for (const item of savedItems) {
+          const restoredItem = await fetchWriteWithRetry(
+            `/api/lists/${newList.id}/items`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: item.text, undo: true }),
+            },
+          );
+          // If item was completed, mark it as completed
+          if (item.completed && restoredItem?.id) {
+            await fetchWriteWithRetry(`/api/items/${restoredItem.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ completed: true, undo: true }),
+            });
+          }
+        }
+
+        await fetchLists();
+        selectList(newList.id);
+      }
     });
   }
 });
