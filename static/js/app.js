@@ -366,7 +366,28 @@ function getInitialListId() {
   return lists.length > 0 ? lists[0].id : null;
 }
 
+/**
+ * Find the neighboring list to select after deletion.
+ * Prefers next list, falls back to previous list.
+ */
+function getNeighborListId(deletedListId, oldLists) {
+  const index = oldLists.findIndex((l) => l.id === deletedListId);
+  if (index === -1) return lists.length > 0 ? lists[0].id : null;
+
+  // Try next list first (same index in new array), then previous
+  if (index < lists.length) {
+    return lists[index].id;
+  }
+  if (lists.length > 0) {
+    return lists[lists.length - 1].id;
+  }
+  return null;
+}
+
 async function fetchLists() {
+  // Save current lists to find neighbor if current list was deleted
+  const oldLists = [...lists];
+
   // Immediately show cached lists (cache-first)
   const cachedLists = loadListsFromCache();
   if (cachedLists) {
@@ -392,8 +413,9 @@ async function fetchLists() {
 
     // Handle case where current list was deleted on another device
     if (currentListId && !lists.some((l) => l.id === currentListId)) {
-      if (lists.length > 0) {
-        selectList(lists[0].id);
+      const neighborId = getNeighborListId(currentListId, oldLists);
+      if (neighborId) {
+        selectList(neighborId);
       } else {
         currentListId = null;
         localStorage.removeItem("tickr_current_list");
@@ -517,6 +539,9 @@ async function updateList(listId, name, icon, itemSort) {
 }
 
 async function deleteList(listId) {
+  // Save old lists to find neighbor after deletion
+  const oldLists = [...lists];
+
   const result = await fetchWriteWithRetry(`/api/lists/${listId}`, {
     method: "DELETE",
   });
@@ -528,10 +553,12 @@ async function deleteList(listId) {
 
   await fetchLists();
 
-  if (lists.length > 0) {
-    selectList(lists[0].id);
+  const neighborId = getNeighborListId(listId, oldLists);
+  if (neighborId) {
+    selectList(neighborId);
   } else {
     currentListId = null;
+    localStorage.removeItem("tickr_current_list");
     items = [];
     renderItems();
     listTitle.textContent = "Keine Listen";
