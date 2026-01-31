@@ -354,6 +354,18 @@ async function reorderLists(listIds) {
   return true;
 }
 
+/**
+ * Determine which list to select based on saved preference.
+ * Falls back to first list if saved list no longer exists.
+ */
+function getInitialListId() {
+  const savedId = parseInt(localStorage.getItem("tickr_current_list"));
+  if (savedId && lists.some((l) => l.id === savedId)) {
+    return savedId;
+  }
+  return lists.length > 0 ? lists[0].id : null;
+}
+
 async function fetchLists() {
   // Immediately show cached lists (cache-first)
   const cachedLists = loadListsFromCache();
@@ -361,7 +373,7 @@ async function fetchLists() {
     lists = cachedLists;
     renderNavigation();
     if (lists.length > 0 && !currentListId) {
-      selectList(lists[0].id);
+      selectList(getInitialListId());
     }
   }
 
@@ -379,7 +391,7 @@ async function fetchLists() {
     updateOfflineIndicator(false);
 
     if (lists.length > 0 && !currentListId) {
-      selectList(lists[0].id);
+      selectList(getInitialListId());
     }
 
     // Prefetch all items in background for offline use
@@ -945,6 +957,9 @@ function renderHistory(history) {
 // Helper Functions
 function selectList(listId) {
   currentListId = listId;
+  // Persist selected list for page refreshes
+  localStorage.setItem("tickr_current_list", listId);
+
   const list = lists.find((l) => l.id === listId);
   if (list) {
     listTitle.textContent = list.name;
