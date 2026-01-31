@@ -524,16 +524,26 @@ def get_history(list_id: int, db: sqlite3.Connection = Depends(get_db)):
 
 # SSE endpoint for real-time updates
 @app.get("/api/events")
-async def sse_events():
+async def sse_events() -> StreamingResponse:
     """SSE endpoint for real-time updates to connected clients."""
-    queue: Queue = Queue()
+    queue: Queue = Queue(maxsize=100)
     with clients_lock:
         connected_clients.append(queue)
 
     async def event_generator():
         """Generate SSE events from the client's message queue."""
+        heartbeat_interval = 15  # seconds
+        last_heartbeat = asyncio.get_event_loop().time()
+
         try:
             while True:
+                current_time = asyncio.get_event_loop().time()
+
+                # Send heartbeat to keep connection alive
+                if current_time - last_heartbeat >= heartbeat_interval:
+                    yield ": heartbeat\n\n"
+                    last_heartbeat = current_time
+
                 # Non-blocking check with small sleep to allow cancellation
                 try:
                     data = queue.get_nowait()

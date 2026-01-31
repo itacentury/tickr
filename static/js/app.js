@@ -379,7 +379,7 @@ async function fetchLists() {
 
   // Then try to fetch fresh data
   try {
-    const response = await fetch("/api/lists");
+    const response = await fetch("/api/lists", { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -1526,17 +1526,29 @@ function handleSwipe() {
 
 // SSE connection for real-time updates
 let eventSource = null;
+let sseReconnectTimeout = null;
 
 /**
  * Connect to Server-Sent Events for real-time sync across devices.
  */
 function connectSSE() {
+  // Clear any pending reconnect
+  if (sseReconnectTimeout) {
+    clearTimeout(sseReconnectTimeout);
+    sseReconnectTimeout = null;
+  }
+
   // Close existing connection if any
   if (eventSource) {
     eventSource.close();
+    eventSource = null;
   }
 
   eventSource = new EventSource("/api/events");
+
+  eventSource.onopen = () => {
+    console.log("SSE connected");
+  };
 
   eventSource.onmessage = async (event) => {
     const data = JSON.parse(event.data);
@@ -1545,18 +1557,48 @@ function connectSSE() {
       await fetchLists();
     }
 
-    if (data.type === "items_changed" && data.list_id === currentListId) {
-      await fetchItems(currentListId);
+    if (data.type === "items_changed") {
+      // Always refresh lists to update item count badges
+      await fetchLists();
+      // Only refresh items if we're viewing the affected list
+      if (data.list_id === currentListId) {
+        await fetchItems(currentListId);
+      }
     }
   };
 
   eventSource.onerror = () => {
-    // EventSource has built-in reconnect logic
-    console.log("SSE connection lost, will reconnect...");
+    console.log("SSE connection lost");
+    eventSource.close();
+    eventSource = null;
+
+    // Reconnect after delay (with backoff)
+    sseReconnectTimeout = setTimeout(() => {
+      console.log("SSE reconnecting...");
+      connectSSE();
+    }, 3000);
   };
 
   return eventSource;
 }
+
+/**
+ * Reconnect SSE and refresh data when app becomes visible again.
+ */
+function handleVisibilityChange() {
+  if (document.visibilityState === "visible") {
+    // Reconnect SSE when app comes back to foreground
+    connectSSE();
+    // Refresh data in case we missed updates while in background
+    if (currentListId) {
+      fetchLists();
+      fetchItems(currentListId);
+    }
+  }
+}
+
+// Reconnect SSE when page becomes visible (handles mobile background)
+document.addEventListener("visibilitychange", handleVisibilityChange);
 
 // Initialize
 async function init() {
@@ -1569,11 +1611,21 @@ init();
 // Online/Offline detection
 window.addEventListener("online", () => {
   updateOfflineIndicator(false);
+  connectSSE(); // Reconnect SSE when back online
   fetchLists(); // Refresh data when back online
 });
 
 window.addEventListener("offline", () => {
   updateOfflineIndicator(true);
+  // Close SSE to avoid reconnect attempts while offline
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+  if (sseReconnectTimeout) {
+    clearTimeout(sseReconnectTimeout);
+    sseReconnectTimeout = null;
+  }
 });
 
 // Register Service Worker with update detection
