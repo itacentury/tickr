@@ -65,8 +65,7 @@ def init_db():
     cursor = conn.cursor()
 
     # Lists table
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS lists (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -75,8 +74,7 @@ def init_db():
             sort_order INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """
-    )
+    """)
 
     # Migration: Add columns if they don't exist (for existing databases)
     cursor.execute("PRAGMA table_info(lists)")
@@ -98,14 +96,12 @@ def init_db():
         # Old schema detected, drop and recreate
         cursor.execute("DROP TABLE settings")
 
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
         )
-    """
-    )
+    """)
 
     # Initialize default settings
     cursor.execute(
@@ -114,8 +110,7 @@ def init_db():
     )
 
     # Items table
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             list_id INTEGER NOT NULL,
@@ -125,12 +120,10 @@ def init_db():
             completed_at TIMESTAMP,
             FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
         )
-    """
-    )
+    """)
 
     # History table for tracking changes
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             list_id INTEGER NOT NULL,
@@ -140,8 +133,7 @@ def init_db():
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
         )
-    """
-    )
+    """)
 
     # Insert default list if empty
     cursor.execute("SELECT COUNT(*) FROM lists")
@@ -232,8 +224,7 @@ def get_lists(db: sqlite3.Connection = Depends(get_db)):
     }
     order_by = list_sort_sql.get(list_sort, list_sort_sql["alphabetical"])
 
-    cursor.execute(
-        f"""
+    cursor.execute(f"""
         SELECT l.*,
                COUNT(i.id) as total_items,
                SUM(CASE WHEN i.completed = 1 THEN 1 ELSE 0 END) as completed_items
@@ -241,8 +232,7 @@ def get_lists(db: sqlite3.Connection = Depends(get_db)):
         LEFT JOIN items i ON l.id = i.list_id
         GROUP BY l.id
         ORDER BY {order_by}
-    """
-    )
+    """)
     rows = cursor.fetchall()
     return [dict(row) for row in rows]
 

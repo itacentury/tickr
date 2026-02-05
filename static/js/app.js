@@ -9,7 +9,9 @@ let items = [];
 let selectedIcon = "list";
 let editingItemId = null;
 let editSelectedIcon = "list";
-let appSettings = { list_sort: "alphabetical" };
+let appSettings = {
+  list_sort: "alphabetical"
+};
 
 // API Helper with retry logic
 async function fetchWithRetry(url, options = {}, retries = 3, delay = 500) {
@@ -85,7 +87,10 @@ async function checkServerReachable() {
 function saveItemsToCache(listId, itemsData) {
   try {
     const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
-    cache[listId] = { items: itemsData, timestamp: Date.now() };
+    cache[listId] = {
+      items: itemsData,
+      timestamp: Date.now()
+    };
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
   } catch (e) {
     console.warn("Failed to save items to cache:", e);
@@ -321,7 +326,9 @@ async function updateSettings(settings) {
   console.log("updateSettings called with:", settings);
   const result = await fetchWriteWithRetry("/api/settings", {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify(settings),
   });
   console.log("API result:", result);
@@ -342,8 +349,12 @@ async function updateSettings(settings) {
 async function reorderLists(listIds) {
   const result = await fetchWriteWithRetry("/api/lists/reorder", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ list_ids: listIds }),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      list_ids: listIds
+    }),
   });
 
   if (!result) {
@@ -400,7 +411,9 @@ async function fetchLists() {
 
   // Then try to fetch fresh data
   try {
-    const response = await fetch("/api/lists", { cache: "no-store" });
+    const response = await fetch("/api/lists", {
+      cache: "no-store"
+    });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -502,8 +515,13 @@ async function fetchHistory(listId) {
 async function createList(name, icon) {
   const newList = await fetchWriteWithRetry("/api/lists", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, icon }),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name,
+      icon
+    }),
   });
 
   if (!newList) {
@@ -518,8 +536,14 @@ async function createList(name, icon) {
 async function updateList(listId, name, icon, itemSort) {
   const result = await fetchWriteWithRetry(`/api/lists/${listId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, icon, item_sort: itemSort }),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name,
+      icon,
+      item_sort: itemSort
+    }),
   });
 
   if (!result) {
@@ -585,8 +609,13 @@ async function createItem(listIdOrText, text, undo = false) {
 
   const result = await fetchWriteWithRetry(`/api/lists/${listId}/items`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: itemText, undo: isUndo }),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      text: itemText,
+      undo: isUndo
+    }),
   });
 
   if (!result) {
@@ -606,7 +635,9 @@ async function createItem(listIdOrText, text, undo = false) {
 async function updateItem(itemId, data) {
   const result = await fetchWriteWithRetry(`/api/items/${itemId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify(data),
   });
 
@@ -830,11 +861,16 @@ function renderItems() {
     checkbox.addEventListener("change", async () => {
       const isCompleted = checkbox.checked;
       const itemText = item.text;
-      await updateItem(itemId, { completed: isCompleted });
+      await updateItem(itemId, {
+        completed: isCompleted
+      });
 
       if (isCompleted) {
         showUndoToast(`"${itemText}" completed`, async () => {
-          await updateItem(itemId, { completed: false, undo: true });
+          await updateItem(itemId, {
+            completed: false,
+            undo: true
+          });
         });
       }
     });
@@ -855,18 +891,51 @@ function renderHistory(history) {
   }
 
   const actionLabels = {
-    item_created: { text: "Added", class: "created" },
-    item_completed: { text: "Completed", class: "completed" },
-    item_uncompleted: { text: "Reopened", class: "uncompleted" },
-    item_deleted: { text: "Deleted", class: "deleted" },
-    item_edited: { text: "Edited", class: "edited" },
-    list_created: { text: "List created", class: "created" },
+    item_created: {
+      text: "Added",
+      class: "created"
+    },
+    item_completed: {
+      text: "Completed",
+      class: "completed"
+    },
+    item_uncompleted: {
+      text: "Reopened",
+      class: "uncompleted"
+    },
+    item_deleted: {
+      text: "Deleted",
+      class: "deleted"
+    },
+    item_edited: {
+      text: "Edited",
+      class: "edited"
+    },
+    list_created: {
+      text: "List created",
+      class: "created"
+    },
     // Undo action labels
-    undo_created: { text: "Add undone", class: "undo" },
-    undo_completed: { text: "Complete undone", class: "undo" },
-    undo_uncompleted: { text: "Reopen undone", class: "undo" },
-    undo_deleted: { text: "Delete undone", class: "undo" },
-    undo_edited: { text: "Edit undone", class: "undo" },
+    undo_created: {
+      text: "Add undone",
+      class: "undo"
+    },
+    undo_completed: {
+      text: "Complete undone",
+      class: "undo"
+    },
+    undo_uncompleted: {
+      text: "Reopen undone",
+      class: "undo"
+    },
+    undo_deleted: {
+      text: "Delete undone",
+      class: "undo"
+    },
+    undo_edited: {
+      text: "Edit undone",
+      class: "undo"
+    },
   };
 
   // Generate undo button HTML based on action type
@@ -1281,34 +1350,52 @@ deleteListBtn.addEventListener("click", async () => {
       // Restore list
       const newList = await fetchWriteWithRetry("/api/lists", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: listName, icon: listIcon }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          name: listName,
+          icon: listIcon
+        }),
       });
 
       if (newList && newList.id) {
         // Restore list sort setting
         await fetchWriteWithRetry(`/api/lists/${newList.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ item_sort: listSort }),
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            item_sort: listSort
+          }),
         });
 
         // Restore all items
         for (const item of savedItems) {
           const restoredItem = await fetchWriteWithRetry(
-            `/api/lists/${newList.id}/items`,
-            {
+            `/api/lists/${newList.id}/items`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ text: item.text, undo: true }),
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                text: item.text,
+                undo: true
+              }),
             },
           );
           // If item was completed, mark it as completed
           if (item.completed && restoredItem?.id) {
             await fetchWriteWithRetry(`/api/items/${restoredItem.id}`, {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ completed: true, undo: true }),
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                completed: true,
+                undo: true
+              }),
             });
           }
         }
@@ -1392,7 +1479,9 @@ editItemForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = editItemText.value.trim();
   if (text && editingItemId) {
-    await updateItem(editingItemId, { text });
+    await updateItem(editingItemId, {
+      text
+    });
     editItemModal.classList.remove("open");
     editingItemId = null;
   }
@@ -1470,8 +1559,12 @@ cancelSettings.addEventListener("click", () => {
 
 saveSettings.addEventListener("click", async () => {
   const newListSort = listSortSetting.value;
-  console.log("Saving settings:", { list_sort: newListSort });
-  const success = await updateSettings({ list_sort: newListSort });
+  console.log("Saving settings:", {
+    list_sort: newListSort
+  });
+  const success = await updateSettings({
+    list_sort: newListSort
+  });
   console.log("Settings saved:", success);
   settingsModal.classList.remove("open");
 });
@@ -1540,8 +1633,9 @@ mainContent.addEventListener(
   (e) => {
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
+  }, {
+    passive: true
   },
-  { passive: true },
 );
 
 mainContent.addEventListener(
@@ -1550,8 +1644,9 @@ mainContent.addEventListener(
     touchEndX = e.changedTouches[0].screenX;
     touchEndY = e.changedTouches[0].screenY;
     handleSwipe();
+  }, {
+    passive: true
   },
-  { passive: true },
 );
 
 function handleSwipe() {
@@ -1824,7 +1919,9 @@ if ("serviceWorker" in navigator) {
 
     // Update button handler
     document.getElementById("update-btn").addEventListener("click", () => {
-      worker.postMessage({ type: "SKIP_WAITING" });
+      worker.postMessage({
+        type: "SKIP_WAITING"
+      });
       notification.remove();
     });
 

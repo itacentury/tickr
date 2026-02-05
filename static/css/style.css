@@ -513,6 +513,7 @@ ul {
     opacity: 0;
     transform: translateY(-10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -560,11 +561,11 @@ ul {
   transition: all var(--transition-fast);
 }
 
-.item-checkbox input:hover + .checkmark {
+.item-checkbox input:hover+.checkmark {
   border-color: var(--accent);
 }
 
-.item-checkbox input:checked + .checkmark {
+.item-checkbox input:checked+.checkmark {
   background: var(--success);
   border-color: var(--success);
 }
@@ -579,7 +580,7 @@ ul {
   stroke-width: 3;
 }
 
-.item-checkbox input:checked + .checkmark svg {
+.item-checkbox input:checked+.checkmark svg {
   opacity: 1;
   transform: scale(1);
 }
@@ -1227,6 +1228,7 @@ button.icon-picker-toggle.open .chevron {
     transform: translateX(0);
     opacity: 1;
   }
+
   to {
     transform: translateX(-30%);
     opacity: 0;
@@ -1238,6 +1240,7 @@ button.icon-picker-toggle.open .chevron {
     transform: translateX(0);
     opacity: 1;
   }
+
   to {
     transform: translateX(30%);
     opacity: 0;
@@ -1249,6 +1252,7 @@ button.icon-picker-toggle.open .chevron {
     transform: translateX(30%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -1260,6 +1264,7 @@ button.icon-picker-toggle.open .chevron {
     transform: translateX(-30%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -1287,6 +1292,7 @@ button.icon-picker-toggle.open .chevron {
   from {
     opacity: 1;
   }
+
   to {
     opacity: 0;
   }
@@ -1296,6 +1302,7 @@ button.icon-picker-toggle.open .chevron {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
