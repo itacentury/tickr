@@ -992,7 +992,7 @@ button.icon-picker-toggle.open .chevron {
 }
 
 .icon-options.expanded {
-  max-height: 200px;
+  max-height: 280px;
   overflow-y: auto;
   padding: 4px;
   margin-bottom: 24px;
