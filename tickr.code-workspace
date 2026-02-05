@@ -5,11 +5,9 @@
 		}
 	],
 	"settings": {
-		// Python Settings
 		"python.defaultInterpreterPath": ".venv/bin/python",
 		"python.terminal.activateEnvironment": true,
 
-		// Formatting - Black
 		"[python]": {
 			"editor.defaultFormatter": "ms-python.black-formatter",
 			"editor.formatOnSave": true,
@@ -21,39 +19,56 @@
 		"black-formatter.args": [
 			"--line-length=100"
 		],
+		"black-formatter.path": [
+			"black"
+		],
+		"isort.args": [
+			"--profile=black",
+			"--line-length=100"
+		],
+		"isort.path": [
+			"isort"
+		],
 
-		// Linting - Pylint
 		"pylint.enabled": true,
 		"pylint.args": [
 			"--max-line-length=100",
 			"--disable=C0114,C0115,C0116"
 		],
 
-		// Type Checking - Mypy
-		"mypy-type-checker.enabled": true,
 		"mypy-type-checker.args": [
 			"--ignore-missing-imports",
 			"--strict-optional"
 		],
 
-		// JavaScript/CSS Settings
 		"[javascript]": {
-			"editor.defaultFormatter": "esbenp.prettier-vscode",
-			"editor.formatOnSave": true,
-			"editor.formatOnPaste": true,
 			"editor.tabSize": 2,
+			"editor.insertSpaces": true
 		},
 		"[css]": {
-			"editor.defaultFormatter": "esbenp.prettier-vscode",
-			"editor.formatOnSave": true,
-			"editor.formatOnPaste": true,
 			"editor.tabSize": 2,
+			"editor.insertSpaces": true
 		},
 		"[html]": {
-			"editor.defaultFormatter": "esbenp.prettier-vscode",
-			"editor.formatOnSave": true,
-			"editor.formatOnPaste": true,
 			"editor.tabSize": 2,
+			"editor.insertSpaces": true
+		},
+
+		"emeraldwalk.runonsave": {
+			"commands": [
+				{
+					"match": "\\.js$",
+					"cmd": "js-beautify --replace --indent-size=2 --end-with-newline ${file}"
+				},
+				{
+					"match": "\\.css$",
+					"cmd": "css-beautify --replace --indent-size=2 --end-with-newline ${file}"
+				},
+				{
+					"match": "\\.html$",
+					"cmd": "djlint --reformat --indent=2 ${file}"
+				}
+			]
 		},
 		"[markdown]": {
 			"editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -62,7 +77,6 @@
 			"editor.wordWrap": "on",
 		},
 
-		// General Editor Settings
 		"editor.tabSize": 4,
 		"editor.insertSpaces": true,
 		"editor.trimAutoWhitespace": true,
@@ -70,12 +84,10 @@
 		"files.insertFinalNewline": true,
 		"files.trimFinalNewlines": true,
 
-		// File Associations
 		"files.associations": {
 			"*.html": "html"
 		},
 
-		// Exclude from Search/Explorer
 		"files.exclude": {
 			"**/__pycache__": true,
 			"**/.mypy_cache": true,
@@ -92,10 +104,80 @@
 		"recommendations": [
 			"ms-python.python",
 			"ms-python.black-formatter",
+			"ms-python.isort",
 			"ms-python.pylint",
 			"ms-python.mypy-type-checker",
-			"esbenp.prettier-vscode",
+			"emeraldwalk.RunOnSave",
 			"bradlc.vscode-tailwindcss"
+		]
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Format: Python",
+				"type": "shell",
+				"command": "isort --profile=black --line-length=100 . && black --line-length=100 .",
+				"group": "build",
+				"presentation": {
+					"panel": "shared"
+				}
+			},
+			{
+				"label": "Format: JavaScript",
+				"type": "shell",
+				"command": "js-beautify",
+				"args": [
+					"--replace",
+					"--indent-size=2",
+					"--end-with-newline",
+					"static/js/*.js"
+				],
+				"group": "build",
+				"presentation": {
+					"panel": "shared"
+				},
+			},
+			{
+				"label": "Format: CSS",
+				"type": "shell",
+				"command": "css-beautify",
+				"args": [
+					"--replace",
+					"--indent-size=2",
+					"--end-with-newline",
+					"static/css/*.css"
+				],
+				"group": "build",
+				"presentation": {
+					"panel": "shared"
+				},
+			},
+			{
+				"label": "Format: HTML",
+				"type": "shell",
+				"command": "djlint",
+				"args": [
+					"--reformat",
+					"--indent=2",
+					"templates/"
+				],
+				"group": "build",
+				"presentation": {
+					"panel": "shared"
+				},
+			},
+			{
+				"label": "Format: All Files",
+				"dependsOn": [
+					"Format: Python",
+					"Format: JavaScript",
+					"Format: CSS",
+					"Format: HTML"
+				],
+				"dependsOrder": "parallel",
+				"group": "build",
+			}
 		]
 	},
 	"launch": {
