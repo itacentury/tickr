@@ -1,7 +1,7 @@
 {
     "name": "Tickr",
     "short_name": "Tickr",
-    "description": "Deine Aufgaben, einfach erledigt",
+    "description": "Your tasks, simply done",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#0a0a0a",
@@ -22,5 +22,5 @@
         }
     ],
     "categories": ["productivity", "utilities"],
-    "lang": "de-DE"
+    "lang": "en-US"
 }

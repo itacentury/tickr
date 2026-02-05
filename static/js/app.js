@@ -421,7 +421,7 @@ async function fetchLists() {
         localStorage.removeItem("tickr_current_list");
         items = [];
         renderItems();
-        listTitle.textContent = "Keine Listen";
+        listTitle.textContent = "No Lists";
         document.title = "Tickr";
       }
     } else if (lists.length > 0 && !currentListId) {
@@ -561,7 +561,7 @@ async function deleteList(listId) {
     localStorage.removeItem("tickr_current_list");
     items = [];
     renderItems();
-    listTitle.textContent = "Keine Listen";
+    listTitle.textContent = "No Lists";
   }
 }
 
@@ -789,11 +789,11 @@ function renderItems() {
     const emptyTitle = emptyState.querySelector("p");
     const emptySubtitle = emptyState.querySelector("span");
     if (lists.length === 0) {
-      emptyTitle.textContent = "Keine Listen vorhanden";
-      emptySubtitle.textContent = "Erstelle deine erste Liste";
+      emptyTitle.textContent = "No lists available";
+      emptySubtitle.textContent = "Create your first list";
     } else {
-      emptyTitle.textContent = "Diese Liste ist leer";
-      emptySubtitle.textContent = "Füge dein erstes Element hinzu";
+      emptyTitle.textContent = "This list is empty";
+      emptySubtitle.textContent = "Add your first item";
     }
     return;
   }
@@ -833,7 +833,7 @@ function renderItems() {
       await updateItem(itemId, { completed: isCompleted });
 
       if (isCompleted) {
-        showUndoToast(`„${itemText}" erledigt`, async () => {
+        showUndoToast(`"${itemText}" completed`, async () => {
           await updateItem(itemId, { completed: false, undo: true });
         });
       }
@@ -850,24 +850,23 @@ function renderItems() {
 
 function renderHistory(history) {
   if (history.length === 0) {
-    historyList.innerHTML =
-      '<li class="history-empty">Noch keine Aktivitäten</li>';
+    historyList.innerHTML = '<li class="history-empty">No activities yet</li>';
     return;
   }
 
   const actionLabels = {
-    item_created: { text: "Hinzugefügt", class: "created" },
-    item_completed: { text: "Erledigt", class: "completed" },
-    item_uncompleted: { text: "Wieder geöffnet", class: "uncompleted" },
-    item_deleted: { text: "Gelöscht", class: "deleted" },
-    item_edited: { text: "Bearbeitet", class: "edited" },
-    list_created: { text: "Liste erstellt", class: "created" },
+    item_created: { text: "Added", class: "created" },
+    item_completed: { text: "Completed", class: "completed" },
+    item_uncompleted: { text: "Reopened", class: "uncompleted" },
+    item_deleted: { text: "Deleted", class: "deleted" },
+    item_edited: { text: "Edited", class: "edited" },
+    list_created: { text: "List created", class: "created" },
     // Undo action labels
-    undo_created: { text: "Hinzufügen rückgängig", class: "undo" },
-    undo_completed: { text: "Erledigen rückgängig", class: "undo" },
-    undo_uncompleted: { text: "Öffnen rückgängig", class: "undo" },
-    undo_deleted: { text: "Löschen rückgängig", class: "undo" },
-    undo_edited: { text: "Bearbeitung rückgängig", class: "undo" },
+    undo_created: { text: "Add undone", class: "undo" },
+    undo_completed: { text: "Complete undone", class: "undo" },
+    undo_uncompleted: { text: "Reopen undone", class: "undo" },
+    undo_deleted: { text: "Delete undone", class: "undo" },
+    undo_edited: { text: "Edit undone", class: "undo" },
   };
 
   // Generate undo button HTML based on action type
@@ -878,28 +877,28 @@ function renderHistory(history) {
       case "item_created":
         // Undo = delete the item (only if it still exists)
         if (itemExists) {
-          return `<button class="history-undo-btn" data-action="delete" data-item-id="${entry.item_id}">Löschen</button>`;
+          return `<button class="history-undo-btn" data-action="delete" data-item-id="${entry.item_id}">Delete</button>`;
         }
         return "";
 
       case "item_completed":
         // Undo = reopen the item (only if it exists and is still completed)
         if (itemExists && entry.item_current_completed === 1) {
-          return `<button class="history-undo-btn" data-action="uncomplete" data-item-id="${entry.item_id}">Wieder öffnen</button>`;
+          return `<button class="history-undo-btn" data-action="uncomplete" data-item-id="${entry.item_id}">Reopen</button>`;
         }
         return "";
 
       case "item_uncompleted":
         // Undo = complete the item again (only if it exists and is not completed)
         if (itemExists && entry.item_current_completed === 0) {
-          return `<button class="history-undo-btn" data-action="complete" data-item-id="${entry.item_id}">Erledigen</button>`;
+          return `<button class="history-undo-btn" data-action="complete" data-item-id="${entry.item_id}">Complete</button>`;
         }
         return "";
 
       case "item_deleted":
         // Undo = restore the item by creating a new one with the saved text
         if (entry.item_text) {
-          return `<button class="history-undo-btn" data-action="restore" data-list-id="${entry.list_id}" data-text="${escapeHtml(entry.item_text)}">Wiederherstellen</button>`;
+          return `<button class="history-undo-btn" data-action="restore" data-list-id="${entry.list_id}" data-text="${escapeHtml(entry.item_text)}">Restore</button>`;
         }
         return "";
 
@@ -907,7 +906,7 @@ function renderHistory(history) {
         // Undo = restore the old text (extract from "old → new" format)
         if (itemExists && entry.item_text && entry.item_text.includes(" → ")) {
           const oldText = entry.item_text.split(" → ")[0];
-          return `<button class="history-undo-btn" data-action="revert-edit" data-item-id="${entry.item_id}" data-old-text="${escapeHtml(oldText)}">Rückgängig</button>`;
+          return `<button class="history-undo-btn" data-action="revert-edit" data-item-id="${entry.item_id}" data-old-text="${escapeHtml(oldText)}">Undo</button>`;
         }
         return "";
 
@@ -1031,19 +1030,19 @@ function formatDate(dateString) {
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) {
-    return "heute";
+    return "today";
   } else if (diffDays === 1) {
-    return "gestern";
+    return "yesterday";
   } else if (diffDays < 7) {
-    return `vor ${diffDays} Tagen`;
+    return `${diffDays} days ago`;
   } else {
-    return date.toLocaleDateString("de-DE");
+    return date.toLocaleDateString("en-US");
   }
 }
 
 function formatDateTime(dateString) {
   const date = new Date(dateString);
-  return date.toLocaleString("de-DE", {
+  return date.toLocaleString("en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -1278,7 +1277,7 @@ deleteListBtn.addEventListener("click", async () => {
     const savedItems = allItems || [];
 
     await deleteList(currentListId);
-    showUndoToast(`„${listName}" gelöscht`, async () => {
+    showUndoToast(`"${listName}" deleted`, async () => {
       // Restore list
       const newList = await fetchWriteWithRetry("/api/lists", {
         method: "POST",
@@ -1418,7 +1417,7 @@ deleteEditItem.addEventListener("click", async () => {
   editingItemId = null;
 
   await deleteItem(itemId);
-  showUndoToast(`„${itemText}" gelöscht`, async () => {
+  showUndoToast(`"${itemText}" deleted`, async () => {
     await createItem(listId, itemText, true);
   });
 });

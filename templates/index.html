@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=5.0"
     />
     <meta name="theme-color" content="#0a0a0a" />
-    <meta name="description" content="Deine Aufgaben, einfach erledigt" />
+    <meta name="description" content="Your tasks, simply done" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
@@ -58,7 +58,7 @@
         </ul>
 
         <div class="sidebar-footer">
-          <button class="add-list-btn" id="addListBtn" title="Neue Liste">
+          <button class="add-list-btn" id="addListBtn" title="New List">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -68,9 +68,9 @@
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            <span>Neue Liste</span>
+            <span>New List</span>
           </button>
-          <button class="settings-btn" id="settingsBtn" title="Einstellungen">
+          <button class="settings-btn" id="settingsBtn" title="Settings">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -82,7 +82,7 @@
                 d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
               ></path>
             </svg>
-            <span>Einstellungen</span>
+            <span>Settings</span>
           </button>
         </div>
       </nav>
@@ -93,7 +93,7 @@
           <button
             class="mobile-menu-btn"
             id="mobileMenuBtn"
-            aria-label="Menü öffnen"
+            aria-label="Open menu"
           >
             <svg
               viewBox="0 0 24 24"
@@ -126,11 +126,7 @@
             Offline
           </span>
           <div class="header-actions">
-            <button
-              class="refresh-btn"
-              id="refreshBtn"
-              title="Liste aktualisieren"
-            >
+            <button class="refresh-btn" id="refreshBtn" title="Refresh list">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -144,11 +140,7 @@
                 ></path>
               </svg>
             </button>
-            <button
-              class="edit-list-btn"
-              id="editListBtn"
-              title="Liste bearbeiten"
-            >
+            <button class="edit-list-btn" id="editListBtn" title="Edit list">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -163,11 +155,7 @@
                 ></path>
               </svg>
             </button>
-            <button
-              class="history-btn"
-              id="historyBtn"
-              title="Verlauf anzeigen"
-            >
+            <button class="history-btn" id="historyBtn" title="Show history">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -181,7 +169,7 @@
             <button
               class="delete-list-btn"
               id="deleteListBtn"
-              title="Liste löschen"
+              title="Delete list"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -204,10 +192,10 @@
             type="text"
             class="add-item-input"
             id="addItemInput"
-            placeholder="Neues Element hinzufügen..."
+            placeholder="Add new item..."
             autocomplete="off"
           />
-          <button type="submit" class="add-item-btn" aria-label="Hinzufügen">
+          <button type="submit" class="add-item-btn" aria-label="Add">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -237,19 +225,19 @@
               d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
             ></path>
           </svg>
-          <p>Diese Liste ist leer</p>
-          <span>Füge dein erstes Element hinzu</span>
+          <p>This list is empty</p>
+          <span>Add your first item</span>
         </div>
       </main>
 
       <!-- History Panel -->
       <aside class="history-panel" id="historyPanel">
         <div class="history-header">
-          <h2>Verlauf</h2>
+          <h2>History</h2>
           <button
             class="close-history-btn"
             id="closeHistoryBtn"
-            aria-label="Schließen"
+            aria-label="Close"
           >
             <svg
               viewBox="0 0 24 24"
@@ -274,12 +262,12 @@
     <!-- Modal for new list -->
     <div class="modal" id="newListModal">
       <div class="modal-content">
-        <h2>Neue Liste erstellen</h2>
+        <h2>Create New List</h2>
         <form id="newListForm">
           <input
             type="text"
             id="newListName"
-            placeholder="Name der Liste"
+            placeholder="List name"
             autocomplete="off"
             required
           />
@@ -304,7 +292,7 @@
                   <line x1="3" y1="18" x2="3.01" y2="18"></line>
                 </svg>
               </span>
-              <span class="icon-picker-label">Icon wählen</span>
+              <span class="icon-picker-label">Choose icon</span>
               <svg
                 class="chevron"
                 viewBox="0 0 24 24"
@@ -320,7 +308,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="list"
-                title="Liste"
+                title="List"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -340,7 +328,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="cart"
-                title="Einkaufen"
+                title="Shopping"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -359,7 +347,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="check"
-                title="Aufgaben"
+                title="Tasks"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -377,7 +365,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="lightbulb"
-                title="Ideen"
+                title="Ideas"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -396,7 +384,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="star"
-                title="Wichtig"
+                title="Important"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -413,7 +401,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="heart"
-                title="Favoriten"
+                title="Favorites"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -430,7 +418,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="home"
-                title="Zuhause"
+                title="Home"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -448,7 +436,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="briefcase"
-                title="Arbeit"
+                title="Work"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -464,7 +452,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="book"
-                title="Bücher"
+                title="Books"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -511,7 +499,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="server"
-                title="Computer"
+                title="Server"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -545,7 +533,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="shoppingBag"
-                title="Lebensmittel"
+                title="Groceries"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -564,7 +552,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="package"
-                title="Drogerie"
+                title="Drugstore"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -584,7 +572,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="tool"
-                title="Haushalt"
+                title="Household"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -601,7 +589,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="tv"
-                title="Mediathek"
+                title="Media"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -617,7 +605,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="activity"
-                title="Aktivitäten"
+                title="Activities"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -632,9 +620,9 @@
           </div>
           <div class="modal-actions">
             <button type="button" class="btn-cancel" id="cancelNewList">
-              Abbrechen
+              Cancel
             </button>
-            <button type="submit" class="btn-create">Erstellen</button>
+            <button type="submit" class="btn-create">Create</button>
           </div>
         </form>
       </div>
@@ -643,12 +631,12 @@
     <!-- Modal for editing list -->
     <div class="modal" id="editListModal">
       <div class="modal-content">
-        <h2>Liste bearbeiten</h2>
+        <h2>Edit List</h2>
         <form id="editListForm">
           <input
             type="text"
             id="editListName"
-            placeholder="Name der Liste"
+            placeholder="List name"
             autocomplete="off"
             required
           />
@@ -673,7 +661,7 @@
                   <line x1="3" y1="18" x2="3.01" y2="18"></line>
                 </svg>
               </span>
-              <span class="icon-picker-label">Icon wählen</span>
+              <span class="icon-picker-label">Choose icon</span>
               <svg
                 class="chevron"
                 viewBox="0 0 24 24"
@@ -689,7 +677,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="list"
-                title="Liste"
+                title="List"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -709,7 +697,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="cart"
-                title="Einkaufen"
+                title="Shopping"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -728,7 +716,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="check"
-                title="Aufgaben"
+                title="Tasks"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -746,7 +734,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="lightbulb"
-                title="Ideen"
+                title="Ideas"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -765,7 +753,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="star"
-                title="Wichtig"
+                title="Important"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -782,7 +770,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="heart"
-                title="Favoriten"
+                title="Favorites"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -799,7 +787,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="home"
-                title="Zuhause"
+                title="Home"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -817,7 +805,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="briefcase"
-                title="Arbeit"
+                title="Work"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -833,7 +821,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="book"
-                title="Bücher"
+                title="Books"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -880,7 +868,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="server"
-                title="Computer"
+                title="Server"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -914,7 +902,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="shoppingBag"
-                title="Lebensmittel"
+                title="Groceries"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -933,7 +921,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="package"
-                title="Drogerie"
+                title="Drugstore"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -953,7 +941,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="tool"
-                title="Haushalt"
+                title="Household"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -970,7 +958,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="tv"
-                title="Mediathek"
+                title="Media"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -986,7 +974,7 @@
                 type="button"
                 class="icon-option"
                 data-icon="activity"
-                title="Aktivitäten"
+                title="Activities"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -1000,19 +988,19 @@
             </div>
           </div>
           <div class="setting-group">
-            <label for="editListSort">Sortierung</label>
+            <label for="editListSort">Sorting</label>
             <select id="editListSort" class="setting-select">
-              <option value="alphabetical">Alphabetisch (A-Z)</option>
-              <option value="alphabetical_desc">Alphabetisch (Z-A)</option>
-              <option value="created_desc">Neueste zuerst</option>
-              <option value="created_asc">Älteste zuerst</option>
+              <option value="alphabetical">Alphabetical (A-Z)</option>
+              <option value="alphabetical_desc">Alphabetical (Z-A)</option>
+              <option value="created_desc">Newest first</option>
+              <option value="created_asc">Oldest first</option>
             </select>
           </div>
           <div class="modal-actions">
             <button type="button" class="btn-cancel" id="cancelEditList">
-              Abbrechen
+              Cancel
             </button>
-            <button type="submit" class="btn-create">Speichern</button>
+            <button type="submit" class="btn-create">Save</button>
           </div>
         </form>
       </div>
@@ -1021,12 +1009,12 @@
     <!-- Modal for editing item -->
     <div class="modal" id="editItemModal">
       <div class="modal-content">
-        <h2>Eintrag bearbeiten</h2>
+        <h2>Edit Item</h2>
         <form id="editItemForm">
           <input
             type="text"
             id="editItemText"
-            placeholder="Text des Eintrags"
+            placeholder="Item text"
             autocomplete="off"
             required
           />
@@ -1035,7 +1023,7 @@
               type="button"
               class="btn-icon-danger"
               id="deleteEditItem"
-              title="Löschen"
+              title="Delete"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -1051,9 +1039,9 @@
             </button>
             <div class="modal-actions">
               <button type="button" class="btn-cancel" id="cancelEditItem">
-                Abbrechen
+                Cancel
               </button>
-              <button type="submit" class="btn-create">Speichern</button>
+              <button type="submit" class="btn-create">Save</button>
             </div>
           </div>
         </form>
@@ -1063,37 +1051,36 @@
     <!-- Modal for settings -->
     <div class="modal" id="settingsModal">
       <div class="modal-content">
-        <h2>Einstellungen</h2>
+        <h2>Settings</h2>
         <div class="setting-group">
-          <label for="listSortSetting">Listensortierung</label>
+          <label for="listSortSetting">List sorting</label>
           <select id="listSortSetting" class="setting-select">
-            <option value="alphabetical">Alphabetisch (A-Z)</option>
-            <option value="alphabetical_desc">Alphabetisch (Z-A)</option>
-            <option value="created_desc">Neueste zuerst</option>
-            <option value="created_asc">Älteste zuerst</option>
-            <option value="custom">Benutzerdefiniert</option>
+            <option value="alphabetical">Alphabetical (A-Z)</option>
+            <option value="alphabetical_desc">Alphabetical (Z-A)</option>
+            <option value="created_desc">Newest first</option>
+            <option value="created_asc">Oldest first</option>
+            <option value="custom">Custom</option>
           </select>
           <p class="setting-hint" id="listSortHint">
-            Bei "Benutzerdefiniert" kannst du Listen per Drag & Drop in der
-            Sidebar neu anordnen.
+            With "Custom" you can reorder lists via drag & drop in the sidebar.
           </p>
         </div>
         <div class="setting-group">
-          <label>Fehlerbehebung</label>
+          <label>Troubleshooting</label>
           <button type="button" class="btn-danger" id="clearCacheBtn">
-            Cache löschen & neu laden
+            Clear cache & reload
           </button>
           <p class="setting-hint">
-            Bei Anzeigeproblemen oder nach Updates: Löscht alle
-            zwischengespeicherten Daten und lädt die Seite komplett neu.
+            For display issues or after updates: Clears all cached data and
+            completely reloads the page.
           </p>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-cancel" id="cancelSettings">
-            Abbrechen
+            Cancel
           </button>
           <button type="button" class="btn-create" id="saveSettings">
-            Speichern
+            Save
           </button>
         </div>
       </div>
@@ -1102,7 +1089,7 @@
     <!-- Undo Toast -->
     <div class="toast" id="undoToast">
       <span class="toast-message" id="toastMessage"></span>
-      <button class="toast-action" id="toastUndo">Rückgängig</button>
+      <button class="toast-action" id="toastUndo">Undo</button>
       <div class="toast-progress" id="toastProgress"></div>
     </div>
 
