@@ -29,3 +29,7 @@ Open [http://localhost:8000](http://localhost:8000)
 ## API
 
 Interactive docs available at `/docs` (Swagger) and `/redoc`
+
+## Credits
+
+[T cell icons created by Freepik - Flaticon](https://www.flaticon.com/free-icons/t-cell)

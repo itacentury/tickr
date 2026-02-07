@@ -9,20 +9,20 @@ const STATIC_ASSETS = [
   "/static/js/app.js",
   "/static/manifest.json",
   "/static/icons/icon.svg",
-  "/static/icons/icon-192.png",
-  "/static/icons/icon-512.png",
+  "/static/icons/favicon-192x192.png",
+  "/static/icons/favicon-512x512.png",
 ];
 
 // Install event - cache static assets
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        console.log("Caching static assets");
-        return cache.addAll(STATIC_ASSETS);
-      })
-      .then(() => self.skipWaiting()),
+    .open(CACHE_NAME)
+    .then((cache) => {
+      console.log("Caching static assets");
+      return cache.addAll(STATIC_ASSETS);
+    })
+    .then(() => self.skipWaiting()),
   );
 });
 
@@ -30,37 +30,43 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
-      .keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((name) => name !== CACHE_NAME)
-            .map((name) => caches.delete(name)),
-        );
-      })
-      .then(() => self.clients.claim()),
+    .keys()
+    .then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+        .filter((name) => name !== CACHE_NAME)
+        .map((name) => caches.delete(name)),
+      );
+    })
+    .then(() => self.clients.claim()),
   );
 });
 
 // Fetch event - smart caching strategy
 self.addEventListener("fetch", (event) => {
-  const { request } = event;
+  const {
+    request
+  } = event;
   const url = new URL(request.url);
 
   // API requests - network first, no caching
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          return response;
-        })
-        .catch(() => {
-          // Return offline response for API
-          return new Response(JSON.stringify({ error: "Offline" }), {
-            status: 503,
-            headers: { "Content-Type": "application/json" },
-          });
-        }),
+      .then((response) => {
+        return response;
+      })
+      .catch(() => {
+        // Return offline response for API
+        return new Response(JSON.stringify({
+          error: "Offline"
+        }), {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json"
+          },
+        });
+      }),
     );
     return;
   }
@@ -72,26 +78,28 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          // Cache the updated HTML
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
+      .then((response) => {
+        // Cache the updated HTML
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseToCache);
+        });
+        return response;
+      })
+      .catch(() => {
+        // Fallback to cached HTML when offline
+        return caches.match(request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          return new Response("Offline - no cached version available", {
+            status: 503,
+            headers: {
+              "Content-Type": "text/plain"
+            },
           });
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cached HTML when offline
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            return new Response("Offline - no cached version available", {
-              status: 503,
-              headers: { "Content-Type": "text/plain" },
-            });
-          });
-        }),
+        });
+      }),
     );
     return;
   }
