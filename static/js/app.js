@@ -180,7 +180,6 @@ const addListBtn = document.getElementById("addListBtn");
 const newListForm = document.getElementById("newListForm");
 const newListName = document.getElementById("newListName");
 const cancelNewList = document.getElementById("cancelNewList");
-const iconOptions = document.querySelectorAll("#iconOptions .icon-option");
 const iconPickerToggle = document.getElementById("iconPickerToggle");
 const iconOptionsContainer = document.getElementById("iconOptions");
 const iconPreview = document.getElementById("iconPreview");
@@ -190,9 +189,6 @@ const editListModal = document.getElementById("editListModal");
 const editListForm = document.getElementById("editListForm");
 const editListName = document.getElementById("editListName");
 const cancelEditList = document.getElementById("cancelEditList");
-const editIconOptions = document.querySelectorAll(
-  "#editIconOptions .icon-option",
-);
 const editIconPickerToggle = document.getElementById("editIconPickerToggle");
 const editIconOptionsContainer = document.getElementById("editIconOptions");
 const editIconPreview = document.getElementById("editIconPreview");
@@ -362,7 +358,149 @@ const icons = {
         <path d="M7 2v20"></path>
         <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"></path>
     </svg>`,
+  mail: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+        <polyline points="22,6 12,13 2,6"></polyline>
+    </svg>`,
+  phone: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+    </svg>`,
+  globe: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+    </svg>`,
+  headphones: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+        <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+    </svg>`,
+  key: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+    </svg>`,
+  mapPin: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+        <circle cx="12" cy="10" r="3"></circle>
+    </svg>`,
+  pencil: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+    </svg>`,
+  users: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>`,
+  zap: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+    </svg>`,
+  cloud: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+    </svg>`,
+  flag: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+        <line x1="4" y1="22" x2="4" y2="15"></line>
+    </svg>`,
+  bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+    </svg>`,
+  compass: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+    </svg>`,
+  smile: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+        <line x1="9" y1="9" x2="9.01" y2="9"></line>
+        <line x1="15" y1="9" x2="15.01" y2="9"></line>
+    </svg>`,
+  target: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="6"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
+    </svg>`,
+  sun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="5"></circle>
+        <line x1="12" y1="1" x2="12" y2="3"></line>
+        <line x1="12" y1="21" x2="12" y2="23"></line>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+        <line x1="1" y1="12" x2="3" y2="12"></line>
+        <line x1="21" y1="12" x2="23" y2="12"></line>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>`,
 };
+
+/** Display labels for each icon key. */
+const iconLabels = {
+  list: "List",
+  cart: "Shopping",
+  check: "Tasks",
+  lightbulb: "Ideas",
+  star: "Important",
+  heart: "Favorites",
+  home: "Home",
+  briefcase: "Work",
+  book: "Books",
+  film: "Film",
+  server: "Server",
+  disc: "Vinyl",
+  shoppingBag: "Shopping Bag",
+  package: "Package",
+  tool: "Household",
+  tv: "Media",
+  activity: "Activity",
+  calendar: "Calendar",
+  clock: "Clock",
+  music: "Music",
+  camera: "Camera",
+  gift: "Gift",
+  plane: "Travel",
+  coffee: "Coffee",
+  gamepad: "Gaming",
+  graduation: "Education",
+  dumbbell: "Fitness",
+  palette: "Art",
+  utensils: "Food",
+  mail: "Mail",
+  phone: "Phone",
+  globe: "World",
+  headphones: "Podcasts",
+  key: "Security",
+  mapPin: "Places",
+  pencil: "Notes",
+  users: "People",
+  zap: "Priority",
+  cloud: "Cloud",
+  flag: "Goals",
+  bell: "Reminders",
+  compass: "Explore",
+  smile: "Mood",
+  target: "Focus",
+  sun: "Outdoors",
+};
+
+/**
+ * Populate an icon picker container with icon option buttons.
+ *
+ * @param {HTMLElement} container - The container element to fill
+ */
+function populateIconPicker(container) {
+  container.innerHTML = "";
+  for (const [key, svg] of Object.entries(icons)) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "icon-option";
+    btn.dataset.icon = key;
+    btn.title = iconLabels[key] || key;
+    btn.innerHTML = svg;
+    container.appendChild(btn);
+  }
+}
+
+populateIconPicker(iconOptionsContainer);
+populateIconPicker(editIconOptionsContainer);
 
 /**
  * Update the icon preview in the toggle button.
@@ -1293,7 +1431,7 @@ function openEditListModal() {
   editListSort.value = list.item_sort || "alphabetical";
 
   updateIconPreview(editIconPreview, editSelectedIcon);
-  editIconOptions.forEach((opt) => {
+  editIconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
     opt.classList.toggle("selected", opt.dataset.icon === editSelectedIcon);
   });
 
@@ -1475,7 +1613,7 @@ addListBtn.addEventListener("click", () => {
   newListName.value = "";
   selectedIcon = "list";
   updateIconPreview(iconPreview, selectedIcon);
-  iconOptions.forEach((opt) => {
+  iconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
     opt.classList.toggle("selected", opt.dataset.icon === selectedIcon);
   });
   // Reset icon picker to collapsed state
@@ -1484,25 +1622,25 @@ addListBtn.addEventListener("click", () => {
   setTimeout(() => newListName.focus(), 100);
 });
 
-// Icon selection (new list)
-iconOptions.forEach((option) => {
-  option.addEventListener("click", () => {
-    selectedIcon = option.dataset.icon;
-    updateIconPreview(iconPreview, selectedIcon);
-    iconOptions.forEach((opt) => {
-      opt.classList.toggle("selected", opt.dataset.icon === selectedIcon);
-    });
+// Icon selection (new list) — event delegation
+iconOptionsContainer.addEventListener("click", (e) => {
+  const option = e.target.closest(".icon-option");
+  if (!option) return;
+  selectedIcon = option.dataset.icon;
+  updateIconPreview(iconPreview, selectedIcon);
+  iconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
+    opt.classList.toggle("selected", opt.dataset.icon === selectedIcon);
   });
 });
 
-// Icon selection (edit list)
-editIconOptions.forEach((option) => {
-  option.addEventListener("click", () => {
-    editSelectedIcon = option.dataset.icon;
-    updateIconPreview(editIconPreview, editSelectedIcon);
-    editIconOptions.forEach((opt) => {
-      opt.classList.toggle("selected", opt.dataset.icon === editSelectedIcon);
-    });
+// Icon selection (edit list) — event delegation
+editIconOptionsContainer.addEventListener("click", (e) => {
+  const option = e.target.closest(".icon-option");
+  if (!option) return;
+  editSelectedIcon = option.dataset.icon;
+  updateIconPreview(editIconPreview, editSelectedIcon);
+  editIconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
+    opt.classList.toggle("selected", opt.dataset.icon === editSelectedIcon);
   });
 });
 
