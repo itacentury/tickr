@@ -1520,11 +1520,14 @@ deleteListBtn.addEventListener("click", async () => {
     const listIcon = list.icon || "list";
     const listSort = list.item_sort || "alphabetical";
 
-    // Fetch all items (including completed) before deleting for undo
+    // Fetch all items and history before deleting for undo
     const allItems = await fetchWithRetry(
       `/api/lists/${currentListId}/items?include_completed=true`,
     );
     const savedItems = allItems || [];
+    const savedHistory = await fetchWithRetry(
+      `/api/lists/${currentListId}/history`,
+    ) || [];
 
     await deleteList(currentListId);
     showUndoToast(`"${listName}" deleted`, async () => {
@@ -1536,7 +1539,8 @@ deleteListBtn.addEventListener("click", async () => {
         },
         body: JSON.stringify({
           name: listName,
-          icon: listIcon
+          icon: listIcon,
+          undo: true
         }),
       });
 
@@ -1579,6 +1583,17 @@ deleteListBtn.addEventListener("click", async () => {
               }),
             });
           }
+        }
+
+        // Restore history entries
+        if (savedHistory.length > 0) {
+          await fetchWriteWithRetry(`/api/lists/${newList.id}/history`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(savedHistory),
+          });
         }
 
         await fetchLists();

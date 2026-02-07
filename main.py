@@ -150,6 +150,7 @@ class ListCreate(BaseModel):
 
     name: str
     icon: str = "list"
+    undo: bool = False
 
 
 class ListUpdate(BaseModel):
@@ -253,12 +254,13 @@ def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db))
     db.commit()
     list_id = cursor.lastrowid
 
-    # Log to history
-    cursor.execute(
-        "INSERT INTO history (list_id, action, item_text) VALUES (?, ?, ?)",
-        (list_id, "list_created", list_data.name),
-    )
-    db.commit()
+    # Log to history (skip undo actions)
+    if not list_data.undo:
+        cursor.execute(
+            "INSERT INTO history (list_id, action, item_text) VALUES (?, ?, ?)",
+            (list_id, "list_created", list_data.name),
+        )
+        db.commit()
 
     broadcast_update("lists_changed")
     return {"id": list_id, "name": list_data.name, "icon": list_data.icon}
@@ -505,6 +507,19 @@ def get_history(list_id: int, db: sqlite3.Connection = Depends(get_db)):
     )
     rows = cursor.fetchall()
     return [dict(row) for row in rows]
+
+
+@app.post("/api/lists/{list_id}/history")
+def restore_history(list_id: int, entries: list[dict], db: sqlite3.Connection = Depends(get_db)):
+    """Bulk-insert history entries for a restored list."""
+    cursor = db.cursor()
+    for entry in entries:
+        cursor.execute(
+            "INSERT INTO history (list_id, action, item_text, timestamp) VALUES (?, ?, ?, ?)",
+            (list_id, entry.get("action"), entry.get("item_text"), entry.get("timestamp")),
+        )
+    db.commit()
+    return {"success": True}
 
 
 # SSE endpoint for real-time updates
