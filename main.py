@@ -352,12 +352,12 @@ def create_item(list_id: int, item_data: ItemCreate, db: sqlite3.Connection = De
     db.commit()
     item_id = cursor.lastrowid
 
-    # Log to history (use undo action type if this is restoring a deleted item)
-    action = "undo_deleted" if item_data.undo else "item_created"
-    cursor.execute(
-        "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-        (list_id, item_id, action, item_data.text),
-    )
+    # Log to history (skip undo actions to keep history clean)
+    if not item_data.undo:
+        cursor.execute(
+            "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+            (list_id, item_id, "item_created", item_data.text),
+        )
     db.commit()
 
     broadcast_update("items_changed", list_id)
@@ -382,12 +382,12 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
         updates.append("text = ?")
         values.append(item_data.text)
 
-        # Log text edit to history (use undo action type if this is an undo)
-        action = "undo_edited" if item_data.undo else "item_edited"
-        cursor.execute(
-            "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-            (item["list_id"], item_id, action, f"{item['text']} → {item_data.text}"),
-        )
+        # Log text edit to history (skip undo actions)
+        if not item_data.undo:
+            cursor.execute(
+                "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+                (item["list_id"], item_id, "item_edited", f"{item['text']} → {item_data.text}"),
+            )
 
     if item_data.completed is not None:
         updates.append("completed = ?")
@@ -396,21 +396,21 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
             updates.append("completed_at = ?")
             values.append(datetime.now().isoformat())
 
-            # Log completion to history (use undo action type if this is an undo)
-            action = "undo_uncompleted" if item_data.undo else "item_completed"
-            cursor.execute(
-                "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-                (item["list_id"], item_id, action, item_data.text or item["text"]),
-            )
+            # Log completion to history (skip undo actions)
+            if not item_data.undo:
+                cursor.execute(
+                    "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+                    (item["list_id"], item_id, "item_completed", item_data.text or item["text"]),
+                )
         else:
             updates.append("completed_at = NULL")
 
-            # Log uncomplete to history (use undo action type if this is an undo)
-            action = "undo_completed" if item_data.undo else "item_uncompleted"
-            cursor.execute(
-                "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-                (item["list_id"], item_id, action, item_data.text or item["text"]),
-            )
+            # Log reopen to history (skip undo actions)
+            if not item_data.undo:
+                cursor.execute(
+                    "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+                    (item["list_id"], item_id, "item_uncompleted", item_data.text or item["text"]),
+                )
 
     if updates:
         values.append(item_id)
@@ -431,12 +431,11 @@ def delete_item(item_id: int, undo: bool = False, db: sqlite3.Connection = Depen
     item = cursor.fetchone()
     list_id = item["list_id"] if item else None
 
-    if item:
-        # Log deletion to history (use undo action type if undoing a creation)
-        action = "undo_created" if undo else "item_deleted"
+    if item and not undo:
+        # Log deletion to history (skip undo actions)
         cursor.execute(
             "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-            (item["list_id"], item_id, action, item["text"]),
+            (item["list_id"], item_id, "item_deleted", item["text"]),
         )
 
     cursor.execute("DELETE FROM items WHERE id = ?", (item_id,))
@@ -494,17 +493,13 @@ def reorder_lists(reorder_data: ListReorder, db: sqlite3.Connection = Depends(ge
 # History
 @app.get("/api/lists/{list_id}/history")
 def get_history(list_id: int, db: sqlite3.Connection = Depends(get_db)):
-    """Return the last 100 history entries for a list."""
+    """Return all history entries for a list."""
     cursor = db.cursor()
-    # Get history entries with current item status
     cursor.execute(
         """
-        SELECT h.*, i.completed as item_current_completed, i.text as item_current_text
-        FROM history h
-        LEFT JOIN items i ON h.item_id = i.id
-        WHERE h.list_id = ?
-        ORDER BY h.timestamp DESC
-        LIMIT 100
+        SELECT * FROM history
+        WHERE list_id = ? AND action NOT LIKE 'undo_%'
+        ORDER BY timestamp DESC
     """,
         (list_id,),
     )

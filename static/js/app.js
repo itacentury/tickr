@@ -1118,150 +1118,87 @@ function renderHistory(history) {
       text: "List created",
       class: "created"
     },
-    // Undo action labels
-    undo_created: {
-      text: "Add undone",
-      class: "undo"
-    },
-    undo_completed: {
-      text: "Complete undone",
-      class: "undo"
-    },
-    undo_uncompleted: {
-      text: "Reopen undone",
-      class: "undo"
-    },
-    undo_deleted: {
-      text: "Delete undone",
-      class: "undo"
-    },
-    undo_edited: {
-      text: "Edit undone",
-      class: "undo"
-    },
   };
 
-  // Generate undo button HTML based on action type
-  function getUndoButton(entry) {
-    const itemExists = entry.item_current_text !== null;
+  /**
+   * Return a date group label for a timestamp.
+   *
+   * @param {string} timestamp - ISO timestamp string
+   * @returns {string} "Today", "Yesterday", or a localized date string
+   */
+  function getDateGroup(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const entryDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((today - entryDate) / (1000 * 60 * 60 * 24));
 
-    switch (entry.action) {
-      case "item_created":
-        // Undo = delete the item (only if it still exists)
-        if (itemExists) {
-          return `<button class="history-undo-btn" data-action="delete" data-item-id="${entry.item_id}">Delete</button>`;
-        }
-        return "";
-
-      case "item_completed":
-        // Undo = reopen the item (only if it exists and is still completed)
-        if (itemExists && entry.item_current_completed === 1) {
-          return `<button class="history-undo-btn" data-action="uncomplete" data-item-id="${entry.item_id}">Reopen</button>`;
-        }
-        return "";
-
-      case "item_uncompleted":
-        // Undo = complete the item again (only if it exists and is not completed)
-        if (itemExists && entry.item_current_completed === 0) {
-          return `<button class="history-undo-btn" data-action="complete" data-item-id="${entry.item_id}">Complete</button>`;
-        }
-        return "";
-
-      case "item_deleted":
-        // Undo = restore the item by creating a new one with the saved text
-        if (entry.item_text) {
-          return `<button class="history-undo-btn" data-action="restore" data-list-id="${entry.list_id}" data-text="${escapeHtml(entry.item_text)}">Restore</button>`;
-        }
-        return "";
-
-      case "item_edited":
-        // Undo = restore the old text (extract from "old → new" format)
-        if (itemExists && entry.item_text && entry.item_text.includes(" → ")) {
-          const oldText = entry.item_text.split(" → ")[0];
-          return `<button class="history-undo-btn" data-action="revert-edit" data-item-id="${entry.item_id}" data-old-text="${escapeHtml(oldText)}">Undo</button>`;
-        }
-        return "";
-
-      default:
-        return "";
-    }
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric"
+    });
   }
 
-  historyList.innerHTML = history
-    .map((entry) => {
-      const action = actionLabels[entry.action] || {
-        text: entry.action,
-        class: "",
+  /**
+   * Format a timestamp to a short time string (hours and minutes).
+   *
+   * @param {string} timestamp - ISO timestamp string
+   * @returns {string} Formatted time like "14:30"
+   */
+  function formatTime(timestamp) {
+    return new Date(timestamp).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+
+  // Group entries by date
+  const groups = [];
+  let currentGroup = null;
+
+  for (const entry of history) {
+    const label = getDateGroup(entry.timestamp);
+    if (!currentGroup || currentGroup.label !== label) {
+      currentGroup = {
+        label,
+        entries: []
       };
+      groups.push(currentGroup);
+    }
+    currentGroup.entries.push(entry);
+  }
 
-      const undoButton = getUndoButton(entry);
+  historyList.innerHTML = groups
+    .map((group) => {
+      const entries = group.entries
+        .map((entry) => {
+          const action = actionLabels[entry.action] || {
+            text: entry.action,
+            class: ""
+          };
+          const itemText = entry.item_text || "";
+          const displayText = entry.action === "item_edited" && itemText.includes(" → ") ?
+            itemText.split(" → ")[1] :
+            itemText;
 
-      return `
-            <li class="history-item">
-                <div class="history-item-content">
-                    <div class="history-action">
-                        <span class="action-type ${action.class}">${
-                          action.text
-                        }</span>
-                    </div>
-                    <div class="history-text">${escapeHtml(
-                      entry.item_text || "",
-                    )}</div>
-                    <div class="history-time">${formatDateTime(
-                      entry.timestamp,
-                    )}</div>
-                    ${
-                      undoButton
-                        ? `<div class="history-actions">${undoButton}</div>`
-                        : ""
-                    }
-                </div>
-            </li>
-        `;
+          return `<li class="history-entry">
+            <span class="history-time">${formatTime(entry.timestamp)}</span>
+            <span class="action-type ${action.class}">${action.text}</span>
+            <span class="history-text">${escapeHtml(displayText)}</span>
+          </li>`;
+        })
+        .join("");
+
+      return `<li class="history-group">
+        <div class="history-date-header">${group.label}</div>
+        <ul class="history-entries">${entries}</ul>
+      </li>`;
     })
     .join("");
-
-  // Add undo button handlers
-  historyList.querySelectorAll(".history-undo-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const action = btn.dataset.action;
-
-      switch (action) {
-        case "delete":
-          await deleteItem(parseInt(btn.dataset.itemId), true);
-          break;
-
-        case "uncomplete":
-          await updateItem(parseInt(btn.dataset.itemId), {
-            completed: false,
-            undo: true,
-          });
-          break;
-
-        case "complete":
-          await updateItem(parseInt(btn.dataset.itemId), {
-            completed: true,
-            undo: true,
-          });
-          break;
-
-        case "restore":
-          await createItem(
-            parseInt(btn.dataset.listId),
-            btn.dataset.text,
-            true,
-          );
-          break;
-
-        case "revert-edit":
-          await updateItem(parseInt(btn.dataset.itemId), {
-            text: btn.dataset.oldText,
-            undo: true,
-          });
-          break;
-      }
-    });
-  });
 }
 
 // Helper Functions
