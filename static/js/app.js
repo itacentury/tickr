@@ -1512,6 +1512,7 @@ editListBtn.addEventListener("click", openEditListModal);
 
 // Delete list button
 deleteListBtn.addEventListener("click", async () => {
+  editListModal.classList.remove("open");
   if (currentListId && lists.length > 0) {
     const list = lists.find((l) => l.id === currentListId);
     if (!list) return;

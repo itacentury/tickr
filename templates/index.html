@@ -12,8 +12,14 @@
     <meta name="apple-mobile-web-app-title" content="Tickr" />
     <title>Tickr</title>
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png" />
+    <link rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/static/icons/favicon-32x32.png" />
+    <link rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="/static/icons/favicon-16x16.png" />
     <link rel="icon" href="/static/icons/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" />
     <!-- Fonts -->
@@ -126,15 +132,6 @@
                    stroke-width="2">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
-            </button>
-            <button class="delete-list-btn" id="deleteListBtn" title="Delete list">
-              <svg viewBox="0 0 24 24"
-                   fill="none"
-                   stroke="currentColor"
-                   stroke-width="2">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
               </svg>
             </button>
           </div>
@@ -286,9 +283,23 @@
               <option value="created_asc">Oldest first</option>
             </select>
           </div>
-          <div class="modal-actions">
-            <button type="button" class="btn-cancel" id="cancelEditList">Cancel</button>
-            <button type="submit" class="btn-create">Save</button>
+          <div class="modal-actions-split">
+            <button type="button"
+                    class="btn-icon-danger"
+                    id="deleteListBtn"
+                    title="Delete list">
+              <svg viewBox="0 0 24 24"
+                   fill="none"
+                   stroke="currentColor"
+                   stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+            <div class="modal-actions">
+              <button type="button" class="btn-cancel" id="cancelEditList">Cancel</button>
+              <button type="submit" class="btn-create">Save</button>
+            </div>
           </div>
         </form>
       </div>
