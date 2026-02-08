@@ -127,7 +127,12 @@ ul {
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    padding var(--transition-slow),
+    border-radius var(--transition-slow),
+    gap var(--transition-slow);
 }
 
 .sidebar-toggle:hover {
@@ -159,19 +164,22 @@ ul {
   font-size: 1.1rem;
   white-space: nowrap;
   opacity: 1;
-  transition: opacity var(--transition-normal);
+  overflow: hidden;
+  max-width: 200px;
+  transition:
+    opacity var(--transition-slow),
+    max-width var(--transition-slow);
 }
 
 .sidebar.collapsed .sidebar-toggle {
-  width: 44px;
-  height: 44px;
-  padding: 0;
+  padding: 12px;
   border-radius: 50%;
-  justify-content: center;
+  gap: 0;
 }
 
 .sidebar.collapsed .sidebar-title {
-  display: none;
+  opacity: 0;
+  max-width: 0;
 }
 
 /* Navigation List */
@@ -1153,12 +1161,18 @@ button.icon-picker-toggle.open .chevron {
   .sidebar.collapsed .sidebar-title,
   .sidebar.collapsed .nav-text,
   .sidebar.collapsed .nav-count,
-  .sidebar.collapsed .add-list-btn span {
+  .sidebar.collapsed .add-list-btn span,
+  .sidebar.collapsed .settings-btn span {
     opacity: 1;
+  }
+
+  .sidebar.collapsed .sidebar-title {
+    max-width: 200px;
   }
 
   .sidebar-toggle {
     pointer-events: none;
+    gap: 12px;
   }
 
   .mobile-menu-btn {
