@@ -7,6 +7,8 @@ Provides endpoints for managing todo lists, items, and history tracking.
 import asyncio
 import json
 import sqlite3
+import time
+from collections import defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -14,10 +16,10 @@ from pathlib import Path
 from queue import Empty, Full, Queue
 from threading import Lock
 
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 @asynccontextmanager
@@ -28,6 +30,63 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Tickr", version="1.0.0", lifespan=lifespan)
+
+# Rate limiting configuration
+RATE_LIMIT_REQUESTS = 100
+RATE_LIMIT_WINDOW = 60  # seconds
+rate_limit_store: dict[str, list[float]] = defaultdict(list)
+rate_limit_lock = Lock()
+
+# Maximum concurrent SSE connections
+MAX_SSE_CLIENTS = 10
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next) -> Response:
+    """Attach security headers to every response."""
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'"
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next) -> Response:
+    """Enforce per-IP sliding window rate limiting, excluding SSE."""
+    if request.url.path == "/api/events":
+        return await call_next(request)
+
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+
+    with rate_limit_lock:
+        # Prune expired timestamps
+        timestamps = rate_limit_store[client_ip]
+        cutoff = now - RATE_LIMIT_WINDOW
+        rate_limit_store[client_ip] = [t for t in timestamps if t > cutoff]
+        timestamps = rate_limit_store[client_ip]
+
+        if len(timestamps) >= RATE_LIMIT_REQUESTS:
+            retry_after = int(timestamps[0] - cutoff) + 1
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests"},
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        timestamps.append(now)
+
+    return await call_next(request)
+
 
 # Database setup
 DATABASE = "data/tickr.db"
@@ -148,30 +207,30 @@ def init_db():
 class ListCreate(BaseModel):
     """Request model for creating a new list."""
 
-    name: str
-    icon: str = "list"
+    name: str = Field(..., max_length=200)
+    icon: str = Field("list", max_length=50)
     undo: bool = False
 
 
 class ListUpdate(BaseModel):
     """Request model for updating an existing list."""
 
-    name: str | None = None
-    icon: str | None = None
+    name: str | None = Field(None, max_length=200)
+    icon: str | None = Field(None, max_length=50)
     item_sort: str | None = None
 
 
 class ItemCreate(BaseModel):
     """Request model for creating a new item."""
 
-    text: str
+    text: str = Field(..., max_length=1000)
     undo: bool = False
 
 
 class ItemUpdate(BaseModel):
     """Request model for updating an existing item."""
 
-    text: str | None = None
+    text: str | None = Field(None, max_length=1000)
     completed: bool | None = None
     undo: bool = False
 
@@ -186,6 +245,14 @@ class ListReorder(BaseModel):
     """Request model for reordering lists."""
 
     list_ids: list[int]
+
+
+class HistoryEntry(BaseModel):
+    """Request model for a single history entry during restore."""
+
+    action: str = Field(..., max_length=50)
+    item_text: str | None = Field(None, max_length=1000)
+    timestamp: str | None = Field(None, max_length=30)
 
 
 # Valid sort options for items
@@ -510,13 +577,15 @@ def get_history(list_id: int, db: sqlite3.Connection = Depends(get_db)):
 
 
 @app.post("/api/lists/{list_id}/history")
-def restore_history(list_id: int, entries: list[dict], db: sqlite3.Connection = Depends(get_db)):
-    """Bulk-insert history entries for a restored list."""
+def restore_history(
+    list_id: int, entries: list[HistoryEntry], db: sqlite3.Connection = Depends(get_db)
+):
+    """Bulk-insert validated history entries for a restored list."""
     cursor = db.cursor()
     for entry in entries:
         cursor.execute(
             "INSERT INTO history (list_id, action, item_text, timestamp) VALUES (?, ?, ?, ?)",
-            (list_id, entry.get("action"), entry.get("item_text"), entry.get("timestamp")),
+            (list_id, entry.action, entry.item_text, entry.timestamp),
         )
     db.commit()
     return {"success": True}
@@ -526,6 +595,10 @@ def restore_history(list_id: int, entries: list[dict], db: sqlite3.Connection = 
 @app.get("/api/events")
 async def sse_events() -> StreamingResponse:
     """SSE endpoint for real-time updates to connected clients."""
+    with clients_lock:
+        if len(connected_clients) >= MAX_SSE_CLIENTS:
+            raise HTTPException(status_code=429, detail="Too many SSE connections")
+
     queue: Queue = Queue(maxsize=100)
     with clients_lock:
         connected_clients.append(queue)
