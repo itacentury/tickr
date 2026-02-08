@@ -144,9 +144,14 @@ ul {
   justify-content: center;
 }
 
-.toggle-icon svg {
+.toggle-icon svg,
+.toggle-icon img {
   width: 20px;
   height: 20px;
+}
+
+.toggle-icon img {
+  filter: invert(1);
 }
 
 .sidebar-title {
