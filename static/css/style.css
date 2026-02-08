@@ -1430,4 +1430,8 @@ button.icon-picker-toggle.open .chevron {
   .toast.visible {
     transform: translateX(0) translateY(0);
   }
+
+  .toast-message {
+    flex: 1;
+  }
 }
