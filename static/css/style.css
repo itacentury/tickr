@@ -740,6 +740,8 @@ ul {
   font-size: 0.75rem;
   color: var(--text-muted);
   flex-shrink: 0;
+  min-width: 3.2em;
+  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
