@@ -1386,6 +1386,11 @@ button.icon-picker-toggle.open .chevron {
 .toast-message {
   font-size: 0.95rem;
   color: var(--text-primary);
+  transition: opacity 150ms ease;
+}
+
+.toast-message.swapping {
+  opacity: 0;
 }
 
 .toast-action {

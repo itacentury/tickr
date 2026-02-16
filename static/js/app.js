@@ -213,8 +213,6 @@ let toastTimeout = null;
 let toastUndoCallback = null;
 let toastStartTime = null;
 let toastRemainingTime = 5000;
-const toastQueue = [];
-let toastActive = false;
 
 // Icons SVG map
 const icons = {
@@ -1261,78 +1259,63 @@ function formatDateTime(dateString) {
 }
 
 /**
- * Queue an undo toast. If no toast is active, show immediately.
- * Otherwise, queue it and shorten the current toast's remaining time.
+ * Show an undo toast, immediately replacing any currently visible toast.
  */
 function showUndoToast(message, undoCallback) {
-  if (!toastActive) {
-    presentToast(message, undoCallback);
-    return;
-  }
-
-  toastQueue.push({
-    message,
-    undoCallback
-  });
-
-  // Shorten the current toast so the queue drains faster
-  const elapsed = Date.now() - toastStartTime;
-  const remaining = toastRemainingTime - elapsed;
-  const shortenedTime = 2500;
-
-  if (remaining > shortenedTime) {
-    clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(() => {
-      hideUndoToast();
-    }, shortenedTime);
-
-    // Re-sync progress bar to the shortened duration
-    toastProgress.style.transition = "none";
-    const progress = remaining / toastRemainingTime;
-    toastProgress.style.transform = `scaleX(${progress})`;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        toastProgress.style.transition = `transform ${shortenedTime}ms linear`;
-        toastProgress.style.transform = "scaleX(0)";
-      });
-    });
-  }
+  presentToast(message, undoCallback);
 }
 
 /**
  * Present a toast notification immediately with a 5-second countdown.
+ * If a toast is already visible, the message crossfades smoothly.
  */
 function presentToast(message, undoCallback) {
-  toastActive = true;
-  toastMessage.textContent = message;
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+    toastTimeout = null;
+  }
+
   toastUndoCallback = undoCallback;
   toastRemainingTime = 5000;
   toastStartTime = Date.now();
 
-  // Reset and animate progress bar
-  toastProgress.style.opacity = "1";
-  toastProgress.style.transition = "none";
-  toastProgress.style.transform = "scaleX(1)";
+  const isVisible = undoToast.classList.contains("visible");
 
-  // Show toast
-  undoToast.classList.add("visible");
+  function startCountdown() {
+    // Reset and animate progress bar
+    toastProgress.style.opacity = "1";
+    toastProgress.style.transition = "none";
+    toastProgress.style.transform = "scaleX(1)";
 
-  // Start progress bar animation after a small delay
-  requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      toastProgress.style.transition = `transform ${toastRemainingTime}ms linear`;
-      toastProgress.style.transform = "scaleX(0)";
+      requestAnimationFrame(() => {
+        toastProgress.style.transition = `transform ${toastRemainingTime}ms linear`;
+        toastProgress.style.transform = "scaleX(0)";
+      });
     });
-  });
 
-  // Auto-hide after countdown
-  toastTimeout = setTimeout(() => {
-    hideUndoToast();
-  }, toastRemainingTime);
+    toastTimeout = setTimeout(() => {
+      hideUndoToast();
+    }, toastRemainingTime);
+  }
+
+  if (isVisible) {
+    // Fade out message, swap text, fade back in
+    toastMessage.classList.add("swapping");
+    setTimeout(() => {
+      toastMessage.textContent = message;
+      toastMessage.classList.remove("swapping");
+      startCountdown();
+    }, 150);
+  } else {
+    toastMessage.textContent = message;
+    undoToast.classList.add("visible");
+    startCountdown();
+  }
 }
 
 /**
- * Hide the current toast and show the next queued toast if any.
+ * Hide the current toast.
  */
 function hideUndoToast() {
   if (toastTimeout) {
@@ -1340,16 +1323,7 @@ function hideUndoToast() {
     toastTimeout = null;
   }
   toastUndoCallback = null;
-  toastActive = false;
   undoToast.classList.remove("visible");
-
-  if (toastQueue.length > 0) {
-    const next = toastQueue.shift();
-    // Wait for the hide animation to complete before showing the next toast
-    setTimeout(() => {
-      presentToast(next.message, next.undoCallback);
-    }, 400);
-  }
 }
 
 /**
@@ -1367,7 +1341,7 @@ function pauseToast() {
  * Restart the toast timer after hover ends and show the progress bar.
  */
 function resumeToast() {
-  if (!toastActive) return;
+  if (!undoToast.classList.contains("visible")) return;
 
   toastRemainingTime = 5000;
   toastStartTime = Date.now();
