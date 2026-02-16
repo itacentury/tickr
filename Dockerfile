@@ -16,8 +16,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends gosu \
 RUN useradd --create-home --shell /bin/bash appuser
 
 # Install dependencies first (better layer caching)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml .
+RUN python -c "import tomllib; \
+    deps = tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']; \
+    print('\n'.join(deps))" | pip install --no-cache-dir -r /dev/stdin
 
 # Copy application code
 COPY main.py .
