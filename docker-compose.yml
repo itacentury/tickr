@@ -4,6 +4,6 @@ services:
     container_name: tickr
     restart: unless-stopped
     ports:
-      - 8654:8000/tcp
+      - 8000:8000/tcp
     volumes:
       - ./data:/app/data
