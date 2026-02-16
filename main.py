@@ -6,6 +6,7 @@ Provides endpoints for managing todo lists, items, and history tracking.
 
 import asyncio
 import json
+import logging
 import sqlite3
 import time
 from collections import defaultdict
@@ -21,12 +22,17 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Initialize database on startup."""
+    logger.info("Starting Tickr application")
     init_db()
+    logger.info("Application startup complete")
     yield
+    logger.info("Shutting down Tickr application")
 
 
 app = FastAPI(title="Tickr", version="1.0.0", lifespan=lifespan)
@@ -77,6 +83,7 @@ async def rate_limit_middleware(request: Request, call_next) -> Response:
 
         if len(timestamps) >= RATE_LIMIT_REQUESTS:
             retry_after = int(timestamps[0] - cutoff) + 1
+            logger.warning("Rate limit exceeded for %s (retry after %ds)", client_ip, retry_after)
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Too many requests"},
@@ -100,11 +107,13 @@ def broadcast_update(event_type: str, list_id: int | None = None) -> None:
     """Notify all connected SSE clients of a data change."""
     message = json.dumps({"type": event_type, "list_id": list_id})
     with clients_lock:
+        client_count = len(connected_clients)
         for queue in connected_clients:
             try:
                 queue.put_nowait(message)
             except Full:
-                pass  # Queue full, skip this client
+                logger.warning("SSE client queue full, dropping message")
+    logger.debug("Broadcast '%s' (list_id=%s) to %d client(s)", event_type, list_id, client_count)
 
 
 def get_db():
@@ -119,6 +128,7 @@ def get_db():
 
 def init_db():
     """Create database tables and insert default data if empty."""
+    logger.info("Initializing database at %s", DATABASE)
     Path(DATABASE).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
@@ -139,8 +149,10 @@ def init_db():
     cursor.execute("PRAGMA table_info(lists)")
     columns = [row[1] for row in cursor.fetchall()]
     if "item_sort" not in columns:
+        logger.info("Migrating database: adding 'item_sort' column to lists")
         cursor.execute("ALTER TABLE lists ADD COLUMN item_sort TEXT DEFAULT 'alphabetical'")
     if "sort_order" not in columns:
+        logger.info("Migrating database: adding 'sort_order' column to lists")
         cursor.execute("ALTER TABLE lists ADD COLUMN sort_order INTEGER DEFAULT 0")
         # Initialize sort_order based on existing order
         cursor.execute("SELECT id FROM lists ORDER BY created_at")
@@ -152,7 +164,7 @@ def init_db():
     cursor.execute("PRAGMA table_info(settings)")
     settings_columns = [row[1] for row in cursor.fetchall()]
     if settings_columns and "key" not in settings_columns:
-        # Old schema detected, drop and recreate
+        logger.info("Migrating database: recreating settings table with new schema")
         cursor.execute("DROP TABLE settings")
 
     cursor.execute("""
@@ -197,10 +209,12 @@ def init_db():
     # Insert default list if empty
     cursor.execute("SELECT COUNT(*) FROM lists")
     if cursor.fetchone()[0] == 0:
+        logger.info("Empty database detected, inserting default list")
         cursor.execute("INSERT INTO lists (name, icon) VALUES (?, ?)", ("Todos", "check"))
 
     conn.commit()
     conn.close()
+    logger.info("Database initialization complete")
 
 
 # Pydantic models
@@ -330,6 +344,7 @@ def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db))
         db.commit()
 
     broadcast_update("lists_changed")
+    logger.info("Created list '%s' (id=%d)", list_data.name, list_id)
     return {"id": list_id, "name": list_data.name, "icon": list_data.icon}
 
 
@@ -362,6 +377,7 @@ def update_list(list_id: int, list_data: ListUpdate, db: sqlite3.Connection = De
         cursor.execute(f"UPDATE lists SET {', '.join(updates)} WHERE id = ?", values)
         db.commit()
         broadcast_update("lists_changed", list_id)
+        logger.info("Updated list id=%d (fields: %s)", list_id, ", ".join(updates))
 
     return {"success": True}
 
@@ -374,6 +390,7 @@ def delete_list(list_id: int, db: sqlite3.Connection = Depends(get_db)):
     cursor.execute("DELETE FROM history WHERE list_id = ?", (list_id,))
     db.commit()
     broadcast_update("lists_changed")
+    logger.info("Deleted list id=%d", list_id)
     return {"success": True}
 
 
@@ -430,6 +447,7 @@ def create_item(list_id: int, item_data: ItemCreate, db: sqlite3.Connection = De
     db.commit()
 
     broadcast_update("items_changed", list_id)
+    logger.info("Created item '%s' (id=%d) in list id=%d", item_data.text, item_id, list_id)
     return {"id": item_id, "list_id": list_id, "text": item_data.text, "completed": False}
 
 
@@ -442,6 +460,7 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
     cursor.execute("SELECT * FROM items WHERE id = ?", (item_id,))
     item = cursor.fetchone()
     if not item:
+        logger.warning("Item id=%d not found for update", item_id)
         raise HTTPException(status_code=404, detail="Item not found")
 
     updates: list[str] = []
@@ -486,6 +505,7 @@ def update_item(item_id: int, item_data: ItemUpdate, db: sqlite3.Connection = De
         cursor.execute(f"UPDATE items SET {', '.join(updates)} WHERE id = ?", values)
         db.commit()
         broadcast_update("items_changed", item["list_id"])
+        logger.info("Updated item id=%d (fields: %s)", item_id, ", ".join(updates))
 
     return {"success": True}
 
@@ -512,6 +532,7 @@ def delete_item(item_id: int, undo: bool = False, db: sqlite3.Connection = Depen
 
     if list_id:
         broadcast_update("items_changed", list_id)
+    logger.info("Deleted item id=%d", item_id)
     return {"success": True}
 
 
@@ -597,11 +618,13 @@ async def sse_events() -> StreamingResponse:
     """SSE endpoint for real-time updates to connected clients."""
     with clients_lock:
         if len(connected_clients) >= MAX_SSE_CLIENTS:
+            logger.warning("SSE connection rejected: max clients (%d) reached", MAX_SSE_CLIENTS)
             raise HTTPException(status_code=429, detail="Too many SSE connections")
 
     queue: Queue = Queue(maxsize=100)
     with clients_lock:
         connected_clients.append(queue)
+        logger.info("SSE client connected (%d active)", len(connected_clients))
 
     async def event_generator():
         """Generate SSE events from the client's message queue."""
@@ -624,11 +647,12 @@ async def sse_events() -> StreamingResponse:
                 except Empty:
                     await asyncio.sleep(0.1)
         except asyncio.CancelledError:
-            pass  # Client disconnected
+            pass
         finally:
             with clients_lock:
                 if queue in connected_clients:
                     connected_clients.remove(queue)
+                logger.info("SSE client disconnected (%d active)", len(connected_clients))
 
     return StreamingResponse(
         event_generator(),
@@ -679,4 +703,9 @@ def service_worker():
 if __name__ == "__main__":
     import uvicorn
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     uvicorn.run(app, host="0.0.0.0", port=8000)
