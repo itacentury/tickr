@@ -68,6 +68,7 @@ async function fetchWriteWithRetry(
 const CACHE_KEY = "tickr_items_cache";
 let isOffline = false;
 let currentFetchController = null;
+let offlineCheckVersion = 0;
 
 // Check if server is reachable (with short timeout)
 async function checkServerReachable() {
@@ -135,6 +136,7 @@ async function prefetchAllItems() {
 
 async function updateOfflineIndicator(offline) {
   const indicator = document.getElementById("offlineIndicator");
+  const version = ++offlineCheckVersion;
 
   if (!offline) {
     // Server responded successfully - we're online
@@ -147,6 +149,10 @@ async function updateOfflineIndicator(offline) {
 
   // API request failed - check if server is actually unreachable
   const serverReachable = await checkServerReachable();
+
+  // Ignore stale result if a newer call has already resolved
+  if (version !== offlineCheckVersion) return;
+
   isOffline = !serverReachable;
 
   if (indicator) {
@@ -1901,6 +1907,7 @@ function connectSSE() {
 
   eventSource.onopen = () => {
     console.log("SSE connected");
+    updateOfflineIndicator(false);
   };
 
   eventSource.onmessage = async (event) => {
