@@ -1050,8 +1050,8 @@ function renderItems() {
   // Items are already sorted by the server according to settings
   itemsList.innerHTML = items
     .map(
-      (item) => `
-        <li class="item" data-id="${item.id}">
+      (item, index) => `
+        <li class="item${item.completed ? " completed" : ""}" data-id="${item.id}" style="--i:${index}">
             <label class="item-checkbox">
                 <input type="checkbox" ${item.completed ? "checked" : ""}>
                 <span class="checkmark">
