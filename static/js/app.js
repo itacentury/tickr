@@ -125,13 +125,22 @@ function loadListsFromCache() {
   }
 }
 
-async function prefetchAllItems() {
-  for (const list of lists) {
-    const data = await fetchWithRetry(`/api/lists/${list.id}/items`);
-    if (data) {
-      saveItemsToCache(list.id, data);
+let prefetchTimeout = null;
+
+/**
+ * Prefetch items for all lists in background for offline use.
+ * Debounced to avoid redundant request bursts.
+ */
+function prefetchAllItems() {
+  if (prefetchTimeout) clearTimeout(prefetchTimeout);
+  prefetchTimeout = setTimeout(async () => {
+    for (const list of lists) {
+      const data = await fetchWithRetry(`/api/lists/${list.id}/items`);
+      if (data) {
+        saveItemsToCache(list.id, data);
+      }
     }
-  }
+  }, 3000);
 }
 
 async function updateOfflineIndicator(offline) {
@@ -1883,6 +1892,20 @@ function handleSwipe() {
   }, 150);
 }
 
+// Debounced SSE fetch handlers to avoid duplicate work with direct calls
+let sseListsTimeout = null;
+let sseItemsTimeout = null;
+
+function debouncedSSEFetchLists() {
+  if (sseListsTimeout) clearTimeout(sseListsTimeout);
+  sseListsTimeout = setTimeout(() => fetchLists(), 500);
+}
+
+function debouncedSSEFetchItems() {
+  if (sseItemsTimeout) clearTimeout(sseItemsTimeout);
+  sseItemsTimeout = setTimeout(() => fetchItems(currentListId), 500);
+}
+
 // SSE connection for real-time updates
 let eventSource = null;
 let sseReconnectTimeout = null;
@@ -1910,19 +1933,19 @@ function connectSSE() {
     updateOfflineIndicator(false);
   };
 
-  eventSource.onmessage = async (event) => {
+  eventSource.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
     if (data.type === "lists_changed") {
-      await fetchLists();
+      debouncedSSEFetchLists();
     }
 
     if (data.type === "items_changed") {
       // Always refresh lists to update item count badges
-      await fetchLists();
+      debouncedSSEFetchLists();
       // Only refresh items if we're viewing the affected list
       if (data.list_id === currentListId) {
-        await fetchItems(currentListId);
+        debouncedSSEFetchItems();
       }
     }
   };
