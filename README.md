@@ -1,5 +1,8 @@
 # Tickr
 
+[![CI](https://github.com/itacentury/tickr/actions/workflows/ci.yml/badge.svg)](https://github.com/itacentury/tickr/actions/workflows/ci.yml)
+[![Docker](https://github.com/itacentury/tickr/actions/workflows/docker.yml/badge.svg)](https://github.com/itacentury/tickr/actions/workflows/docker.yml)
+
 A minimal, fast todo list app with real-time sync across devices.
 
 ## Features
