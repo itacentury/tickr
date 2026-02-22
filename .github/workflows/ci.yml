@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install ruff mypy
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Mypy type check
+        run: mypy --install-types --non-interactive .
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install formatters
+        run: npm install -g js-beautify
+
+      - name: Install djlint
+        run: pip install djlint
+
+      - name: Check JavaScript formatting
+        run: js-beautify --quiet --indent-size=2 --end-with-newline static/js/*.js | diff static/js/*.js - || (echo "JavaScript files are not formatted" && exit 1)
+
+      - name: Check CSS formatting
+        run: css-beautify --quiet --indent-size=2 --end-with-newline static/css/*.css | diff static/css/*.css - || (echo "CSS files are not formatted" && exit 1)
+
+      - name: Check HTML formatting
+        run: djlint --check --indent=2 templates/

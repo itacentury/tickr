@@ -1,16 +1,17 @@
 name: Docker
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
+    types: [completed]
   schedule:
     - cron: "0 0 * * 0" # every Sunday at midnight
 
 jobs:
   docker:
     runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.workflow_run.conclusion == 'success'
 
     steps:
       - name: Checkout repository
