@@ -5,28 +5,18 @@
 		}
 	],
 	"settings": {
+		"task.autoDetect": "off",
 		"python.defaultInterpreterPath": ".venv/bin/python",
 		"python.terminal.activateEnvironment": true,
-
 		"[python]": {
 			"editor.defaultFormatter": "charliermarsh.ruff",
 			"editor.formatOnSave": true,
 			"editor.formatOnPaste": true
 		},
-
-		"[javascript]": {
+		"[javascript][css][html]": {
 			"editor.tabSize": 2,
 			"editor.insertSpaces": true
 		},
-		"[css]": {
-			"editor.tabSize": 2,
-			"editor.insertSpaces": true
-		},
-		"[html]": {
-			"editor.tabSize": 2,
-			"editor.insertSpaces": true
-		},
-
 		"emeraldwalk.runonsave": {
 			"commands": [
 				{
@@ -49,92 +39,48 @@
 			"editor.formatOnPaste": true,
 			"editor.wordWrap": "on"
 		},
-
 		"editor.tabSize": 4,
 		"editor.insertSpaces": true,
 		"editor.trimAutoWhitespace": true,
 		"files.trimTrailingWhitespace": true,
 		"files.insertFinalNewline": true,
 		"files.trimFinalNewlines": true,
-
 		"files.exclude": {
 			"**/__pycache__": true,
 			"**/.mypy_cache": true,
+			"**/.ruff_cache": true,
 			"**/*.pyc": true,
-			".venv": true
+			"**/.venv": true
 		},
 		"search.exclude": {
-			"**/.venv": true,
-			"**/node_modules": true,
-			"**/__pycache__": true
+			"**/__pycache__": true,
+			"**/.mypy_cache": true,
+			"**/.ruff_cache": true,
+			"**/*.pyc": true,
+			"**/.venv": true
 		}
 	},
 	"tasks": {
 		"version": "2.0.0",
 		"tasks": [
 			{
-				"label": "Format: Python",
-				"type": "shell",
-				"command": "ruff check --fix . && ruff format .",
-				"group": "build",
-				"presentation": {
-					"panel": "shared"
-				}
-			},
-			{
-				"label": "Format: JavaScript",
-				"type": "shell",
-				"command": "js-beautify",
-				"args": [
-					"--replace",
-					"--indent-size=2",
-					"--end-with-newline",
-					"static/js/*.js"
-				],
-				"group": "build",
-				"presentation": {
-					"panel": "shared"
-				}
-			},
-			{
-				"label": "Format: CSS",
-				"type": "shell",
-				"command": "css-beautify",
-				"args": [
-					"--replace",
-					"--indent-size=2",
-					"--end-with-newline",
-					"static/css/*.css"
-				],
-				"group": "build",
-				"presentation": {
-					"panel": "shared"
-				}
-			},
-			{
-				"label": "Format: HTML",
-				"type": "shell",
-				"command": "djlint",
-				"args": [
-					"--reformat",
-					"--indent=2",
-					"templates/"
-				],
-				"group": "build",
-				"presentation": {
-					"panel": "shared"
-				}
-			},
-			{
 				"label": "Format: All Files",
-				"dependsOn": [
-					"Format: Python",
-					"Format: JavaScript",
-					"Format: CSS",
-					"Format: HTML"
-				],
-				"dependsOrder": "parallel",
-				"group": "build"
+				"type": "shell",
+				"command": "ruff check --fix . && ruff format . && js-beautify --replace --indent-size=2 --end-with-newline static/js/*.js && css-beautify --replace --indent-size=2 --end-with-newline static/css/*.css && djlint --reformat --indent=2 templates/",
+				"group": "build",
+				"presentation": {
+					"panel": "shared"
+				}
+			},
+			{
+				"label": "Run: Start Server",
+				"type": "shell",
+				"command": "${workspaceFolder}/.venv/bin/python -m uvicorn main:app --reload --host=0.0.0.0 --port=8000",
+				"group": "build",
+				"isBackground": true,
+				"presentation": {
+					"panel": "dedicated"
+				}
 			}
 		]
 	},
