@@ -1,32 +1,23 @@
 /**
- * Track and display sync/online status based on replication state.
+ * Track and display sync status based on replication state.
  *
- * Shows an "Offline" indicator when the network is unreachable and
- * a "Syncing" indicator during active replication.
+ * Shows a "Syncing" indicator when replication is active for more
+ * than 500ms, avoiding flicker on fast syncs.
  */
 
 /**
- * Initialize sync status indicators and bind to replication states.
+ * Initialize sync status indicator and bind to replication states.
  *
  * @param {Object} replications - Object with listsReplication and itemsReplication.
  */
 export function initSyncStatus(replications) {
-  const offlineIndicator = document.getElementById("offlineIndicator");
   const syncIndicator = document.getElementById("syncIndicator");
-  let isOffline = false;
   let syncShowTimeout = null;
   const SYNC_SHOW_DELAY = 500;
 
-  function updateOfflineUI(offline) {
-    isOffline = offline;
-    if (offlineIndicator) {
-      offlineIndicator.classList.toggle("visible", offline);
-    }
-  }
-
   function updateSyncUI(syncing) {
     if (!syncIndicator) return;
-    if (syncing && !isOffline) {
+    if (syncing) {
       if (!syncShowTimeout) {
         syncShowTimeout = setTimeout(() => {
           syncIndicator.classList.add("visible");
@@ -39,28 +30,9 @@ export function initSyncStatus(replications) {
     }
   }
 
-  // Track replication errors for offline detection
   for (const rep of Object.values(replications)) {
-    rep.error$.subscribe((err) => {
-      if (err) {
-        updateOfflineUI(true);
-      }
-    });
-
     rep.active$.subscribe((active) => {
       updateSyncUI(active);
     });
-
-    rep.received$.subscribe(() => {
-      updateOfflineUI(false);
-    });
-
-    rep.sent$.subscribe(() => {
-      updateOfflineUI(false);
-    });
   }
-
-  // Browser online/offline events
-  window.addEventListener("online", () => updateOfflineUI(false));
-  window.addEventListener("offline", () => updateOfflineUI(true));
 }
