@@ -544,7 +544,6 @@ ul {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  border-left: 3px solid transparent;
   transition: all var(--transition-fast);
   animation: slideIn var(--transition-normal) ease-out both;
   animation-delay: calc(var(--i, 0) * 40ms);
@@ -565,8 +564,7 @@ ul {
 
 .item:hover {
   background: var(--bg-tertiary);
-  border-left-color: var(--accent);
-  transform: translateY(-1px);
+  transform: scale(1.01);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1604,4 +1602,24 @@ button.icon-picker-toggle.open .chevron {
   padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
+}
+
+/* Disable hover effects on touch devices */
+@media (hover: none) {
+  .item:hover {
+    background: var(--bg-secondary);
+    transform: none;
+    box-shadow: none;
+  }
+
+  .nav-link:hover {
+    background: transparent;
+    color: var(--text-secondary);
+    box-shadow: none;
+  }
+
+  .nav-link.active:hover {
+    background: var(--accent-muted);
+    color: var(--accent);
+  }
 }
