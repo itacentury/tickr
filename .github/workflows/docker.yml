@@ -72,6 +72,13 @@ jobs:
           format: cyclonedx-json
           artifact-name: sbom-docker.cdx.json
 
+      - name: Scan for vulnerabilities
+        uses: anchore/scan-action@v6
+        with:
+          image: tickr:sbom-scan
+          fail-build: false
+          severity-cutoff: critical
+
       - name: Build and push with cache
         uses: docker/build-push-action@v6
         with:
