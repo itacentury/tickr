@@ -48,3 +48,17 @@ jobs:
 
       - name: Build frontend
         run: cd frontend && npm run build
+
+  sbom:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Generate SBOM from source
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          artifact-name: sbom-source.cdx.json
