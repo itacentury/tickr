@@ -9,9 +9,33 @@ on:
     - cron: "0 0 * * 0" # every Sunday at midnight
 
 jobs:
-  docker:
+  changes:
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event.workflow_run.conclusion == 'success'
+    outputs:
+      should_build: ${{ github.event_name == 'schedule' || steps.filter.outputs.source == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for source changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            source:
+              - 'main.py'
+              - 'frontend/**'
+              - 'Dockerfile'
+              - 'entrypoint.sh'
+              - 'pyproject.toml'
+
+  docker:
+    needs: changes
+    runs-on: ubuntu-latest
+    if: needs.changes.outputs.should_build == 'true'
 
     steps:
       - name: Checkout repository

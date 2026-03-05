@@ -7,7 +7,34 @@ on:
     branches: ["main"]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      deps: ${{ steps.filter.outputs.deps }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            python:
+              - '*.py'
+              - 'pyproject.toml'
+            frontend:
+              - 'frontend/**'
+            deps:
+              - 'pyproject.toml'
+              - 'frontend/package.json'
+              - 'frontend/package-lock.json'
+
   lint:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -32,6 +59,8 @@ jobs:
         run: mypy --install-types --non-interactive .
 
   frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -50,6 +79,8 @@ jobs:
         run: cd frontend && npm run build
 
   sbom:
+    needs: changes
+    if: needs.changes.outputs.deps == 'true'
     runs-on: ubuntu-latest
 
     steps:
