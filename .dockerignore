@@ -32,6 +32,10 @@ docker-compose*.yml
 README.md
 *.md
 
+# Frontend (built inside container)
+frontend/node_modules/
+static/dist/
+
 # Misc
 .DS_Store
 Thumbs.db

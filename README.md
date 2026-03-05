@@ -9,7 +9,7 @@ A minimal, fast todo list app with real-time sync across devices.
 
 - **Multiple lists** with custom emoji icons
 - **Real-time sync** across devices via Server-Sent Events (SSE)
-- **Offline support** with automatic caching and background sync
+- **Offline-first** with RxDB (IndexedDB) and bidirectional sync
 - **Undo actions** with history tracking
 - **PWA installable** on mobile and desktop
 - **Drag-and-drop** list reordering
@@ -18,7 +18,7 @@ A minimal, fast todo list app with real-time sync across devices.
 ## Stack
 
 - **Backend:** FastAPI, Uvicorn, SQLite
-- **Frontend:** Vanilla JavaScript, HTML5, CSS3
+- **Frontend:** Vanilla JavaScript, RxDB, Vite
 - **Infrastructure:** Docker (multi-arch: amd64, arm64, armv7)
 
 ## Quick Start
@@ -38,10 +38,16 @@ The SQLite database is persisted in `./data/`.
 
 ### Local
 
-Requires Python 3.13+.
+Requires Python 3.13+ and Node.js 22+.
 
 ```bash
+# Backend
 pip install .
+
+# Frontend
+cd frontend && npm install && npm run build && cd ..
+
+# Run
 python main.py
 ```
 
@@ -63,6 +69,9 @@ ruff format .
 
 # Type check
 mypy main.py
+
+# Frontend dev server (with API proxy to FastAPI)
+cd frontend && npm run dev
 ```
 
 ## License

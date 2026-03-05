@@ -43,17 +43,8 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install formatters
-        run: npm install -g js-beautify
+      - name: Install dependencies
+        run: cd frontend && npm ci
 
-      - name: Install djlint
-        run: pip install djlint
-
-      - name: Check JavaScript formatting
-        run: js-beautify --quiet --indent-size=2 --end-with-newline static/js/*.js | diff static/js/*.js - || (echo "JavaScript files are not formatted" && exit 1)
-
-      - name: Check CSS formatting
-        run: css-beautify --quiet --indent-size=2 --end-with-newline static/css/*.css | diff static/css/*.css - || (echo "CSS files are not formatted" && exit 1)
-
-      - name: Check HTML formatting
-        run: djlint --check --indent=2 templates/
+      - name: Build frontend
+        run: cd frontend && npm run build

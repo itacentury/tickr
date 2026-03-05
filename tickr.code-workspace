@@ -17,22 +17,6 @@
 			"editor.tabSize": 2,
 			"editor.insertSpaces": true
 		},
-		"emeraldwalk.runonsave": {
-			"commands": [
-				{
-					"match": "\\.js$",
-					"cmd": "js-beautify --replace --indent-size=2 --end-with-newline ${file}"
-				},
-				{
-					"match": "\\.css$",
-					"cmd": "css-beautify --replace --indent-size=2 --end-with-newline ${file}"
-				},
-				{
-					"match": "\\.html$",
-					"cmd": "djlint --reformat --indent=2 ${file}"
-				}
-			]
-		},
 		"[markdown]": {
 			"editor.defaultFormatter": "esbenp.prettier-vscode",
 			"editor.formatOnSave": true,
@@ -50,27 +34,56 @@
 			"**/.mypy_cache": true,
 			"**/.ruff_cache": true,
 			"**/*.pyc": true,
-			"**/.venv": true
+			"**/.venv": true,
+			"**/node_modules": true,
+			"static/dist": true
 		},
 		"search.exclude": {
 			"**/__pycache__": true,
 			"**/.mypy_cache": true,
 			"**/.ruff_cache": true,
 			"**/*.pyc": true,
-			"**/.venv": true
+			"**/.venv": true,
+			"**/node_modules": true,
+			"static/dist": true
 		}
 	},
 	"tasks": {
 		"version": "2.0.0",
 		"tasks": [
 			{
-				"label": "Format: All Files",
+				"label": "Format: Python",
 				"type": "shell",
-				"command": "ruff check --fix . && ruff format . && js-beautify --replace --indent-size=2 --end-with-newline static/js/*.js && css-beautify --replace --indent-size=2 --end-with-newline static/css/*.css && djlint --reformat --indent=2 templates/",
+				"command": "ruff check --fix . && ruff format .",
 				"group": "build",
 				"presentation": {
 					"panel": "shared"
 				}
+			},
+			{
+				"label": "Build: Frontend",
+				"type": "shell",
+				"command": "cd frontend && npm run build",
+				"group": "build",
+				"presentation": {
+					"panel": "shared"
+				}
+			},
+			{
+				"label": "Dev: Frontend",
+				"type": "shell",
+				"command": "cd frontend && npm run dev",
+				"group": "build",
+				"isBackground": true,
+				"presentation": {
+					"panel": "dedicated"
+				}
+			},
+			{
+				"label": "Dev: Full Stack",
+				"dependsOn": ["Run: Start Server", "Dev: Frontend"],
+				"group": "build",
+				"problemMatcher": []
 			},
 			{
 				"label": "Run: Start Server",
@@ -117,8 +130,6 @@
 			"ms-python.python",
 			"charliermarsh.ruff",
 			"ms-python.mypy-type-checker",
-			"emeraldwalk.RunOnSave",
-			"bradlc.vscode-tailwindcss",
 			"tamasfe.even-better-toml"
 		]
 	}

@@ -8,8 +8,8 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install gosu for dropping privileges in entrypoint
-RUN apt-get update && apt-get install -y --no-install-recommends gosu \
+# Install gosu and Node.js for frontend build
+RUN apt-get update && apt-get install -y --no-install-recommends gosu nodejs npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
@@ -21,10 +21,14 @@ RUN python -c "import tomllib; \
     deps = tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']; \
     print('\n'.join(deps))" | pip install --no-cache-dir -r /dev/stdin
 
+# Build frontend
+COPY frontend/package.json frontend/package-lock.json* frontend/
+RUN cd frontend && npm ci --ignore-scripts
+COPY frontend/ frontend/
+RUN cd frontend && npm run build
+
 # Copy application code
 COPY main.py .
-COPY templates/ templates/
-COPY static/ static/
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data && chown -R appuser:appuser /app

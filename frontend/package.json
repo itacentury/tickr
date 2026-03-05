@@ -1,0 +1,18 @@
+{
+  "name": "tickr-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "rxdb": "^16.11.0",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}

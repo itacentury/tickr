@@ -1,173 +1,27 @@
 /**
- * Todo App - Vanilla JS Frontend
+ * Tickr App - Offline-first todo application powered by RxDB.
+ *
+ * All data operations go through the local RxDB database. Replication
+ * syncs changes with the server automatically in the background.
  */
 
+import { getDatabase } from "./db/index.js";
+import { setupReplication } from "./db/replication.js";
+import { initSyncStatus } from "./sync-status.js";
+
 // State
+let db = null;
 let lists = [];
 let currentListId = null;
 let items = [];
 let selectedIcon = "list";
 let editingItemId = null;
 let editSelectedIcon = "list";
-let appSettings = {
-  list_sort: "alphabetical"
-};
+let appSettings = { list_sort: "alphabetical" };
 
-// API Helper with retry logic
-async function fetchWithRetry(url, options = {}, retries = 3, delay = 500) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return await response.json();
-    } catch (error) {
-      if (attempt === retries) {
-        console.error(
-          `Failed to fetch ${url} after ${retries} attempts:`,
-          error,
-        );
-        return null;
-      }
-      await new Promise((resolve) => setTimeout(resolve, delay * attempt));
-    }
-  }
-}
-
-// API Helper for write operations (POST, PUT, DELETE) with retry logic
-async function fetchWriteWithRetry(
-  url,
-  options = {},
-  retries = 2,
-  delay = 500,
-) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      // Return JSON if there's content, otherwise return true for success
-      const text = await response.text();
-      return text ? JSON.parse(text) : true;
-    } catch (error) {
-      if (attempt === retries) {
-        console.error(
-          `Failed to write ${url} after ${retries} attempts:`,
-          error,
-        );
-        return null;
-      }
-      await new Promise((resolve) => setTimeout(resolve, delay * attempt));
-    }
-  }
-}
-
-// Offline cache for items
-const CACHE_KEY = "tickr_items_cache";
-let isOffline = false;
-let currentFetchController = null;
-let offlineCheckVersion = 0;
-
-// Check if server is reachable (with short timeout)
-async function checkServerReachable() {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-    const response = await fetch("/api/settings", {
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-function saveItemsToCache(listId, itemsData) {
-  try {
-    const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
-    cache[listId] = {
-      items: itemsData,
-      timestamp: Date.now()
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-  } catch (e) {
-    console.warn("Failed to save items to cache:", e);
-  }
-}
-
-function loadItemsFromCache(listId) {
-  try {
-    const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
-    return cache[listId]?.items || null;
-  } catch (e) {
-    console.warn("Failed to load items from cache:", e);
-    return null;
-  }
-}
-
-function saveListsToCache(listsData) {
-  try {
-    localStorage.setItem(CACHE_KEY + "_lists", JSON.stringify(listsData));
-  } catch (e) {
-    console.warn("Failed to save lists to cache:", e);
-  }
-}
-
-function loadListsFromCache() {
-  try {
-    return JSON.parse(localStorage.getItem(CACHE_KEY + "_lists") || "null");
-  } catch (e) {
-    console.warn("Failed to load lists from cache:", e);
-    return null;
-  }
-}
-
-let prefetchTimeout = null;
-
-/**
- * Prefetch items for all lists in background for offline use.
- * Debounced to avoid redundant request bursts.
- */
-function prefetchAllItems() {
-  if (prefetchTimeout) clearTimeout(prefetchTimeout);
-  prefetchTimeout = setTimeout(async () => {
-    for (const list of lists) {
-      const data = await fetchWithRetry(`/api/lists/${list.id}/items`);
-      if (data) {
-        saveItemsToCache(list.id, data);
-      }
-    }
-  }, 3000);
-}
-
-async function updateOfflineIndicator(offline) {
-  const indicator = document.getElementById("offlineIndicator");
-  const version = ++offlineCheckVersion;
-
-  if (!offline) {
-    // Server responded successfully - we're online
-    isOffline = false;
-    if (indicator) {
-      indicator.classList.remove("visible");
-    }
-    return;
-  }
-
-  // API request failed - check if server is actually unreachable
-  const serverReachable = await checkServerReachable();
-
-  // Ignore stale result if a newer call has already resolved
-  if (version !== offlineCheckVersion) return;
-
-  isOffline = !serverReachable;
-
-  if (indicator) {
-    indicator.classList.toggle("visible", isOffline);
-  }
-}
+// Subscriptions for reactive updates
+let listsSubscription = null;
+let itemsSubscription = null;
 
 // DOM Elements
 const appContainer = document.querySelector(".app");
@@ -181,7 +35,6 @@ const addItemInput = document.getElementById("addItemInput");
 const itemsList = document.getElementById("itemsList");
 const emptyState = document.getElementById("emptyState");
 const historyBtn = document.getElementById("historyBtn");
-const refreshBtn = document.getElementById("refreshBtn");
 const historyPanel = document.getElementById("historyPanel");
 const historyList = document.getElementById("historyList");
 const closeHistoryBtn = document.getElementById("closeHistoryBtn");
@@ -226,7 +79,6 @@ const toastClose = document.getElementById("toastClose");
 const toastProgress = document.getElementById("toastProgress");
 let toastTimeout = null;
 let toastUndoCallback = null;
-let toastStartTime = null;
 let toastRemainingTime = 5000;
 
 // Icons SVG map
@@ -450,57 +302,24 @@ const icons = {
 
 /** Display labels for each icon key. */
 const iconLabels = {
-  list: "List",
-  cart: "Shopping",
-  check: "Tasks",
-  lightbulb: "Ideas",
-  star: "Important",
-  heart: "Favorites",
-  home: "Home",
-  briefcase: "Work",
-  book: "Books",
-  film: "Film",
-  server: "Server",
-  disc: "Vinyl",
-  shoppingBag: "Shopping Bag",
-  package: "Package",
-  tool: "Household",
-  tv: "Media",
-  activity: "Activity",
-  calendar: "Calendar",
-  clock: "Clock",
-  music: "Music",
-  camera: "Camera",
-  gift: "Gift",
-  plane: "Travel",
-  coffee: "Coffee",
-  gamepad: "Gaming",
-  graduation: "Education",
-  dumbbell: "Fitness",
-  palette: "Art",
-  utensils: "Food",
-  mail: "Mail",
-  phone: "Phone",
-  globe: "World",
-  headphones: "Podcasts",
-  key: "Security",
-  mapPin: "Places",
-  pencil: "Notes",
-  users: "People",
-  zap: "Priority",
-  cloud: "Cloud",
-  flag: "Goals",
-  bell: "Reminders",
-  compass: "Explore",
-  smile: "Mood",
-  target: "Focus",
-  sun: "Outdoors",
+  list: "List", cart: "Shopping", check: "Tasks", lightbulb: "Ideas",
+  star: "Important", heart: "Favorites", home: "Home", briefcase: "Work",
+  book: "Books", film: "Film", server: "Server", disc: "Vinyl",
+  shoppingBag: "Shopping Bag", package: "Package", tool: "Household",
+  tv: "Media", activity: "Activity", calendar: "Calendar", clock: "Clock",
+  music: "Music", camera: "Camera", gift: "Gift", plane: "Travel",
+  coffee: "Coffee", gamepad: "Gaming", graduation: "Education",
+  dumbbell: "Fitness", palette: "Art", utensils: "Food", mail: "Mail",
+  phone: "Phone", globe: "World", headphones: "Podcasts", key: "Security",
+  mapPin: "Places", pencil: "Notes", users: "People", zap: "Priority",
+  cloud: "Cloud", flag: "Goals", bell: "Reminders", compass: "Explore",
+  smile: "Mood", target: "Focus", sun: "Outdoors",
 };
 
 /**
  * Populate an icon picker container with icon option buttons.
  *
- * @param {HTMLElement} container - The container element to fill
+ * @param {HTMLElement} container - The container element to fill.
  */
 function populateIconPicker(container) {
   container.innerHTML = "";
@@ -521,8 +340,8 @@ populateIconPicker(editIconOptionsContainer);
 /**
  * Update the icon preview in the toggle button.
  *
- * @param {HTMLElement} previewElement - The preview container element
- * @param {string} iconKey - The icon key from the icons object
+ * @param {HTMLElement} previewElement - The preview container element.
+ * @param {string} iconKey - The icon key from the icons object.
  */
 function updateIconPreview(previewElement, iconKey) {
   if (previewElement && icons[iconKey]) {
@@ -530,121 +349,72 @@ function updateIconPreview(previewElement, iconKey) {
   }
 }
 
-// API Functions
+// ---- RxDB Data Functions ----
+
+/** Get current ISO timestamp. */
+function now() {
+  return new Date().toISOString();
+}
+
+/**
+ * Fetch settings from the server.
+ * Settings are not stored in RxDB since they're lightweight global config.
+ */
 async function fetchSettings() {
-  const data = await fetchWithRetry("/api/settings");
-  if (data) {
-    appSettings = data;
+  try {
+    const response = await fetch("/api/settings");
+    if (response.ok) {
+      appSettings = await response.json();
+    }
+  } catch {
+    // Use defaults if offline
   }
 }
 
+/**
+ * Update settings on the server and refresh local state.
+ *
+ * @param {Object} settings - Key-value pairs to update.
+ * @returns {boolean} Whether the update succeeded.
+ */
 async function updateSettings(settings) {
-  console.log("updateSettings called with:", settings);
-  const result = await fetchWriteWithRetry("/api/settings", {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(settings),
-  });
-  console.log("API result:", result);
-
-  if (!result) {
-    console.warn("Failed to update settings");
+  try {
+    const response = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+    if (!response.ok) return false;
+    Object.assign(appSettings, settings);
+    subscribeLists();
+    return true;
+  } catch {
     return false;
   }
-
-  // Update local state and refresh lists
-  Object.assign(appSettings, settings);
-  console.log("appSettings updated:", appSettings);
-  await fetchLists();
-  console.log("Lists refreshed");
-  return true;
-}
-
-async function reorderLists(listIds) {
-  const result = await fetchWriteWithRetry("/api/lists/reorder", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      list_ids: listIds
-    }),
-  });
-
-  if (!result) {
-    console.warn("Failed to reorder lists");
-    return false;
-  }
-
-  return true;
 }
 
 /**
- * Determine which list to select based on saved preference.
- * Falls back to first list if saved list no longer exists.
+ * Subscribe to the lists collection with reactive updates.
+ * Called on init and whenever sort settings change.
  */
-function getInitialListId() {
-  const savedId = parseInt(localStorage.getItem("tickr_current_list"));
-  if (savedId && lists.some((l) => l.id === savedId)) {
-    return savedId;
+function subscribeLists() {
+  if (listsSubscription) {
+    listsSubscription.unsubscribe();
   }
-  return lists.length > 0 ? lists[0].id : null;
-}
 
-/**
- * Find the neighboring list to select after deletion.
- * Prefers next list, falls back to previous list.
- */
-function getNeighborListId(deletedListId, oldLists) {
-  const index = oldLists.findIndex((l) => l.id === deletedListId);
-  if (index === -1) return lists.length > 0 ? lists[0].id : null;
-
-  // Try next list first (same index in new array), then previous
-  if (index < lists.length) {
-    return lists[index].id;
-  }
-  if (lists.length > 0) {
-    return lists[lists.length - 1].id;
-  }
-  return null;
-}
-
-async function fetchLists() {
-  // Save current lists to find neighbor if current list was deleted
-  const oldLists = [...lists];
-
-  // Immediately show cached lists (cache-first)
-  const cachedLists = loadListsFromCache();
-  if (cachedLists) {
-    lists = cachedLists;
+  const query = db.lists.find();
+  listsSubscription = query.$.subscribe((docs) => {
+    const sortedDocs = sortLists(docs.map((d) => d.toJSON()));
+    lists = sortedDocs;
     renderNavigation();
+
     if (lists.length > 0 && !currentListId) {
       selectList(getInitialListId());
     }
-  }
 
-  // Then try to fetch fresh data
-  try {
-    const response = await fetch("/api/lists", {
-      cache: "no-store"
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    lists = data;
-    saveListsToCache(data);
-    renderNavigation();
-    updateOfflineIndicator(false);
-
-    // Handle case where current list was deleted on another device
-    if (currentListId && !lists.some((l) => l.id === currentListId)) {
-      const neighborId = getNeighborListId(currentListId, oldLists);
-      if (neighborId) {
-        selectList(neighborId);
+    if (currentListId && !lists.find((l) => l.id === currentListId)) {
+      if (lists.length > 0) {
+        selectList(lists[0].id);
       } else {
         currentListId = null;
         localStorage.removeItem("tickr_current_list");
@@ -653,245 +423,240 @@ async function fetchLists() {
         listTitle.textContent = "No Lists";
         document.title = "Tickr";
       }
-    } else if (lists.length > 0 && !currentListId) {
-      selectList(getInitialListId());
     }
-
-    // Prefetch all items in background for offline use
-    prefetchAllItems();
-  } catch {
-    // Fetch failed - we're already showing cached lists
-    if (!cachedLists || cachedLists.length === 0) {
-      lists = [];
-      renderNavigation();
-    }
-    updateOfflineIndicator(true);
-  }
-}
-
-async function fetchItems(listId) {
-  // Cancel any pending fetch for a different list
-  if (currentFetchController) {
-    currentFetchController.abort();
-  }
-
-  // Immediately show cached items (cache-first)
-  const cachedItems = loadItemsFromCache(listId);
-  if (cachedItems) {
-    items = cachedItems;
-    renderItems();
-  } else {
-    items = [];
-    renderItems();
-  }
-
-  // Then try to fetch fresh data in background
-  const controller = new AbortController();
-  currentFetchController = controller;
-
-  try {
-    const response = await fetch(`/api/lists/${listId}/items`, {
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Only update if this is still the current list
-    if (currentListId === listId) {
-      items = data;
-      saveItemsToCache(listId, data);
-      renderItems();
-      updateOfflineIndicator(false);
-    }
-  } catch (error) {
-    if (error.name === "AbortError") {
-      // Request was cancelled due to list switch - ignore
-      return;
-    }
-    // Fetch failed - we're already showing cached items
-    // Update offline indicator
-    if (currentListId === listId) {
-      updateOfflineIndicator(true);
-    }
-  }
-}
-
-async function fetchHistory(listId) {
-  const response = await fetch(`/api/lists/${listId}/history`, {
-    cache: "no-store",
   });
-  const history = await response.json();
-  renderHistory(history);
 }
 
+/**
+ * Sort lists according to the current settings.
+ *
+ * @param {Array} listsData - The list documents to sort.
+ * @returns {Array} Sorted list documents.
+ */
+function sortLists(listsData) {
+  const sort = appSettings.list_sort || "alphabetical";
+  const sorted = [...listsData];
+  switch (sort) {
+    case "alphabetical":
+      sorted.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+      break;
+    case "alphabetical_desc":
+      sorted.sort((a, b) => b.name.localeCompare(a.name, undefined, { sensitivity: "base" }));
+      break;
+    case "created_desc":
+      sorted.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+      break;
+    case "created_asc":
+      sorted.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+      break;
+    case "custom":
+      sorted.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      break;
+  }
+  return sorted;
+}
+
+/**
+ * Subscribe to items for a specific list with reactive updates.
+ *
+ * @param {string} listId - The list ID to subscribe to.
+ */
+function subscribeItems(listId) {
+  if (itemsSubscription) {
+    itemsSubscription.unsubscribe();
+  }
+
+  const query = db.items.find({ selector: { listId, completed: 0 } });
+  itemsSubscription = query.$.subscribe((docs) => {
+    const list = lists.find((l) => l.id === listId);
+    const sortOption = list?.itemSort || "alphabetical";
+    items = sortItems(docs.map((d) => d.toJSON()), sortOption);
+    renderItems();
+  });
+}
+
+/**
+ * Sort items according to the list's sort preference.
+ *
+ * @param {Array} itemsData - The item documents to sort.
+ * @param {string} sortOption - The sort preference string.
+ * @returns {Array} Sorted items with completed items at the end.
+ */
+function sortItems(itemsData, sortOption) {
+  const sorted = [...itemsData];
+  sorted.sort((a, b) => {
+    switch (sortOption) {
+      case "alphabetical":
+        return a.text.localeCompare(b.text, undefined, { sensitivity: "base" });
+      case "alphabetical_desc":
+        return b.text.localeCompare(a.text, undefined, { sensitivity: "base" });
+      case "created_desc":
+        return (b.createdAt || "").localeCompare(a.createdAt || "");
+      case "created_asc":
+        return (a.createdAt || "").localeCompare(b.createdAt || "");
+      default:
+        return a.text.localeCompare(b.text, undefined, { sensitivity: "base" });
+    }
+  });
+  return sorted;
+}
+
+/**
+ * Create a new list in RxDB.
+ *
+ * @param {string} name - The list name.
+ * @param {string} icon - The icon key.
+ */
 async function createList(name, icon) {
-  const newList = await fetchWriteWithRetry("/api/lists", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      name,
-      icon
-    }),
+  const maxSortOrder = lists.reduce((max, l) => Math.max(max, l.sortOrder || 0), -1);
+  const timestamp = now();
+  const doc = await db.lists.insert({
+    id: crypto.randomUUID(),
+    name,
+    icon: icon || "list",
+    itemSort: "alphabetical",
+    sortOrder: maxSortOrder + 1,
+    createdAt: timestamp,
+    updatedAt: timestamp,
   });
-
-  if (!newList) {
-    console.warn("Failed to create list");
-    return;
-  }
-
-  await fetchLists();
-  selectList(newList.id);
+  selectList(doc.id);
 }
 
+/**
+ * Update a list in RxDB.
+ *
+ * @param {string} listId - The list ID to update.
+ * @param {string} name - New name.
+ * @param {string} icon - New icon key.
+ * @param {string} itemSort - New sort preference.
+ */
 async function updateList(listId, name, icon, itemSort) {
-  const result = await fetchWriteWithRetry(`/api/lists/${listId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      name,
-      icon,
-      item_sort: itemSort
-    }),
+  const doc = await db.lists.findOne(listId).exec();
+  if (!doc) return;
+  await doc.patch({
+    name,
+    icon,
+    itemSort,
+    updatedAt: now(),
   });
-
-  if (!result) {
-    console.warn("Failed to update list, will retry on next sync");
-    return;
-  }
-
-  await fetchLists();
-
-  // Update title and reload items if it's the current list
   if (listId === currentListId) {
     listTitle.textContent = name;
     document.title = `${name} - Tickr`;
-    // Reload items to apply new sorting
-    await fetchItems(currentListId);
+    subscribeItems(currentListId);
   }
 }
 
+/**
+ * Delete a list by RxDB soft-delete.
+ *
+ * @param {string} listId - The list ID to delete.
+ */
 async function deleteList(listId) {
-  // Save old lists to find neighbor after deletion
-  const oldLists = [...lists];
+  const doc = await db.lists.findOne(listId).exec();
+  if (!doc) return;
 
-  const result = await fetchWriteWithRetry(`/api/lists/${listId}`, {
-    method: "DELETE",
-  });
-
-  if (!result) {
-    console.warn("Failed to delete list");
-    return;
+  const listItems = await db.items.find({ selector: { listId } }).exec();
+  for (const item of listItems) {
+    await item.remove();
   }
 
-  await fetchLists();
+  await doc.remove();
 
-  const neighborId = getNeighborListId(listId, oldLists);
-  if (neighborId) {
-    selectList(neighborId);
+  if (lists.length > 0) {
+    selectList(lists[0].id);
   } else {
     currentListId = null;
     localStorage.removeItem("tickr_current_list");
     items = [];
     renderItems();
     listTitle.textContent = "No Lists";
+    document.title = "Tickr";
   }
 }
 
-async function createItem(listIdOrText, text, undo = false) {
-  // Support both createItem(text) and createItem(listId, text, undo)
-  let listId, itemText, isUndo;
-  if (typeof text === "string") {
-    listId = listIdOrText;
-    itemText = text;
-    isUndo = undo;
-  } else if (typeof text === "boolean") {
-    // createItem(text, undo) format
-    listId = currentListId;
-    itemText = listIdOrText;
-    isUndo = text;
-  } else {
-    listId = currentListId;
-    itemText = listIdOrText;
-    isUndo = false;
-  }
-
-  const result = await fetchWriteWithRetry(`/api/lists/${listId}/items`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      text: itemText,
-      undo: isUndo
-    }),
+/**
+ * Create a new item in RxDB.
+ *
+ * @param {string} text - The item text.
+ * @param {string} [listId] - The list to add to (defaults to current).
+ */
+async function createItem(text, listId) {
+  const targetList = listId || currentListId;
+  if (!targetList) return;
+  const timestamp = now();
+  await db.items.insert({
+    id: crypto.randomUUID(),
+    listId: targetList,
+    text,
+    completed: 0,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    completedAt: null,
   });
-
-  if (!result) {
-    console.warn("Failed to create item");
-    return;
-  }
-
-  await fetchItems(currentListId);
-  await fetchLists();
-
-  // Refresh history if panel is open
-  if (historyPanel.classList.contains("open")) {
-    await fetchHistory(currentListId);
-  }
 }
 
+/**
+ * Update an item in RxDB.
+ *
+ * @param {string} itemId - The item ID to update.
+ * @param {Object} data - Fields to update.
+ */
 async function updateItem(itemId, data) {
-  const result = await fetchWriteWithRetry(`/api/items/${itemId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!result) {
-    console.warn("Failed to update item");
-    return;
+  const doc = await db.items.findOne(itemId).exec();
+  if (!doc) return;
+  const patch = { updatedAt: now() };
+  if (data.text !== undefined) patch.text = data.text;
+  if (data.completed !== undefined) {
+    patch.completed = data.completed ? 1 : 0;
+    patch.completedAt = data.completed ? now() : null;
   }
+  await doc.patch(patch);
+}
 
-  await fetchItems(currentListId);
-  await fetchLists();
+/**
+ * Delete an item by RxDB soft-delete.
+ *
+ * @param {string} itemId - The item ID to delete.
+ */
+async function deleteItem(itemId) {
+  const doc = await db.items.findOne(itemId).exec();
+  if (!doc) return;
+  await doc.remove();
+}
 
-  // Refresh history if panel is open
-  if (historyPanel.classList.contains("open")) {
-    await fetchHistory(currentListId);
+/**
+ * Reorder lists by updating sortOrder on each list.
+ *
+ * @param {string[]} listIds - Ordered list of list IDs.
+ */
+async function reorderLists(listIds) {
+  for (let i = 0; i < listIds.length; i++) {
+    const doc = await db.lists.findOne(listIds[i]).exec();
+    if (doc) {
+      await doc.patch({ sortOrder: i, updatedAt: now() });
+    }
   }
 }
 
-async function deleteItem(itemId, undo = false) {
-  const url = undo ? `/api/items/${itemId}?undo=true` : `/api/items/${itemId}`;
-  const result = await fetchWriteWithRetry(url, {
-    method: "DELETE",
-  });
+// ---- UI Helper Functions ----
 
-  if (!result) {
-    console.warn("Failed to delete item");
-    return;
-  }
-
-  await fetchItems(currentListId);
-  await fetchLists();
-
-  // Refresh history if panel is open
-  if (historyPanel.classList.contains("open")) {
-    await fetchHistory(currentListId);
-  }
+/** Get the count of non-completed items for a list. */
+async function getItemCount(listId) {
+  const allItems = await db.items.find({ selector: { listId, completed: 0 } }).exec();
+  return { remaining: allItems.length };
 }
 
-// Helper function to update no-lists state
+/**
+ * Determine which list to select based on saved preference.
+ */
+function getInitialListId() {
+  const savedId = localStorage.getItem("tickr_current_list");
+  if (savedId && lists.some((l) => l.id === savedId)) {
+    return savedId;
+  }
+  return lists.length > 0 ? lists[0].id : null;
+}
+
 function updateNoListsState() {
   if (lists.length === 0) {
     appContainer.classList.add("no-lists");
@@ -900,50 +665,40 @@ function updateNoListsState() {
   }
 }
 
-// Render Functions
-function renderNavigation() {
+// ---- Render Functions ----
+
+async function renderNavigation() {
   updateNoListsState();
   const isCustomSort = appSettings.list_sort === "custom";
 
+  const countsMap = {};
+  for (const list of lists) {
+    countsMap[list.id] = await getItemCount(list.id);
+  }
+
   navList.innerHTML = lists
     .map((list) => {
-      const totalItems = list.total_items || 0;
-      const completedItems = list.completed_items || 0;
-      const remainingItems = totalItems - completedItems;
-
+      const counts = countsMap[list.id] || { remaining: 0 };
       return `
-            <li class="nav-item" data-list-id="${list.id}" ${
-              isCustomSort ? 'draggable="true"' : ""
-            }>
-                <button class="nav-link ${
-                  list.id === currentListId ? "active" : ""
-                }"
+            <li class="nav-item" data-list-id="${list.id}" ${isCustomSort ? 'draggable="true"' : ""}>
+                <button class="nav-link ${list.id === currentListId ? "active" : ""}"
                         data-id="${list.id}">
-                    <span class="nav-icon">${
-                      icons[list.icon] || icons.list
-                    }</span>
+                    <span class="nav-icon">${icons[list.icon] || icons.list}</span>
                     <span class="nav-text">${escapeHtml(list.name)}</span>
-                    ${
-                      remainingItems > 0
-                        ? `<span class="nav-count">${remainingItems}</span>`
-                        : ""
-                    }
+                    ${counts.remaining > 0 ? `<span class="nav-count">${counts.remaining}</span>` : ""}
                 </button>
             </li>
         `;
     })
     .join("");
 
-  // Add click handlers
   navList.querySelectorAll(".nav-link").forEach((link) => {
     link.addEventListener("click", () => {
-      const listId = parseInt(link.dataset.id);
-      selectList(listId);
+      selectList(link.dataset.id);
       closeMobileMenu();
     });
   });
 
-  // Add drag & drop handlers if custom sort is enabled
   if (isCustomSort) {
     setupDragAndDrop();
   }
@@ -953,7 +708,6 @@ let draggedItem = null;
 
 function setupDragAndDrop() {
   const navItems = navList.querySelectorAll(".nav-item");
-
   navItems.forEach((item) => {
     item.addEventListener("dragstart", handleDragStart);
     item.addEventListener("dragend", handleDragEnd);
@@ -998,41 +752,28 @@ function handleDragLeave() {
 async function handleDrop(e) {
   e.preventDefault();
   this.classList.remove("drag-over");
+  if (this === draggedItem) return;
 
-  if (this === draggedItem) {
-    return;
-  }
-
-  // Get new order
   const navItems = Array.from(navList.querySelectorAll(".nav-item"));
   const draggedIndex = navItems.indexOf(draggedItem);
   const dropIndex = navItems.indexOf(this);
 
-  // Move the dragged item in the DOM
   if (draggedIndex < dropIndex) {
     this.parentNode.insertBefore(draggedItem, this.nextSibling);
   } else {
     this.parentNode.insertBefore(draggedItem, this);
   }
 
-  // Get new list order
   const newOrder = Array.from(navList.querySelectorAll(".nav-item")).map(
-    (item) => parseInt(item.dataset.listId),
+    (item) => item.dataset.listId,
   );
-
-  // Save to server
   await reorderLists(newOrder);
-
-  // Refresh to get updated sort_order values
-  await fetchLists();
 }
 
 function renderItems() {
   if (items.length === 0) {
     itemsList.innerHTML = "";
     emptyState.classList.add("visible");
-
-    // Update empty state text based on whether lists exist
     const emptyTitle = emptyState.querySelector("p");
     const emptySubtitle = emptyState.querySelector("span");
     if (lists.length === 0) {
@@ -1046,14 +787,12 @@ function renderItems() {
   }
 
   emptyState.classList.remove("visible");
-
-  // Items are already sorted by the server according to settings
   itemsList.innerHTML = items
     .map(
       (item, index) => `
-        <li class="item${item.completed ? " completed" : ""}" data-id="${item.id}" style="--i:${index}">
+        <li class="item" data-id="${item.id}" style="--i:${index}">
             <label class="item-checkbox">
-                <input type="checkbox" ${item.completed ? "checked" : ""}>
+                <input type="checkbox">
                 <span class="checkmark">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <polyline points="20 6 9 17 4 12"></polyline>
@@ -1068,36 +807,43 @@ function renderItems() {
     )
     .join("");
 
-  // Add event handlers
   itemsList.querySelectorAll(".item").forEach((itemEl) => {
-    const itemId = parseInt(itemEl.dataset.id);
+    const itemId = itemEl.dataset.id;
     const item = items.find((i) => i.id === itemId);
 
     const checkbox = itemEl.querySelector('input[type="checkbox"]');
     checkbox.addEventListener("change", async () => {
       const isCompleted = checkbox.checked;
       const itemText = item.text;
-      await updateItem(itemId, {
-        completed: isCompleted
-      });
-
+      await updateItem(itemId, { completed: isCompleted });
       if (isCompleted) {
         showUndoToast(`"${itemText}" completed`, async () => {
-          await updateItem(itemId, {
-            completed: false,
-            undo: true
-          });
+          await updateItem(itemId, { completed: false });
         });
       }
     });
 
-    // Click anywhere on item opens edit modal (except checkbox)
     itemEl.addEventListener("click", (e) => {
       if (!e.target.closest(".item-checkbox")) {
         openEditItemModal(itemId, item.text);
       }
     });
   });
+}
+
+/**
+ * Fetch and render history from the server.
+ *
+ * @param {string} listId - The list ID to fetch history for.
+ */
+async function fetchHistory(listId) {
+  try {
+    const response = await fetch(`/api/lists/${listId}/history`, { cache: "no-store" });
+    const history = await response.json();
+    renderHistory(history);
+  } catch {
+    renderHistory([]);
+  }
 }
 
 function renderHistory(history) {
@@ -1107,79 +853,37 @@ function renderHistory(history) {
   }
 
   const actionLabels = {
-    item_created: {
-      text: "Added",
-      class: "created"
-    },
-    item_completed: {
-      text: "Completed",
-      class: "completed"
-    },
-    item_uncompleted: {
-      text: "Reopened",
-      class: "uncompleted"
-    },
-    item_deleted: {
-      text: "Deleted",
-      class: "deleted"
-    },
-    item_edited: {
-      text: "Edited",
-      class: "edited"
-    },
-    list_created: {
-      text: "List created",
-      class: "created"
-    },
+    item_created: { text: "Added", class: "created" },
+    item_completed: { text: "Completed", class: "completed" },
+    item_uncompleted: { text: "Reopened", class: "uncompleted" },
+    item_deleted: { text: "Deleted", class: "deleted" },
+    item_edited: { text: "Edited", class: "edited" },
+    list_created: { text: "List created", class: "created" },
   };
 
-  /**
-   * Return a date group label for a timestamp.
-   *
-   * @param {string} timestamp - ISO timestamp string
-   * @returns {string} "Today", "Yesterday", or a localized date string
-   */
   function getDateGroup(timestamp) {
     const date = new Date(timestamp);
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayDate = new Date();
+    const today = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
     const entryDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const diffDays = Math.round((today - entryDate) / (1000 * 60 * 60 * 24));
-
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric"
-    });
+    return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   }
 
-  /**
-   * Format a timestamp to a short time string (hours and minutes).
-   *
-   * @param {string} timestamp - ISO timestamp string
-   * @returns {string} Formatted time like "14:30"
-   */
   function formatTime(timestamp) {
     return new Date(timestamp).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
+      hour: "2-digit", minute: "2-digit", hour12: false,
     });
   }
 
-  // Group entries by date
   const groups = [];
   let currentGroup = null;
-
   for (const entry of history) {
     const label = getDateGroup(entry.timestamp);
     if (!currentGroup || currentGroup.label !== label) {
-      currentGroup = {
-        label,
-        entries: []
-      };
+      currentGroup = { label, entries: [] };
       groups.push(currentGroup);
     }
     currentGroup.entries.push(entry);
@@ -1189,15 +893,11 @@ function renderHistory(history) {
     .map((group) => {
       const entries = group.entries
         .map((entry) => {
-          const action = actionLabels[entry.action] || {
-            text: entry.action,
-            class: ""
-          };
+          const action = actionLabels[entry.action] || { text: entry.action, class: "" };
           const itemText = entry.item_text || "";
-          const displayText = entry.action === "item_edited" && itemText.includes(" → ") ?
-            itemText.split(" → ")[1] :
-            itemText;
-
+          const displayText = entry.action === "item_edited" && itemText.includes(" \u2192 ")
+            ? itemText.split(" \u2192 ")[1]
+            : itemText;
           return `<li class="history-entry">
             <span class="history-time">${formatTime(entry.timestamp)}</span>
             <span class="action-type ${action.class}">${action.text}</span>
@@ -1205,7 +905,6 @@ function renderHistory(history) {
           </li>`;
         })
         .join("");
-
       return `<li class="history-group">
         <div class="history-date-header">${group.label}</div>
         <ul class="history-entries">${entries}</ul>
@@ -1214,29 +913,27 @@ function renderHistory(history) {
     .join("");
 }
 
-// Helper Functions
+// ---- Navigation ----
+
 function selectList(listId) {
   currentListId = listId;
-  // Persist selected list for page refreshes
   localStorage.setItem("tickr_current_list", listId);
 
   const list = lists.find((l) => l.id === listId);
   if (list) {
     listTitle.textContent = list.name;
     document.title = `${list.name} - Tickr`;
-    // Update header icon
     const listTitleIcon = document.getElementById("listTitleIcon");
     if (listTitleIcon) {
       listTitleIcon.innerHTML = icons[list.icon] || icons.list;
     }
   }
 
-  // Update active state in navigation
   navList.querySelectorAll(".nav-link").forEach((link) => {
-    link.classList.toggle("active", parseInt(link.dataset.id) === listId);
+    link.classList.toggle("active", link.dataset.id === listId);
   });
 
-  fetchItems(listId);
+  subscribeItems(listId);
 }
 
 function escapeHtml(text) {
@@ -1245,77 +942,35 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = now - date;
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+// ---- Toast ----
 
-  if (diffDays === 0) {
-    return "today";
-  } else if (diffDays === 1) {
-    return "yesterday";
-  } else if (diffDays < 7) {
-    return `${diffDays} days ago`;
-  } else {
-    return date.toLocaleDateString("en-US");
-  }
-}
-
-function formatDateTime(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleString("en-US", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-/**
- * Show an undo toast, immediately replacing any currently visible toast.
- */
 function showUndoToast(message, undoCallback) {
   presentToast(message, undoCallback);
 }
 
-/**
- * Present a toast notification immediately with a 5-second countdown.
- * If a toast is already visible, the message crossfades smoothly.
- */
 function presentToast(message, undoCallback) {
   if (toastTimeout) {
     clearTimeout(toastTimeout);
     toastTimeout = null;
   }
-
   toastUndoCallback = undoCallback;
   toastRemainingTime = 5000;
-  toastStartTime = Date.now();
-
   const isVisible = undoToast.classList.contains("visible");
 
   function startCountdown() {
-    // Reset and animate progress bar
     toastProgress.style.opacity = "1";
     toastProgress.style.transition = "none";
     toastProgress.style.transform = "scaleX(1)";
-
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         toastProgress.style.transition = `transform ${toastRemainingTime}ms linear`;
         toastProgress.style.transform = "scaleX(0)";
       });
     });
-
-    toastTimeout = setTimeout(() => {
-      hideUndoToast();
-    }, toastRemainingTime);
+    toastTimeout = setTimeout(() => hideUndoToast(), toastRemainingTime);
   }
 
   if (isVisible) {
-    // Fade out message, swap text, fade back in
     toastMessage.classList.add("swapping");
     setTimeout(() => {
       toastMessage.textContent = message;
@@ -1329,9 +984,6 @@ function presentToast(message, undoCallback) {
   }
 }
 
-/**
- * Hide the current toast.
- */
 function hideUndoToast() {
   if (toastTimeout) {
     clearTimeout(toastTimeout);
@@ -1341,9 +993,6 @@ function hideUndoToast() {
   undoToast.classList.remove("visible");
 }
 
-/**
- * Pause the toast timer on hover and hide the progress bar.
- */
 function pauseToast() {
   if (toastTimeout) {
     clearTimeout(toastTimeout);
@@ -1352,34 +1001,25 @@ function pauseToast() {
   toastProgress.style.opacity = "0";
 }
 
-/**
- * Restart the toast timer after hover ends and show the progress bar.
- */
 function resumeToast() {
   if (!undoToast.classList.contains("visible")) return;
-
   toastRemainingTime = 5000;
-  toastStartTime = Date.now();
-
   toastProgress.style.opacity = "1";
   toastProgress.style.transition = "none";
   toastProgress.style.transform = "scaleX(1)";
-
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       toastProgress.style.transition = "transform 5s linear";
       toastProgress.style.transform = "scaleX(0)";
     });
   });
-
-  toastTimeout = setTimeout(() => {
-    hideUndoToast();
-  }, 5000);
+  toastTimeout = setTimeout(() => hideUndoToast(), 5000);
 }
 
-// Toast hover events
 undoToast.addEventListener("mouseenter", pauseToast);
 undoToast.addEventListener("mouseleave", resumeToast);
+
+// ---- Mobile ----
 
 function closeMobileMenu() {
   sidebar.classList.remove("mobile-open");
@@ -1391,26 +1031,21 @@ function openMobileMenu() {
   overlay.classList.add("visible");
 }
 
+// ---- Modals ----
+
 function openEditListModal() {
   const list = lists.find((l) => l.id === currentListId);
   if (!list) return;
-
   editListName.value = list.name;
   editSelectedIcon = list.icon || "list";
-  editListSort.value = list.item_sort || "alphabetical";
-
+  editListSort.value = list.itemSort || "alphabetical";
   updateIconPreview(editIconPreview, editSelectedIcon);
   editIconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
     opt.classList.toggle("selected", opt.dataset.icon === editSelectedIcon);
   });
-
-  // Reset icon picker to collapsed state
   editIconPickerToggle.classList.remove("open");
   editIconOptionsContainer.classList.remove("expanded");
-
   editListModal.classList.add("open");
-
-  // Only auto-focus on desktop to avoid keyboard popup on mobile
   if (window.matchMedia("(hover: hover)").matches) {
     setTimeout(() => editListName.focus(), 100);
   }
@@ -1420,8 +1055,6 @@ function openEditItemModal(itemId, text) {
   editingItemId = itemId;
   editItemText.value = text;
   editItemModal.classList.add("open");
-
-  // Only auto-focus on desktop to avoid keyboard popup on mobile
   if (window.matchMedia("(hover: hover)").matches) {
     setTimeout(() => {
       editItemText.focus();
@@ -1430,40 +1063,31 @@ function openEditItemModal(itemId, text) {
   }
 }
 
-// Event Listeners
+// ---- Event Listeners ----
 
-// Sidebar toggle (desktop)
 sidebarToggle.addEventListener("click", () => {
   sidebar.classList.toggle("collapsed");
-  localStorage.setItem(
-    "sidebarCollapsed",
-    sidebar.classList.contains("collapsed"),
-  );
+  localStorage.setItem("sidebarCollapsed", sidebar.classList.contains("collapsed"));
 });
 
-// Mobile menu button
 mobileMenuBtn.addEventListener("click", openMobileMenu);
 
-// Overlay click (close mobile menu / history)
 overlay.addEventListener("click", () => {
   closeMobileMenu();
   historyPanel.classList.remove("open");
   overlay.classList.remove("visible");
 });
 
-// Icon picker toggle for new list modal
 iconPickerToggle.addEventListener("click", () => {
   iconPickerToggle.classList.toggle("open");
   iconOptionsContainer.classList.toggle("expanded");
 });
 
-// Icon picker toggle for edit list modal
 editIconPickerToggle.addEventListener("click", () => {
   editIconPickerToggle.classList.toggle("open");
   editIconOptionsContainer.classList.toggle("expanded");
 });
 
-// Add item form
 addItemForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = addItemInput.value.trim();
@@ -1473,7 +1097,6 @@ addItemForm.addEventListener("submit", async (e) => {
   }
 });
 
-// History button
 historyBtn.addEventListener("click", () => {
   if (currentListId) {
     fetchHistory(currentListId);
@@ -1482,117 +1105,54 @@ historyBtn.addEventListener("click", () => {
   }
 });
 
-// Refresh button
-refreshBtn.addEventListener("click", async () => {
-  if (currentListId) {
-    await fetchLists();
-    await fetchItems(currentListId);
-  }
-});
-
-// Close history button
 closeHistoryBtn.addEventListener("click", () => {
   historyPanel.classList.remove("open");
   overlay.classList.remove("visible");
 });
 
-// Edit list button
 editListBtn.addEventListener("click", openEditListModal);
 
-// Delete list button
 deleteListBtn.addEventListener("click", async () => {
   editListModal.classList.remove("open");
-  if (currentListId && lists.length > 0) {
-    const list = lists.find((l) => l.id === currentListId);
-    if (!list) return;
-    const listName = list.name;
-    const listIcon = list.icon || "list";
-    const listSort = list.item_sort || "alphabetical";
+  if (!currentListId || lists.length === 0) return;
+  const list = lists.find((l) => l.id === currentListId);
+  if (!list) return;
+  const listName = list.name;
+  const listIcon = list.icon || "list";
+  const listSort = list.itemSort || "alphabetical";
+  const listSortOrder = list.sortOrder || 0;
 
-    // Fetch all items and history before deleting for undo
-    const allItems = await fetchWithRetry(
-      `/api/lists/${currentListId}/items?include_completed=true`,
-    );
-    const savedItems = allItems || [];
-    const savedHistory = await fetchWithRetry(
-      `/api/lists/${currentListId}/history`,
-    ) || [];
+  const savedItems = await db.items.find({ selector: { listId: currentListId } }).exec();
+  const savedItemsData = savedItems.map((d) => d.toJSON());
 
-    await deleteList(currentListId);
-    showUndoToast(`"${listName}" deleted`, async () => {
-      // Restore list
-      const newList = await fetchWriteWithRetry("/api/lists", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          name: listName,
-          icon: listIcon,
-          undo: true
-        }),
-      });
-
-      if (newList && newList.id) {
-        // Restore list sort setting
-        await fetchWriteWithRetry(`/api/lists/${newList.id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            item_sort: listSort
-          }),
-        });
-
-        // Restore all items
-        for (const item of savedItems) {
-          const restoredItem = await fetchWriteWithRetry(
-            `/api/lists/${newList.id}/items`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                text: item.text,
-                undo: true
-              }),
-            },
-          );
-          // If item was completed, mark it as completed
-          if (item.completed && restoredItem?.id) {
-            await fetchWriteWithRetry(`/api/items/${restoredItem.id}`, {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                completed: true,
-                undo: true
-              }),
-            });
-          }
-        }
-
-        // Restore history entries
-        if (savedHistory.length > 0) {
-          await fetchWriteWithRetry(`/api/lists/${newList.id}/history`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(savedHistory),
-          });
-        }
-
-        await fetchLists();
-        selectList(newList.id);
-      }
+  await deleteList(currentListId);
+  showUndoToast(`"${listName}" deleted`, async () => {
+    const timestamp = now();
+    const newListId = crypto.randomUUID();
+    await db.lists.insert({
+      id: newListId,
+      name: listName,
+      icon: listIcon,
+      itemSort: listSort,
+      sortOrder: listSortOrder,
+      createdAt: timestamp,
+      updatedAt: timestamp,
     });
-  }
+    for (const item of savedItemsData) {
+      await db.items.insert({
+        id: crypto.randomUUID(),
+        listId: newListId,
+        text: item.text,
+        completed: item.completed,
+        createdAt: item.createdAt,
+        updatedAt: timestamp,
+        completedAt: item.completedAt || null,
+      });
+    }
+    selectList(newListId);
+  });
 });
 
-// Add list button
 addListBtn.addEventListener("click", () => {
   newListModal.classList.add("open");
   newListName.value = "";
@@ -1601,13 +1161,11 @@ addListBtn.addEventListener("click", () => {
   iconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
     opt.classList.toggle("selected", opt.dataset.icon === selectedIcon);
   });
-  // Reset icon picker to collapsed state
   iconPickerToggle.classList.remove("open");
   iconOptionsContainer.classList.remove("expanded");
   setTimeout(() => newListName.focus(), 100);
 });
 
-// Icon selection (new list) — event delegation
 iconOptionsContainer.addEventListener("click", (e) => {
   const option = e.target.closest(".icon-option");
   if (!option) return;
@@ -1618,7 +1176,6 @@ iconOptionsContainer.addEventListener("click", (e) => {
   });
 });
 
-// Icon selection (edit list) — event delegation
 editIconOptionsContainer.addEventListener("click", (e) => {
   const option = e.target.closest(".icon-option");
   if (!option) return;
@@ -1629,7 +1186,6 @@ editIconOptionsContainer.addEventListener("click", (e) => {
   });
 });
 
-// New list form
 newListForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = newListName.value.trim();
@@ -1639,12 +1195,8 @@ newListForm.addEventListener("submit", async (e) => {
   }
 });
 
-// Cancel new list
-cancelNewList.addEventListener("click", () => {
-  newListModal.classList.remove("open");
-});
+cancelNewList.addEventListener("click", () => newListModal.classList.remove("open"));
 
-// Edit list form
 editListForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = editListName.value.trim();
@@ -1654,74 +1206,50 @@ editListForm.addEventListener("submit", async (e) => {
   }
 });
 
-// Cancel edit list
-cancelEditList.addEventListener("click", () => {
-  editListModal.classList.remove("open");
-});
+cancelEditList.addEventListener("click", () => editListModal.classList.remove("open"));
 
-// Edit item form
 editItemForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = editItemText.value.trim();
   if (text && editingItemId) {
-    await updateItem(editingItemId, {
-      text
-    });
+    await updateItem(editingItemId, { text });
     editItemModal.classList.remove("open");
     editingItemId = null;
   }
 });
 
-// Cancel edit item
 cancelEditItem.addEventListener("click", () => {
   editItemModal.classList.remove("open");
   editingItemId = null;
 });
 
-// Delete item from edit modal
 deleteEditItem.addEventListener("click", async () => {
   if (!editingItemId) return;
-
   const item = items.find((i) => i.id === editingItemId);
   const itemText = item ? item.text : "";
-  const listId = currentListId;
+  const itemListId = item ? item.listId : currentListId;
   const itemId = editingItemId;
-
   editItemModal.classList.remove("open");
   editingItemId = null;
-
   await deleteItem(itemId);
   showUndoToast(`"${itemText}" deleted`, async () => {
-    await createItem(listId, itemText, true);
+    await createItem(itemText, itemListId);
   });
 });
 
-// Toast Undo button
 toastUndo.addEventListener("click", async () => {
-  if (toastUndoCallback) {
-    await toastUndoCallback();
-  }
+  if (toastUndoCallback) await toastUndoCallback();
   hideUndoToast();
 });
 
-// Toast Close button — dismiss without undo
-toastClose.addEventListener("click", () => {
-  hideUndoToast();
-});
+toastClose.addEventListener("click", () => hideUndoToast());
 
-// Close modals on background click
 newListModal.addEventListener("click", (e) => {
-  if (e.target === newListModal) {
-    newListModal.classList.remove("open");
-  }
+  if (e.target === newListModal) newListModal.classList.remove("open");
 });
-
 editListModal.addEventListener("click", (e) => {
-  if (e.target === editListModal) {
-    editListModal.classList.remove("open");
-  }
+  if (e.target === editListModal) editListModal.classList.remove("open");
 });
-
 editItemModal.addEventListener("click", (e) => {
   if (e.target === editItemModal) {
     editItemModal.classList.remove("open");
@@ -1743,23 +1271,18 @@ settingsBtn.addEventListener("click", () => {
   closeMobileMenu();
 });
 
-cancelSettings.addEventListener("click", () => {
-  settingsModal.classList.remove("open");
-});
+cancelSettings.addEventListener("click", () => settingsModal.classList.remove("open"));
 
 saveSettings.addEventListener("click", async () => {
   const newListSort = listSortSetting.value;
-  console.log("Saving settings:", {
-    list_sort: newListSort
-  });
-  const success = await updateSettings({
-    list_sort: newListSort
-  });
-  console.log("Settings saved:", success);
+  await updateSettings({ list_sort: newListSort });
   settingsModal.classList.remove("open");
 });
 
 clearCacheBtn.addEventListener("click", async () => {
+  if (db) {
+    await db.remove();
+  }
   if ("caches" in window) {
     const cacheNames = await caches.keys();
     await Promise.all(cacheNames.map((name) => caches.delete(name)));
@@ -1772,14 +1295,11 @@ clearCacheBtn.addEventListener("click", async () => {
 });
 
 settingsModal.addEventListener("click", (e) => {
-  if (e.target === settingsModal) {
-    settingsModal.classList.remove("open");
-  }
+  if (e.target === settingsModal) settingsModal.classList.remove("open");
 });
 
 // Keyboard shortcuts
 document.addEventListener("keydown", (e) => {
-  // Escape to close modals/panels
   if (e.key === "Escape") {
     newListModal.classList.remove("open");
     editListModal.classList.remove("open");
@@ -1790,11 +1310,8 @@ document.addEventListener("keydown", (e) => {
     overlay.classList.remove("visible");
     closeMobileMenu();
   }
-
-  // Ctrl/Cmd + N to add new item (when not in input)
   if (
-    (e.ctrlKey || e.metaKey) &&
-    e.key === "n" &&
+    (e.ctrlKey || e.metaKey) && e.key === "n" &&
     document.activeElement !== addItemInput &&
     document.activeElement !== newListName &&
     document.activeElement !== editListName &&
@@ -1810,81 +1327,53 @@ if (localStorage.getItem("sidebarCollapsed") === "true") {
   sidebar.classList.add("collapsed");
 }
 
-// Touch swipe navigation for mobile
+// Touch swipe navigation
 let touchStartX = 0;
 let touchStartY = 0;
 let touchEndX = 0;
 let touchEndY = 0;
-
 const mainContent = document.querySelector(".main-content");
 
-mainContent.addEventListener(
-  "touchstart",
-  (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
-  }, {
-    passive: true
-  },
-);
+mainContent.addEventListener("touchstart", (e) => {
+  touchStartX = e.changedTouches[0].screenX;
+  touchStartY = e.changedTouches[0].screenY;
+}, { passive: true });
 
-mainContent.addEventListener(
-  "touchend",
-  (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    touchEndY = e.changedTouches[0].screenY;
-    handleSwipe();
-  }, {
-    passive: true
-  },
-);
+mainContent.addEventListener("touchend", (e) => {
+  touchEndX = e.changedTouches[0].screenX;
+  touchEndY = e.changedTouches[0].screenY;
+  handleSwipe();
+}, { passive: true });
 
 function handleSwipe() {
   const deltaX = touchEndX - touchStartX;
   const deltaY = touchEndY - touchStartY;
   const minSwipeDistance = 80;
+  if (Math.abs(deltaX) < minSwipeDistance || Math.abs(deltaX) < Math.abs(deltaY)) return;
 
-  // Only trigger if horizontal swipe is dominant (more X than Y movement)
-  if (
-    Math.abs(deltaX) < minSwipeDistance ||
-    Math.abs(deltaX) < Math.abs(deltaY)
-  ) {
-    return;
-  }
-
-  // Find current list index
   const currentIndex = lists.findIndex((l) => l.id === currentListId);
   if (currentIndex === -1) return;
 
-  // Determine direction and target list
-  let targetListId;
   const swipeLeft = deltaX < 0;
-
+  let targetListId;
   if (swipeLeft) {
-    // Swipe left → next list
     const nextIndex = currentIndex + 1;
     targetListId = nextIndex < lists.length ? lists[nextIndex].id : lists[0].id;
   } else {
-    // Swipe right → previous list
     const prevIndex = currentIndex - 1;
-    targetListId =
-      prevIndex >= 0 ? lists[prevIndex].id : lists[lists.length - 1].id;
+    targetListId = prevIndex >= 0 ? lists[prevIndex].id : lists[lists.length - 1].id;
   }
 
-  // Animate the transition
   const outClass = swipeLeft ? "swipe-out-left" : "swipe-out-right";
   const inClass = swipeLeft ? "swipe-in-left" : "swipe-in-right";
-
   itemsList.classList.add(outClass);
   listTitle.classList.add("fade-out");
-
   setTimeout(() => {
     itemsList.classList.remove(outClass);
     listTitle.classList.remove("fade-out");
     selectList(targetListId);
     itemsList.classList.add(inClass);
     listTitle.classList.add("fade-in");
-
     setTimeout(() => {
       itemsList.classList.remove(inClass);
       listTitle.classList.remove("fade-in");
@@ -1892,262 +1381,27 @@ function handleSwipe() {
   }, 150);
 }
 
-// Debounced SSE fetch handlers to avoid duplicate work with direct calls
-let sseListsTimeout = null;
-let sseItemsTimeout = null;
-
-function debouncedSSEFetchLists() {
-  if (sseListsTimeout) clearTimeout(sseListsTimeout);
-  sseListsTimeout = setTimeout(() => fetchLists(), 500);
-}
-
-function debouncedSSEFetchItems() {
-  if (sseItemsTimeout) clearTimeout(sseItemsTimeout);
-  sseItemsTimeout = setTimeout(() => fetchItems(currentListId), 500);
-}
-
-// SSE connection for real-time updates
-let eventSource = null;
-let sseReconnectTimeout = null;
-
-/**
- * Connect to Server-Sent Events for real-time sync across devices.
- */
-function connectSSE() {
-  // Clear any pending reconnect
-  if (sseReconnectTimeout) {
-    clearTimeout(sseReconnectTimeout);
-    sseReconnectTimeout = null;
-  }
-
-  // Close existing connection if any
-  if (eventSource) {
-    eventSource.close();
-    eventSource = null;
-  }
-
-  eventSource = new EventSource("/api/events");
-
-  eventSource.onopen = () => {
-    console.log("SSE connected");
-    updateOfflineIndicator(false);
-  };
-
-  eventSource.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-
-    if (data.type === "lists_changed") {
-      debouncedSSEFetchLists();
-    }
-
-    if (data.type === "items_changed") {
-      // Always refresh lists to update item count badges
-      debouncedSSEFetchLists();
-      // Only refresh items if we're viewing the affected list
-      if (data.list_id === currentListId) {
-        debouncedSSEFetchItems();
-      }
-    }
-  };
-
-  eventSource.onerror = () => {
-    console.log("SSE connection lost");
-    eventSource.close();
-    eventSource = null;
-
-    // Reconnect after delay (with backoff)
-    sseReconnectTimeout = setTimeout(() => {
-      console.log("SSE reconnecting...");
-      connectSSE();
-    }, 3000);
-  };
-
-  return eventSource;
-}
-
-/**
- * Reconnect SSE and refresh data when app becomes visible again.
- */
-function handleVisibilityChange() {
-  if (document.visibilityState === "visible") {
-    // Reconnect SSE when app comes back to foreground
-    connectSSE();
-    // Refresh data in case we missed updates while in background
-    if (currentListId) {
-      fetchLists();
-      fetchItems(currentListId);
-    }
-  }
-}
-
-// Reconnect SSE when page becomes visible (handles mobile background)
-document.addEventListener("visibilitychange", handleVisibilityChange);
-
-// Initialize
-async function init() {
-  await fetchSettings();
-  await fetchLists();
-  connectSSE();
-}
-init();
-
-// Online/Offline detection
-window.addEventListener("online", () => {
-  updateOfflineIndicator(false);
-  connectSSE(); // Reconnect SSE when back online
-  fetchLists(); // Refresh data when back online
-});
-
-window.addEventListener("offline", () => {
-  updateOfflineIndicator(true);
-  // Close SSE to avoid reconnect attempts while offline
-  if (eventSource) {
-    eventSource.close();
-    eventSource = null;
-  }
-  if (sseReconnectTimeout) {
-    clearTimeout(sseReconnectTimeout);
-    sseReconnectTimeout = null;
-  }
-});
-
-// Register Service Worker with update detection
-if ("serviceWorker" in navigator) {
-  let refreshing = false;
-
-  // Reload page when new service worker takes control
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (refreshing) return;
-    refreshing = true;
-    window.location.reload();
-  });
-
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((reg) => {
-        console.log("Service Worker registered");
-
-        // Check for updates every 60 seconds
-        setInterval(() => {
-          reg.update();
-        }, 60000);
-
-        // Handle waiting service worker
-        if (reg.waiting) {
-          showUpdateNotification(reg.waiting);
-        }
-
-        // Handle installing service worker
-        reg.addEventListener("updatefound", () => {
-          const newWorker = reg.installing;
-          newWorker.addEventListener("statechange", () => {
-            if (
-              newWorker.state === "installed" &&
-              navigator.serviceWorker.controller
-            ) {
-              // New service worker available
-              showUpdateNotification(newWorker);
-            }
-          });
-        });
-      })
-      .catch((err) => console.log("Service Worker registration failed:", err));
-  });
-
-  /**
-   * Show update notification to user.
-   *
-   * @param {ServiceWorker} worker - The waiting service worker
-   */
-  function showUpdateNotification(worker) {
-    const notification = document.createElement("div");
-    notification.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #4a5568;
-      color: white;
-      padding: 16px 24px;
-      border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-family: system-ui, -apple-system, sans-serif;
-      animation: slideUp 0.3s ease-out;
-    `;
-
-    notification.innerHTML = `
-      <span>New version available!</span>
-      <button id="update-btn" style="
-        background: #48bb78;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 600;
-      ">Update</button>
-      <button id="dismiss-btn" style="
-        background: transparent;
-        color: white;
-        border: 1px solid white;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-      ">Later</button>
-    `;
-
-    // Add animation keyframes
-    if (!document.querySelector("#sw-update-styles")) {
-      const style = document.createElement("style");
-      style.id = "sw-update-styles";
-      style.textContent = `
-        @keyframes slideUp {
-          from {
-            transform: translateX(-50%) translateY(100px);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
-          }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    document.body.appendChild(notification);
-
-    // Update button handler
-    document.getElementById("update-btn").addEventListener("click", () => {
-      worker.postMessage({
-        type: "SKIP_WAITING"
-      });
-      notification.remove();
-    });
-
-    // Dismiss button handler
-    document.getElementById("dismiss-btn").addEventListener("click", () => {
-      notification.remove();
-    });
-  }
-}
-
-// Visual viewport tracking for modal positioning (handles virtual keyboard)
+// Visual viewport tracking for modal positioning
 if (window.visualViewport) {
   function updateVisualViewport() {
     const vv = window.visualViewport;
-    document.documentElement.style.setProperty(
-      "--visual-viewport-height",
-      `${vv.height}px`,
-    );
+    document.documentElement.style.setProperty("--visual-viewport-height", `${vv.height}px`);
   }
-
   updateVisualViewport();
   window.visualViewport.addEventListener("resize", updateVisualViewport);
   window.visualViewport.addEventListener("scroll", updateVisualViewport);
+}
+
+// ---- Initialization ----
+
+/**
+ * Initialize the app: set up RxDB, replication, and render initial state.
+ */
+export async function initApp() {
+  db = await getDatabase();
+  await fetchSettings();
+  subscribeLists();
+
+  const replications = setupReplication(db);
+  initSyncStatus(replications);
 }

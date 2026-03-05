@@ -53,6 +53,12 @@ Thumbs.db
 *.log
 logs/
 
+# Frontend
+frontend/node_modules/
+
+# Vite build output
+static/dist/
+
 # Temporary files
 tmp/
 temp/
