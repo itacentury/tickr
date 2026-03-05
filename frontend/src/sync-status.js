@@ -14,6 +14,8 @@ export function initSyncStatus(replications) {
   const offlineIndicator = document.getElementById("offlineIndicator");
   const syncIndicator = document.getElementById("syncIndicator");
   let isOffline = false;
+  let syncShowTimeout = null;
+  const SYNC_SHOW_DELAY = 500;
 
   function updateOfflineUI(offline) {
     isOffline = offline;
@@ -23,8 +25,17 @@ export function initSyncStatus(replications) {
   }
 
   function updateSyncUI(syncing) {
-    if (syncIndicator) {
-      syncIndicator.classList.toggle("visible", syncing && !isOffline);
+    if (!syncIndicator) return;
+    if (syncing && !isOffline) {
+      if (!syncShowTimeout) {
+        syncShowTimeout = setTimeout(() => {
+          syncIndicator.classList.add("visible");
+        }, SYNC_SHOW_DELAY);
+      }
+    } else {
+      clearTimeout(syncShowTimeout);
+      syncShowTimeout = null;
+      syncIndicator.classList.remove("visible");
     }
   }
 
