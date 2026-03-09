@@ -23,7 +23,7 @@ jobs:
         with:
           filters: |
             python:
-              - '*.py'
+              - 'backend/**/*.py'
               - 'pyproject.toml'
             frontend:
               - 'frontend/**'

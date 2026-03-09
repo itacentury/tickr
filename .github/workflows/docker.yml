@@ -26,7 +26,7 @@ jobs:
         with:
           filters: |
             source:
-              - 'main.py'
+              - 'backend/**'
               - 'frontend/**'
               - 'Dockerfile'
               - 'entrypoint.sh'
