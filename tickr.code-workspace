@@ -88,7 +88,7 @@
 			{
 				"label": "Run: Start Server",
 				"type": "shell",
-				"command": "${workspaceFolder}/.venv/bin/python -m uvicorn main:app --reload --host=0.0.0.0 --port=8000",
+				"command": "${workspaceFolder}/.venv/bin/python -m uvicorn backend.main:app --reload --host=0.0.0.0 --port=8000",
 				"group": "build",
 				"isBackground": true,
 				"presentation": {
@@ -106,7 +106,7 @@
 				"request": "launch",
 				"module": "uvicorn",
 				"args": [
-					"main:app",
+					"backend.main:app",
 					"--reload",
 					"--host=0.0.0.0",
 					"--port=8000"
