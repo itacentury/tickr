@@ -4,7 +4,20 @@
  * Imports styles and initializes the offline-first todo app with RxDB.
  */
 
-import "./style.css";
+import "./styles/variables.css";
+import "./styles/reset.css";
+import "./styles/layout.css";
+import "./styles/sidebar.css";
+import "./styles/header.css";
+import "./styles/form.css";
+import "./styles/items.css";
+import "./styles/empty-state.css";
+import "./styles/history.css";
+import "./styles/modal.css";
+import "./styles/toast.css";
+import "./styles/animations.css";
+import "./styles/utilities.css";
+import "./styles/responsive.css";
 import { initApp } from "./app.js";
 
 initApp().catch((err) => {

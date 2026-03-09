@@ -1,0 +1,266 @@
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-width-expanded);
+  min-width: var(--sidebar-width-expanded);
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition:
+    width var(--transition-slow),
+    min-width var(--transition-slow);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-width-collapsed);
+  min-width: var(--sidebar-width-collapsed);
+}
+
+.sidebar-header {
+  padding: 0 12px;
+  height: var(--header-height, 73px);
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    padding var(--transition-slow),
+    border-radius var(--transition-slow),
+    gap var(--transition-slow);
+}
+
+.sidebar-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.toggle-icon {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-icon svg,
+.toggle-icon img {
+  width: 26px;
+  height: 26px;
+}
+
+.toggle-icon img {
+  filter: invert(1);
+}
+
+.sidebar-title {
+  font-weight: 600;
+  font-size: 1.4rem;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  opacity: 1;
+  overflow: hidden;
+  max-width: 200px;
+  transition:
+    opacity var(--transition-slow),
+    max-width var(--transition-slow);
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  padding: 12px;
+  border-radius: 50%;
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-title {
+  opacity: 0;
+  max-width: 0;
+}
+
+/* Navigation List */
+.nav-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+}
+
+.nav-item {
+  margin-bottom: 4px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.nav-link:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.nav-link.active {
+  background: var(--accent-glow);
+  color: var(--accent);
+  box-shadow: inset 0 0 20px var(--accent-glow);
+}
+
+/* Drag & Drop styles for lists */
+.nav-item.dragging {
+  opacity: 0.5;
+}
+
+.nav-item.drag-over {
+  border-top: 2px solid var(--accent);
+}
+
+.nav-item[draggable="true"] {
+  cursor: grab;
+}
+
+.nav-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.nav-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 1;
+  transition: opacity var(--transition-normal);
+}
+
+.sidebar.collapsed .nav-text {
+  opacity: 0;
+}
+
+.nav-count {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  opacity: 1;
+  transition: opacity var(--transition-normal);
+}
+
+.sidebar.collapsed .nav-count {
+  opacity: 0;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 12px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.add-list-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.add-list-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.add-list-btn:active {
+  transform: scale(0.97);
+}
+
+.add-list-btn svg {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+}
+
+.add-list-btn span {
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity var(--transition-normal);
+}
+
+.sidebar.collapsed .add-list-btn span {
+  opacity: 0;
+}
+
+.settings-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.settings-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-btn:active {
+  transform: scale(0.97);
+}
+
+.settings-btn svg {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+}
+
+.settings-btn span {
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity var(--transition-normal);
+}
+
+.sidebar.collapsed .settings-btn span {
+  opacity: 0;
+}

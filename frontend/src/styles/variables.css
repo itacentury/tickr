@@ -1,0 +1,41 @@
+/* CSS Variables */
+:root {
+  --bg-primary: #0d0d0f;
+  --bg-secondary: #15151a;
+  --bg-tertiary: #1c1c22;
+  --bg-hover: #232330;
+  --bg-active: #2c2c38;
+
+  --text-primary: #e8e8ec;
+  --text-secondary: #8a8a9a;
+  --text-muted: #50505c;
+
+  --accent: #60a5fa;
+  --accent-hover: #3b82f6;
+  --accent-subtle: rgba(96, 165, 250, 0.12);
+  --accent-glow: rgba(96, 165, 250, 0.06);
+
+  --success: #34d399;
+  --danger: #f87171;
+  --danger-subtle: rgba(248, 113, 113, 0.15);
+
+  --border: #232330;
+  --border-light: #2c2c38;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 50%;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.6);
+
+  --sidebar-width-expanded: 260px;
+  --sidebar-width-collapsed: 64px;
+
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
