@@ -22,6 +22,7 @@ let appSettings = { list_sort: "alphabetical" };
 // Subscriptions for reactive updates
 let listsSubscription = null;
 let itemsSubscription = null;
+let itemsCountSubscription = null;
 
 // DOM Elements
 const appContainer = document.querySelector(".app");
@@ -424,6 +425,20 @@ function subscribeLists() {
         document.title = "Tickr";
       }
     }
+  });
+}
+
+/**
+ * Subscribe to all items globally to keep sidebar counts in sync.
+ * Triggers a navigation re-render whenever any item changes.
+ */
+function subscribeItemCounts() {
+  if (itemsCountSubscription) {
+    itemsCountSubscription.unsubscribe();
+  }
+
+  itemsCountSubscription = db.items.find().$.subscribe(() => {
+    renderNavigation();
   });
 }
 
@@ -1401,6 +1416,7 @@ export async function initApp() {
   db = await getDatabase();
   await fetchSettings();
   subscribeLists();
+  subscribeItemCounts();
 
   const replications = setupReplication(db);
   initSyncStatus(replications);
