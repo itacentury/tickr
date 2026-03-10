@@ -15,6 +15,7 @@ import "./styles/empty-state.css";
 import "./styles/history.css";
 import "./styles/modal.css";
 import "./styles/toast.css";
+import "./styles/metrics.css";
 import "./styles/animations.css";
 import "./styles/utilities.css";
 import "./styles/responsive.css";

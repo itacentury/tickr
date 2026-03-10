@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 
 from .database import init_db
 from .events import initiate_shutdown
+from .metrics import collector
 from .routes import all_routers
 from .routes.static import mount_static
 
@@ -63,7 +64,12 @@ async def security_headers_middleware(request: Request, call_next) -> Response:
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next) -> Response:
     """Enforce per-IP sliding window rate limiting, excluding SSE."""
-    if request.url.path in ("/api/v1/events", "/api/v1/sync/stream"):
+    if request.url.path in (
+        "/api/v1/events",
+        "/api/v1/sync/stream",
+        "/api/v1/health",
+        "/api/v1/metrics",
+    ):
         return await call_next(request)
 
     client_ip = request.client.host if request.client else "unknown"
@@ -90,6 +96,7 @@ async def rate_limit_middleware(request: Request, call_next) -> Response:
 
 
 SSE_PATHS = frozenset({"/api/v1/events", "/api/v1/sync/stream"})
+MONITORING_PATHS = frozenset({"/api/v1/health", "/api/v1/metrics"})
 
 
 @app.middleware("http")
@@ -110,6 +117,21 @@ async def access_log_middleware(request: Request, call_next) -> Response:
     logger.info(
         '%s - "%s %s" %d %.1fms', client_ip, method, path, response.status_code, duration_ms
     )
+    return response
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next) -> Response:
+    """Record request count and response time for all non-monitoring requests."""
+    path = request.url.path
+
+    if path in MONITORING_PATHS:
+        return await call_next(request)
+
+    start = time.monotonic()
+    response = await call_next(request)
+    duration_ms = (time.monotonic() - start) * 1000
+    collector.record(request.method, path, response.status_code, duration_ms)
     return response
 
 

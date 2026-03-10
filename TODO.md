@@ -25,5 +25,5 @@
 
 - [ ] **Add structured error responses** — Errors are plain `{"detail": "..."}` strings. Add error codes or a machine-readable format.
 - [ ] **Add frontend error reporting** — Frontend errors only go to `console.error()`. Consider reporting back to the server for monitoring.
-- [ ] **Add metrics / monitoring** — No health metrics, request counters, or performance tracking beyond the basic health check endpoint.
+- [x] **Add metrics / monitoring** — No health metrics, request counters, or performance tracking beyond the basic health check endpoint.
 - [ ] **Write deployment documentation** — No guide for deploying behind a reverse proxy, setting up TLS, or configuring backups.

@@ -23,6 +23,7 @@ import {
 } from "./data.js";
 import { openEditListModal, fetchHistory } from "./render.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
+import { openMetrics, closeMetrics } from "./metrics.js";
 
 /** Attach all application event listeners. */
 export function setupEventListeners() {
@@ -258,6 +259,18 @@ export function setupEventListeners() {
     }
   });
 
+  // Metrics modal
+  dom.metricsBtn.addEventListener("click", () => {
+    openMetrics();
+    dom.closeMobileMenu();
+  });
+
+  dom.closeMetricsBtn.addEventListener("click", closeMetrics);
+
+  dom.metricsModal.addEventListener("click", (e) => {
+    if (e.target === dom.metricsModal) closeMetrics();
+  });
+
   // Settings modal
   dom.settingsBtn.addEventListener("click", () => {
     dom.listSortSetting.value = state.appSettings.list_sort || "alphabetical";
@@ -302,6 +315,7 @@ export function setupEventListeners() {
       dom.editListModal.classList.remove("open");
       dom.editItemModal.classList.remove("open");
       dom.settingsModal.classList.remove("open");
+      closeMetrics();
       state.editingItemId = null;
       dom.historyPanel.classList.remove("open");
       dom.overlay.classList.remove("visible");

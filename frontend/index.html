@@ -80,6 +80,17 @@
             </svg>
             <span>Settings</span>
           </button>
+          <button class="settings-btn" id="metricsBtn" title="Metrics">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+            <span>Metrics</span>
+          </button>
         </div>
       </nav>
       <!-- Main Content -->
@@ -433,6 +444,36 @@
           <button type="button" class="btn-create" id="saveSettings">
             Save
           </button>
+        </div>
+      </div>
+    </div>
+    <!-- Metrics Modal -->
+    <div class="modal" id="metricsModal">
+      <div class="modal-content metrics-content">
+        <div class="metrics-header">
+          <h2>Metrics</h2>
+          <div class="live-indicator" id="metricsLive">
+            <span class="live-dot"></span> Live
+          </div>
+          <button
+            type="button"
+            class="close-history-btn"
+            id="closeMetrics"
+            aria-label="Close"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="metrics-body" id="metricsBody">
+          <p class="metrics-loading">Loading...</p>
         </div>
       </div>
     </div>
