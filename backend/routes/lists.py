@@ -3,9 +3,10 @@
 import logging
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from ..database import get_db, new_uuid, now
+from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update
 from ..models import VALID_SORT_OPTIONS, ListCreate, ListReorder, ListUpdate
 
@@ -81,9 +82,10 @@ def update_list(list_id: str, list_data: ListUpdate, db: sqlite3.Connection = De
     cursor = db.cursor()
 
     if list_data.item_sort is not None and list_data.item_sort not in VALID_SORT_OPTIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid sort option. Valid options: {', '.join(VALID_SORT_OPTIONS)}",
+        raise AppError(
+            ErrorCode.INVALID_SORT_OPTION,
+            f"Invalid sort option. Valid options: {', '.join(VALID_SORT_OPTIONS)}",
+            400,
         )
 
     updates: list[str] = ["updated_at = ?"]

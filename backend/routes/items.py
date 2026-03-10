@@ -3,9 +3,10 @@
 import logging
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from ..database import get_db, new_uuid, now
+from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update
 from ..models import SORT_SQL, ItemCreate, ItemUpdate
 
@@ -76,7 +77,7 @@ def update_item(item_id: str, item_data: ItemUpdate, db: sqlite3.Connection = De
     item = cursor.fetchone()
     if not item:
         logger.warning("Item id=%s not found for update", item_id)
-        raise HTTPException(status_code=404, detail="Item not found")
+        raise AppError(ErrorCode.ITEM_NOT_FOUND, "Item not found", 404)
 
     ts = now()
     updates: list[str] = ["updated_at = ?"]

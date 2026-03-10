@@ -5,10 +5,11 @@ import logging
 import sqlite3
 from queue import Empty, Queue
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from ..database import get_db, now
+from ..errors import AppError, ErrorCode
 from ..events import (
     MAX_SSE_CLIENTS,
     broadcast_sync,
@@ -33,7 +34,7 @@ def sync_pull(
 ):
     """Pull documents newer than the given checkpoint for RxDB replication."""
     if collection not in ("lists", "items"):
-        raise HTTPException(status_code=400, detail="Invalid collection")
+        raise AppError(ErrorCode.INVALID_COLLECTION, "Invalid collection", 400)
 
     cursor = db.cursor()
 
@@ -60,7 +61,7 @@ def sync_push(
     Returns an array of conflicts (empty means success).
     """
     if collection not in ("lists", "items"):
-        raise HTTPException(status_code=400, detail="Invalid collection")
+        raise AppError(ErrorCode.INVALID_COLLECTION, "Invalid collection", 400)
 
     cursor = db.cursor()
     conflicts: list[dict] = []
@@ -93,7 +94,7 @@ def sync_push(
             if refreshed:
                 conflicts.append(dict(refreshed))
             else:
-                raise HTTPException(status_code=409, detail=str(exc)) from exc
+                raise AppError(ErrorCode.CONFLICT, str(exc), 409) from exc
 
     db.commit()
 
@@ -224,7 +225,7 @@ async def sync_stream() -> StreamingResponse:
     """SSE stream that notifies clients when collections change."""
     with sync_clients_lock:
         if len(sync_connected_clients) >= MAX_SSE_CLIENTS:
-            raise HTTPException(status_code=429, detail="Too many SSE connections")
+            raise AppError(ErrorCode.TOO_MANY_CONNECTIONS, "Too many SSE connections", 429)
 
     queue: Queue = Queue(maxsize=100)
     with sync_clients_lock:

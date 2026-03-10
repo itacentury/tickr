@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from .database import init_db
+from .errors import ErrorCode, register_error_handlers
 from .events import initiate_shutdown
 from .metrics import collector
 from .routes import all_routers
@@ -35,6 +36,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Tickr", version="2.0.0", lifespan=lifespan)
+register_error_handlers(app)
 
 # Rate limiting configuration
 RATE_LIMIT_REQUESTS = 100
@@ -86,7 +88,13 @@ async def rate_limit_middleware(request: Request, call_next) -> Response:
             logger.warning("Rate limit exceeded for %s (retry after %ds)", client_ip, retry_after)
             return JSONResponse(
                 status_code=429,
-                content={"detail": "Too many requests"},
+                content={
+                    "error": {
+                        "code": ErrorCode.RATE_LIMITED,
+                        "message": "Too many requests",
+                        "status": 429,
+                    }
+                },
                 headers={"Retry-After": str(retry_after)},
             )
 

@@ -31,7 +31,13 @@ async def health_check():
     except Exception as e:
         return JSONResponse(
             status_code=503,
-            content={"status": "unhealthy", "database": f"error: {e}"},
+            content={
+                "error": {
+                    "code": "SERVICE_UNAVAILABLE",
+                    "message": f"Health check failed: {e}",
+                    "status": 503,
+                }
+            },
         )
 
     with clients_lock:

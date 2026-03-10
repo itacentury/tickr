@@ -2,9 +2,11 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+
+from ..errors import AppError, ErrorCode
 
 router = APIRouter()
 
@@ -68,4 +70,4 @@ def serve_icon(file_path: str):
     legacy_path = Path("static/icons") / file_path
     if legacy_path.exists():
         return FileResponse(str(legacy_path))
-    raise HTTPException(status_code=404, detail="Icon not found")
+    raise AppError(ErrorCode.ICON_NOT_FOUND, "Icon not found", 404)

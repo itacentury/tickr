@@ -4,9 +4,10 @@ import asyncio
 import logging
 from queue import Empty, Queue
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
+from ..errors import AppError, ErrorCode
 from ..events import MAX_SSE_CLIENTS, clients_lock, connected_clients, shutdown_event
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ async def sse_events() -> StreamingResponse:
     with clients_lock:
         if len(connected_clients) >= MAX_SSE_CLIENTS:
             logger.warning("SSE connection rejected: max clients (%d) reached", MAX_SSE_CLIENTS)
-            raise HTTPException(status_code=429, detail="Too many SSE connections")
+            raise AppError(ErrorCode.TOO_MANY_CONNECTIONS, "Too many SSE connections", 429)
 
     queue: Queue = Queue(maxsize=100)
     with clients_lock:
