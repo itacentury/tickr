@@ -114,6 +114,9 @@ function createPullHandler(collection, toClient) {
       const response = await fetch(
         `/api/sync/${collection}/pull?${params.toString()}`,
       );
+      if (!response.ok) {
+        throw new Error(`Pull failed for ${collection}: ${response.status}`);
+      }
       const data = await response.json();
       return {
         documents: data.documents.map(toClient),
@@ -147,6 +150,9 @@ function createPushHandler(collection, toServer, toClient) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (!response.ok) {
+        throw new Error(`Push failed for ${collection}: ${response.status}`);
+      }
       const conflicts = await response.json();
       return conflicts.map(toClient);
     },
