@@ -5,7 +5,13 @@
  * Imports only from dom.js (leaf-like dependency).
  */
 
-import { undoToast, toastMessage, toastUndo, toastClose, toastProgress } from "./dom.js";
+import {
+  undoToast,
+  toastMessage,
+  toastUndo,
+  toastClose,
+  toastProgress,
+} from "./dom.js";
 
 // Module-private toast state
 let toastTimeout = null;

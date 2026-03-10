@@ -6,7 +6,6 @@
 	],
 	"settings": {
 		"task.autoDetect": "off",
-		"python.defaultInterpreterPath": ".venv/bin/python",
 		"python.terminal.activateEnvironment": true,
 		"[python]": {
 			"editor.defaultFormatter": "charliermarsh.ruff",
@@ -14,6 +13,9 @@
 			"editor.formatOnPaste": true
 		},
 		"[javascript][css][html]": {
+			"editor.defaultFormatter": "esbenp.prettier-vscode",
+			"editor.formatOnSave": true,
+			"editor.formatOnPaste": true,
 			"editor.tabSize": 2,
 			"editor.insertSpaces": true
 		},

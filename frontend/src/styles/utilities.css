@@ -20,7 +20,9 @@
 /* Focus styles */
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--accent-subtle), 0 0 0 4px var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent-subtle),
+    0 0 0 4px var(--accent);
 }
 
 /* Selection */
@@ -78,7 +80,10 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
   animation: slideUp 0.3s ease-out;
 }
 

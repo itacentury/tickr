@@ -211,7 +211,9 @@ export function renderItems() {
  */
 export async function fetchHistory(listId) {
   try {
-    const response = await fetch(`/api/lists/${listId}/history`, { cache: "no-store" });
+    const response = await fetch(`/api/lists/${listId}/history`, {
+      cache: "no-store",
+    });
     const history = await response.json();
     renderHistory(history);
   } catch {
@@ -222,7 +224,8 @@ export async function fetchHistory(listId) {
 /** Render history entries grouped by date. */
 function renderHistory(history) {
   if (history.length === 0) {
-    dom.historyList.innerHTML = '<li class="history-empty">No activities yet</li>';
+    dom.historyList.innerHTML =
+      '<li class="history-empty">No activities yet</li>';
     return;
   }
 
@@ -238,17 +241,31 @@ function renderHistory(history) {
   function getDateGroup(timestamp) {
     const date = new Date(timestamp);
     const todayDate = new Date();
-    const today = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
-    const entryDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const today = new Date(
+      todayDate.getFullYear(),
+      todayDate.getMonth(),
+      todayDate.getDate(),
+    );
+    const entryDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    );
     const diffDays = Math.round((today - entryDate) / (1000 * 60 * 60 * 24));
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
-    return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
   }
 
   function formatTime(timestamp) {
     return new Date(timestamp).toLocaleTimeString("en-US", {
-      hour: "2-digit", minute: "2-digit", hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
     });
   }
 
@@ -267,11 +284,15 @@ function renderHistory(history) {
     .map((group) => {
       const entries = group.entries
         .map((entry) => {
-          const action = actionLabels[entry.action] || { text: entry.action, class: "" };
+          const action = actionLabels[entry.action] || {
+            text: entry.action,
+            class: "",
+          };
           const itemText = entry.item_text || "";
-          const displayText = entry.action === "item_edited" && itemText.includes(" \u2192 ")
-            ? itemText.split(" \u2192 ")[1]
-            : itemText;
+          const displayText =
+            entry.action === "item_edited" && itemText.includes(" \u2192 ")
+              ? itemText.split(" \u2192 ")[1]
+              : itemText;
           return `<li class="history-entry">
             <span class="history-time">${formatTime(entry.timestamp)}</span>
             <span class="action-type ${action.class}">${action.text}</span>
@@ -297,9 +318,14 @@ export function openEditListModal() {
   state.editSelectedIcon = list.icon || "list";
   dom.editListSort.value = list.itemSort || "alphabetical";
   updateIconPreview(dom.editIconPreview, state.editSelectedIcon);
-  dom.editIconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
-    opt.classList.toggle("selected", opt.dataset.icon === state.editSelectedIcon);
-  });
+  dom.editIconOptionsContainer
+    .querySelectorAll(".icon-option")
+    .forEach((opt) => {
+      opt.classList.toggle(
+        "selected",
+        opt.dataset.icon === state.editSelectedIcon,
+      );
+    });
   dom.editIconPickerToggle.classList.remove("open");
   dom.editIconOptionsContainer.classList.remove("expanded");
   dom.editListModal.classList.add("open");

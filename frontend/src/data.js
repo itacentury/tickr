@@ -21,7 +21,9 @@ export function now() {
 
 /** Get the count of non-completed items for a list. */
 export async function getItemCount(listId) {
-  const allItems = await state.db.items.find({ selector: { listId, completed: 0 } }).exec();
+  const allItems = await state.db.items
+    .find({ selector: { listId, completed: 0 } })
+    .exec();
   return { remaining: allItems.length };
 }
 
@@ -77,16 +79,24 @@ export function sortLists(listsData) {
   const sorted = [...listsData];
   switch (sort) {
     case "alphabetical":
-      sorted.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+      sorted.sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+      );
       break;
     case "alphabetical_desc":
-      sorted.sort((a, b) => b.name.localeCompare(a.name, undefined, { sensitivity: "base" }));
+      sorted.sort((a, b) =>
+        b.name.localeCompare(a.name, undefined, { sensitivity: "base" }),
+      );
       break;
     case "created_desc":
-      sorted.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+      sorted.sort((a, b) =>
+        (b.createdAt || "").localeCompare(a.createdAt || ""),
+      );
       break;
     case "created_asc":
-      sorted.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+      sorted.sort((a, b) =>
+        (a.createdAt || "").localeCompare(b.createdAt || ""),
+      );
       break;
     case "custom":
       sorted.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
@@ -142,7 +152,10 @@ export function subscribeLists() {
       selectList(getInitialListId());
     }
 
-    if (state.currentListId && !state.lists.find((l) => l.id === state.currentListId)) {
+    if (
+      state.currentListId &&
+      !state.lists.find((l) => l.id === state.currentListId)
+    ) {
       if (state.lists.length > 0) {
         selectList(state.lists[0].id);
       } else {
@@ -171,7 +184,10 @@ export function subscribeItems(listId) {
   subscriptions.items = query.$.subscribe((docs) => {
     const list = state.lists.find((l) => l.id === listId);
     const sortOption = list?.itemSort || "alphabetical";
-    state.items = sortItems(docs.map((d) => d.toJSON()), sortOption);
+    state.items = sortItems(
+      docs.map((d) => d.toJSON()),
+      sortOption,
+    );
     renderItems();
   });
 }
@@ -240,7 +256,10 @@ export function selectList(listId) {
  * @param {string} icon - The icon key.
  */
 export async function createList(name, icon) {
-  const maxSortOrder = state.lists.reduce((max, l) => Math.max(max, l.sortOrder || 0), -1);
+  const maxSortOrder = state.lists.reduce(
+    (max, l) => Math.max(max, l.sortOrder || 0),
+    -1,
+  );
   const timestamp = now();
   const doc = await state.db.lists.insert({
     id: crypto.randomUUID(),

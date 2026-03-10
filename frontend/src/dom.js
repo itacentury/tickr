@@ -50,8 +50,11 @@ export const editListModal = document.getElementById("editListModal");
 export const editListForm = document.getElementById("editListForm");
 export const editListName = document.getElementById("editListName");
 export const cancelEditList = document.getElementById("cancelEditList");
-export const editIconPickerToggle = document.getElementById("editIconPickerToggle");
-export const editIconOptionsContainer = document.getElementById("editIconOptions");
+export const editIconPickerToggle = document.getElementById(
+  "editIconPickerToggle",
+);
+export const editIconOptionsContainer =
+  document.getElementById("editIconOptions");
 export const editIconPreview = document.getElementById("editIconPreview");
 export const editListSort = document.getElementById("editListSort");
 

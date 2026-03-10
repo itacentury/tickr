@@ -11,9 +11,15 @@ import { state } from "./state.js";
 import * as dom from "./dom.js";
 import { populateIconPicker, updateIconPreview } from "./icons.js";
 import {
-  createList, updateList, deleteList,
-  createItem, updateItem, deleteItem,
-  updateSettings, selectList, now,
+  createList,
+  updateList,
+  deleteList,
+  createItem,
+  updateItem,
+  deleteItem,
+  updateSettings,
+  selectList,
+  now,
 } from "./data.js";
 import { openEditListModal, fetchHistory } from "./render.js";
 import { showUndoToast, initToastListeners } from "./toast.js";
@@ -30,7 +36,10 @@ export function setupEventListeners() {
   // Sidebar toggle
   dom.sidebarToggle.addEventListener("click", () => {
     dom.sidebar.classList.toggle("collapsed");
-    localStorage.setItem("sidebarCollapsed", dom.sidebar.classList.contains("collapsed"));
+    localStorage.setItem(
+      "sidebarCollapsed",
+      dom.sidebar.classList.contains("collapsed"),
+    );
   });
 
   dom.mobileMenuBtn.addEventListener("click", dom.openMobileMenu);
@@ -90,7 +99,9 @@ export function setupEventListeners() {
     const listSort = list.itemSort || "alphabetical";
     const listSortOrder = list.sortOrder || 0;
 
-    const savedItems = await state.db.items.find({ selector: { listId: state.currentListId } }).exec();
+    const savedItems = await state.db.items
+      .find({ selector: { listId: state.currentListId } })
+      .exec();
     const savedItemsData = savedItems.map((d) => d.toJSON());
 
     await deleteList(state.currentListId);
@@ -152,9 +163,14 @@ export function setupEventListeners() {
     if (!option) return;
     state.editSelectedIcon = option.dataset.icon;
     updateIconPreview(dom.editIconPreview, state.editSelectedIcon);
-    dom.editIconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
-      opt.classList.toggle("selected", opt.dataset.icon === state.editSelectedIcon);
-    });
+    dom.editIconOptionsContainer
+      .querySelectorAll(".icon-option")
+      .forEach((opt) => {
+        opt.classList.toggle(
+          "selected",
+          opt.dataset.icon === state.editSelectedIcon,
+        );
+      });
   });
 
   // New list form
@@ -167,19 +183,28 @@ export function setupEventListeners() {
     }
   });
 
-  dom.cancelNewList.addEventListener("click", () => dom.newListModal.classList.remove("open"));
+  dom.cancelNewList.addEventListener("click", () =>
+    dom.newListModal.classList.remove("open"),
+  );
 
   // Edit list form
   dom.editListForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = dom.editListName.value.trim();
     if (name && state.currentListId) {
-      await updateList(state.currentListId, name, state.editSelectedIcon, dom.editListSort.value);
+      await updateList(
+        state.currentListId,
+        name,
+        state.editSelectedIcon,
+        dom.editListSort.value,
+      );
       dom.editListModal.classList.remove("open");
     }
   });
 
-  dom.cancelEditList.addEventListener("click", () => dom.editListModal.classList.remove("open"));
+  dom.cancelEditList.addEventListener("click", () =>
+    dom.editListModal.classList.remove("open"),
+  );
 
   // Edit item form
   dom.editItemForm.addEventListener("submit", async (e) => {
@@ -214,10 +239,12 @@ export function setupEventListeners() {
 
   // Modal backdrop dismiss
   dom.newListModal.addEventListener("click", (e) => {
-    if (e.target === dom.newListModal) dom.newListModal.classList.remove("open");
+    if (e.target === dom.newListModal)
+      dom.newListModal.classList.remove("open");
   });
   dom.editListModal.addEventListener("click", (e) => {
-    if (e.target === dom.editListModal) dom.editListModal.classList.remove("open");
+    if (e.target === dom.editListModal)
+      dom.editListModal.classList.remove("open");
   });
   dom.editItemModal.addEventListener("click", (e) => {
     if (e.target === dom.editItemModal) {
@@ -233,7 +260,9 @@ export function setupEventListeners() {
     dom.closeMobileMenu();
   });
 
-  dom.cancelSettings.addEventListener("click", () => dom.settingsModal.classList.remove("open"));
+  dom.cancelSettings.addEventListener("click", () =>
+    dom.settingsModal.classList.remove("open"),
+  );
 
   dom.saveSettings.addEventListener("click", async () => {
     const newListSort = dom.listSortSetting.value;
@@ -257,7 +286,8 @@ export function setupEventListeners() {
   });
 
   dom.settingsModal.addEventListener("click", (e) => {
-    if (e.target === dom.settingsModal) dom.settingsModal.classList.remove("open");
+    if (e.target === dom.settingsModal)
+      dom.settingsModal.classList.remove("open");
   });
 
   // Keyboard shortcuts
@@ -273,7 +303,8 @@ export function setupEventListeners() {
       dom.closeMobileMenu();
     }
     if (
-      (e.ctrlKey || e.metaKey) && e.key === "n" &&
+      (e.ctrlKey || e.metaKey) &&
+      e.key === "n" &&
       document.activeElement !== dom.addItemInput &&
       document.activeElement !== dom.newListName &&
       document.activeElement !== dom.editListName &&
@@ -295,34 +326,54 @@ export function setupEventListeners() {
   let touchEndX = 0;
   let touchEndY = 0;
 
-  dom.mainContent.addEventListener("touchstart", (e) => {
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
-  }, { passive: true });
+  dom.mainContent.addEventListener(
+    "touchstart",
+    (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    },
+    { passive: true },
+  );
 
-  dom.mainContent.addEventListener("touchend", (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    touchEndY = e.changedTouches[0].screenY;
-    handleSwipe();
-  }, { passive: true });
+  dom.mainContent.addEventListener(
+    "touchend",
+    (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+      handleSwipe();
+    },
+    { passive: true },
+  );
 
   function handleSwipe() {
     const deltaX = touchEndX - touchStartX;
     const deltaY = touchEndY - touchStartY;
     const minSwipeDistance = 80;
-    if (Math.abs(deltaX) < minSwipeDistance || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    if (
+      Math.abs(deltaX) < minSwipeDistance ||
+      Math.abs(deltaX) < Math.abs(deltaY)
+    )
+      return;
 
-    const currentIndex = state.lists.findIndex((l) => l.id === state.currentListId);
+    const currentIndex = state.lists.findIndex(
+      (l) => l.id === state.currentListId,
+    );
     if (currentIndex === -1) return;
 
     const swipeLeft = deltaX < 0;
     let targetListId;
     if (swipeLeft) {
       const nextIndex = currentIndex + 1;
-      targetListId = nextIndex < state.lists.length ? state.lists[nextIndex].id : state.lists[0].id;
+      targetListId =
+        nextIndex < state.lists.length
+          ? state.lists[nextIndex].id
+          : state.lists[0].id;
     } else {
       const prevIndex = currentIndex - 1;
-      targetListId = prevIndex >= 0 ? state.lists[prevIndex].id : state.lists[state.lists.length - 1].id;
+      targetListId =
+        prevIndex >= 0
+          ? state.lists[prevIndex].id
+          : state.lists[state.lists.length - 1].id;
     }
 
     const outClass = swipeLeft ? "swipe-out-left" : "swipe-out-right";
@@ -346,7 +397,10 @@ export function setupEventListeners() {
   if (window.visualViewport) {
     function updateVisualViewport() {
       const vv = window.visualViewport;
-      document.documentElement.style.setProperty("--visual-viewport-height", `${vv.height}px`);
+      document.documentElement.style.setProperty(
+        "--visual-viewport-height",
+        `${vv.height}px`,
+      );
     }
     updateVisualViewport();
     window.visualViewport.addEventListener("resize", updateVisualViewport);

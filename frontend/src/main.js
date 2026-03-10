@@ -48,7 +48,10 @@ if ("serviceWorker" in navigator) {
         reg.addEventListener("updatefound", () => {
           const newWorker = reg.installing;
           newWorker.addEventListener("statechange", () => {
-            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            if (
+              newWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
               showUpdateNotification(newWorker);
             }
           });
