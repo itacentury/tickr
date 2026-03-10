@@ -88,6 +88,16 @@
 				"problemMatcher": []
 			},
 			{
+				"label": "Test: Run All",
+				"type": "shell",
+				"command": "${workspaceFolder}/.venv/bin/python -m pytest tests/ -v",
+				"group": "build",
+				"presentation": {
+					"panel": "shared",
+					"clear": true
+				}
+			},
+			{
 				"label": "Run: Start Server",
 				"type": "shell",
 				"command": "${workspaceFolder}/.venv/bin/python -m uvicorn backend.main:app --reload --host=0.0.0.0 --port=8000",

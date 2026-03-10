@@ -8,6 +8,13 @@ dependencies = [
     "uvicorn>=0.27.0",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=9.0.0", "httpx>=0.28.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
 [tool.ruff]
 target-version = "py313"
 line-length = 100
