@@ -86,19 +86,28 @@ def sync_push(
         current = cursor.fetchone()
         current_dict = dict(current) if current else None
 
-        if assumed is None:
-            if current_dict:
-                conflicts.append(current_dict)
-                continue
-            _insert_doc(cursor, collection, new_state)
-        else:
-            if not current_dict:
+        try:
+            if assumed is None:
+                if current_dict:
+                    conflicts.append(current_dict)
+                    continue
                 _insert_doc(cursor, collection, new_state)
-            elif _states_match(current_dict, assumed):
-                _update_doc(cursor, collection, new_state)
             else:
-                conflicts.append(current_dict)
-                continue
+                if not current_dict:
+                    _insert_doc(cursor, collection, new_state)
+                elif _states_match(current_dict, assumed):
+                    _update_doc(cursor, collection, new_state)
+                else:
+                    conflicts.append(current_dict)
+                    continue
+        except sqlite3.IntegrityError as exc:
+            logger.warning("Integrity error in sync_push for %s/%s: %s", collection, doc_id, exc)
+            cursor.execute(f"SELECT * FROM {collection} WHERE id = ?", (doc_id,))
+            refreshed = cursor.fetchone()
+            if refreshed:
+                conflicts.append(dict(refreshed))
+            else:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     db.commit()
 
