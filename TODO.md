@@ -16,7 +16,7 @@
 - [x] **Replace f-string SQL with explicit table queries** — Sync endpoints in `main.py` use `f"SELECT * FROM {collection}"`. The collection parameter is whitelisted, so this is currently safe, but fragile if refactored. Use explicit per-table queries instead.
 - [x] **Make `package-lock.json` required in Dockerfile** — `COPY frontend/package-lock.json*` uses a glob, making the file optional. Remove the asterisk to ensure deterministic `npm ci` builds.
 - [ ] **Set up reverse proxy with TLS** — App serves plain HTTP. Document that a reverse proxy (nginx, Caddy, Traefik) with TLS is required. Consider adding HSTS header when behind TLS.
-- [ ] **Add request logging middleware** — No general request/response logging (method, path, status code, duration). Add access log middleware or use Uvicorn's built-in access logging.
+- [x] **Add request logging middleware** — No general request/response logging (method, path, status code, duration). Add access log middleware or use Uvicorn's built-in access logging.
 - [x] **Implement graceful shutdown** — No explicit SIGTERM/SIGINT handling to drain SSE connections or finish in-flight requests. Add a shutdown event handler for SSE connections and the database.
 - [x] **Set up database backup strategy** — SQLite database has no backup mechanism. Document or automate backups (e.g. periodic `cp` or `sqlite3 .backup` via cron). Consider WAL mode.
 - [x] **Add API versioning** — All endpoints under `/api/` with no version prefix. Low priority for personal use, but consider `/api/v1/` if API will be consumed externally.

@@ -89,6 +89,30 @@ async def rate_limit_middleware(request: Request, call_next) -> Response:
     return await call_next(request)
 
 
+SSE_PATHS = frozenset({"/api/v1/events", "/api/v1/sync/stream"})
+
+
+@app.middleware("http")
+async def access_log_middleware(request: Request, call_next) -> Response:
+    """Log method, path, status code, and duration for every request."""
+    client_ip = request.client.host if request.client else "unknown"
+    method = request.method
+    path = request.url.path
+
+    if path in SSE_PATHS:
+        response = await call_next(request)
+        logger.info('%s - "%s %s" %d [SSE]', client_ip, method, path, response.status_code)
+        return response
+
+    start = time.monotonic()
+    response = await call_next(request)
+    duration_ms = (time.monotonic() - start) * 1000
+    logger.info(
+        '%s - "%s %s" %d %.1fms', client_ip, method, path, response.status_code, duration_ms
+    )
+    return response
+
+
 # Include all API routers
 for router in all_routers:
     app.include_router(router)
