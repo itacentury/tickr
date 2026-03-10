@@ -8,6 +8,80 @@
 import { replicateRxCollection } from "rxdb/plugins/replication";
 import { Subject } from "rxjs";
 
+/** Shared SSE connection state for all collections. */
+let sharedEventSource = null;
+let reconnectTimeout = null;
+const collectionSubjects = {};
+
+/**
+ * Open a single SSE connection and route messages to per-collection subjects.
+ *
+ * Closes any existing connection before reconnecting.
+ */
+function connectSharedStream() {
+  if (sharedEventSource) {
+    sharedEventSource.close();
+    sharedEventSource = null;
+  }
+
+  const eventSource = new EventSource("/api/sync/stream");
+  sharedEventSource = eventSource;
+
+  eventSource.addEventListener("message", (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      for (const [name, subject] of Object.entries(collectionSubjects)) {
+        if (data.collection === name || data.collection === "all") {
+          subject.next("RESYNC");
+        }
+      }
+    } catch {
+      // Ignore malformed messages
+    }
+  });
+
+  eventSource.addEventListener("error", () => {
+    eventSource.close();
+    sharedEventSource = null;
+    reconnectTimeout = setTimeout(() => connectSharedStream(), 3000);
+  });
+}
+
+/**
+ * Get an observable stream for a specific collection, creating the shared
+ * SSE connection on first call.
+ *
+ * @param {string} collection - The collection name (e.g. "lists", "items").
+ * @returns {import('rxjs').Observable} Observable that emits "RESYNC" events.
+ */
+function getCollectionStream(collection) {
+  if (!collectionSubjects[collection]) {
+    collectionSubjects[collection] = new Subject();
+  }
+  if (!sharedEventSource) {
+    connectSharedStream();
+  }
+  return collectionSubjects[collection].asObservable();
+}
+
+/**
+ * Close the shared SSE connection and complete all collection subjects.
+ */
+function cleanupSSE() {
+  if (reconnectTimeout) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
+  }
+  if (!sharedEventSource) return;
+
+  sharedEventSource.close();
+  sharedEventSource = null;
+
+  for (const subject of Object.values(collectionSubjects)) {
+    subject.complete();
+  }
+}
+
 /**
  * Convert a server-side list document to RxDB format (snake_case -> camelCase).
  */
@@ -80,30 +154,6 @@ function clientItemToServer(doc) {
  * @returns {Object} Pull handler configuration for replicateRxCollection.
  */
 function createPullHandler(collection, toClient) {
-  const subject = new Subject();
-
-  function connectStream() {
-    const eventSource = new EventSource("/api/sync/stream");
-
-    eventSource.addEventListener("message", (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.collection === collection || data.collection === "all") {
-          subject.next("RESYNC");
-        }
-      } catch {
-        // Ignore malformed messages
-      }
-    });
-
-    eventSource.addEventListener("error", () => {
-      eventSource.close();
-      setTimeout(() => connectStream(), 3000);
-    });
-  }
-
-  connectStream();
-
   return {
     async handler(checkpoint, batchSize) {
       const params = new URLSearchParams({ limit: String(batchSize) });
@@ -124,7 +174,7 @@ function createPullHandler(collection, toClient) {
       };
     },
     batchSize: 100,
-    stream$: subject.asObservable(),
+    stream$: getCollectionStream(collection),
   };
 }
 
@@ -187,5 +237,12 @@ export function setupReplication(db) {
     autoStart: true,
   });
 
-  return { listsReplication, itemsReplication };
+  window.addEventListener("beforeunload", cleanupSSE);
+
+  const result = { listsReplication, itemsReplication };
+  Object.defineProperty(result, "cleanup", {
+    value: cleanupSSE,
+    enumerable: false,
+  });
+  return result;
 }
