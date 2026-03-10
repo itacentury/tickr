@@ -37,6 +37,8 @@ def init_db():
     logger.info("Initializing database at %s", DATABASE)
     Path(DATABASE).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DATABASE)
+    conn.execute("PRAGMA journal_mode=WAL")
+    logger.info("WAL mode enabled")
     cursor = conn.cursor()
 
     # Check if migration from INTEGER to TEXT PKs is needed
