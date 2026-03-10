@@ -13,6 +13,7 @@ from ..events import (
     MAX_SSE_CLIENTS,
     broadcast_sync,
     broadcast_update,
+    shutdown_event,
     sync_clients_lock,
     sync_connected_clients,
 )
@@ -236,7 +237,7 @@ async def sync_stream() -> StreamingResponse:
         last_heartbeat = asyncio.get_event_loop().time()
 
         try:
-            while True:
+            while not shutdown_event.is_set():
                 current_time = asyncio.get_event_loop().time()
 
                 if current_time - last_heartbeat >= heartbeat_interval:

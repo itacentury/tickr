@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from .database import init_db
+from .events import initiate_shutdown
 from .routes import all_routers
 from .routes.static import mount_static
 
@@ -29,6 +30,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("Application startup complete")
     yield
     logger.info("Shutting down Tickr application")
+    await initiate_shutdown()
 
 
 app = FastAPI(title="Tickr", version="2.0.0", lifespan=lifespan)

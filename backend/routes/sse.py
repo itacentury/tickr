@@ -7,7 +7,7 @@ from queue import Empty, Queue
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from ..events import MAX_SSE_CLIENTS, clients_lock, connected_clients
+from ..events import MAX_SSE_CLIENTS, clients_lock, connected_clients, shutdown_event
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ async def sse_events() -> StreamingResponse:
         last_heartbeat = asyncio.get_event_loop().time()
 
         try:
-            while True:
+            while not shutdown_event.is_set():
                 current_time = asyncio.get_event_loop().time()
 
                 if current_time - last_heartbeat >= heartbeat_interval:
