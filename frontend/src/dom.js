@@ -72,6 +72,12 @@ export const toastUndo = document.getElementById("toastUndo");
 export const toastClose = document.getElementById("toastClose");
 export const toastProgress = document.getElementById("toastProgress");
 
+// Error Toast
+export const errorToast = document.getElementById("errorToast");
+export const errorToastMessage = document.getElementById("errorToastMessage");
+export const errorToastClose = document.getElementById("errorToastClose");
+export const errorToastProgress = document.getElementById("errorToastProgress");
+
 // Settings Modal
 export const settingsModal = document.getElementById("settingsModal");
 export const settingsBtn = document.getElementById("settingsBtn");

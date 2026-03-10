@@ -1,7 +1,7 @@
 /**
- * Undo toast notification system.
+ * Toast notification system for undo actions and error feedback.
  *
- * Provides a toast with an undo button and auto-dismiss countdown.
+ * Provides an undo toast with countdown and an error toast for DB failures.
  * Imports only from dom.js (leaf-like dependency).
  */
 
@@ -11,6 +11,10 @@ import {
   toastUndo,
   toastClose,
   toastProgress,
+  errorToast,
+  errorToastMessage,
+  errorToastClose,
+  errorToastProgress,
 } from "./dom.js";
 
 // Module-private toast state
@@ -100,6 +104,45 @@ function resumeToast() {
   toastTimeout = setTimeout(() => hideUndoToast(), 5000);
 }
 
+// Error toast state
+let errorToastTimeout = null;
+
+/**
+ * Show an error toast with the given message.
+ * Auto-dismisses after 4 seconds.
+ *
+ * @param {string} message - Text to display in the error toast.
+ */
+export function showErrorToast(message) {
+  if (errorToastTimeout) {
+    clearTimeout(errorToastTimeout);
+    errorToastTimeout = null;
+  }
+
+  errorToastMessage.textContent = message;
+  errorToast.classList.add("visible");
+
+  errorToastProgress.style.transition = "none";
+  errorToastProgress.style.transform = "scaleX(1)";
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      errorToastProgress.style.transition = "transform 4000ms linear";
+      errorToastProgress.style.transform = "scaleX(0)";
+    });
+  });
+
+  errorToastTimeout = setTimeout(() => hideErrorToast(), 4000);
+}
+
+/** Dismiss the error toast and clear any pending timeout. */
+export function hideErrorToast() {
+  if (errorToastTimeout) {
+    clearTimeout(errorToastTimeout);
+    errorToastTimeout = null;
+  }
+  errorToast.classList.remove("visible");
+}
+
 /**
  * Attach toast interaction listeners (hover pause, undo/close buttons).
  * Must be called once during setup rather than at module load.
@@ -114,4 +157,5 @@ export function initToastListeners() {
   });
 
   toastClose.addEventListener("click", () => hideUndoToast());
+  errorToastClose.addEventListener("click", () => hideErrorToast());
 }

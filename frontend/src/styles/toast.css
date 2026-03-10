@@ -89,3 +89,16 @@
     transform linear,
     opacity var(--transition-fast);
 }
+
+/* Error Toast */
+.error-toast.visible {
+  transform: translateX(-50%) translateY(0);
+}
+
+.error-toast .toast-progress {
+  background: #e05555;
+}
+
+#undoToast.visible ~ .error-toast.visible {
+  bottom: 84px;
+}

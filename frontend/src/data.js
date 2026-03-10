@@ -11,6 +11,7 @@ import { state, subscriptions } from "./state.js";
 import * as dom from "./dom.js";
 import { icons } from "./icons.js";
 import { renderNavigation, renderItems } from "./render.js";
+import { showErrorToast } from "./toast.js";
 
 // ---- Helpers ----
 
@@ -256,21 +257,26 @@ export function selectList(listId) {
  * @param {string} icon - The icon key.
  */
 export async function createList(name, icon) {
-  const maxSortOrder = state.lists.reduce(
-    (max, l) => Math.max(max, l.sortOrder || 0),
-    -1,
-  );
-  const timestamp = now();
-  const doc = await state.db.lists.insert({
-    id: crypto.randomUUID(),
-    name,
-    icon: icon || "list",
-    itemSort: "alphabetical",
-    sortOrder: maxSortOrder + 1,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-  selectList(doc.id);
+  try {
+    const maxSortOrder = state.lists.reduce(
+      (max, l) => Math.max(max, l.sortOrder || 0),
+      -1,
+    );
+    const timestamp = now();
+    const doc = await state.db.lists.insert({
+      id: crypto.randomUUID(),
+      name,
+      icon: icon || "list",
+      itemSort: "alphabetical",
+      sortOrder: maxSortOrder + 1,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    selectList(doc.id);
+  } catch (error) {
+    console.error("Failed to create list:", error);
+    showErrorToast("Failed to create list");
+  }
 }
 
 /**
@@ -284,16 +290,21 @@ export async function createList(name, icon) {
 export async function updateList(listId, name, icon, itemSort) {
   const doc = await state.db.lists.findOne(listId).exec();
   if (!doc) return;
-  await doc.patch({
-    name,
-    icon,
-    itemSort,
-    updatedAt: now(),
-  });
-  if (listId === state.currentListId) {
-    dom.listTitle.textContent = name;
-    document.title = `${name} - Tickr`;
-    subscribeItems(state.currentListId);
+  try {
+    await doc.patch({
+      name,
+      icon,
+      itemSort,
+      updatedAt: now(),
+    });
+    if (listId === state.currentListId) {
+      dom.listTitle.textContent = name;
+      document.title = `${name} - Tickr`;
+      subscribeItems(state.currentListId);
+    }
+  } catch (error) {
+    console.error("Failed to update list:", error);
+    showErrorToast("Failed to update list");
   }
 }
 
@@ -305,23 +316,29 @@ export async function updateList(listId, name, icon, itemSort) {
 export async function deleteList(listId) {
   const doc = await state.db.lists.findOne(listId).exec();
   if (!doc) return;
+  try {
+    const listItems = await state.db.items
+      .find({ selector: { listId } })
+      .exec();
+    for (const item of listItems) {
+      await item.remove();
+    }
 
-  const listItems = await state.db.items.find({ selector: { listId } }).exec();
-  for (const item of listItems) {
-    await item.remove();
-  }
+    await doc.remove();
 
-  await doc.remove();
-
-  if (state.lists.length > 0) {
-    selectList(state.lists[0].id);
-  } else {
-    state.currentListId = null;
-    localStorage.removeItem("tickr_current_list");
-    state.items = [];
-    renderItems();
-    dom.listTitle.textContent = "No Lists";
-    document.title = "Tickr";
+    if (state.lists.length > 0) {
+      selectList(state.lists[0].id);
+    } else {
+      state.currentListId = null;
+      localStorage.removeItem("tickr_current_list");
+      state.items = [];
+      renderItems();
+      dom.listTitle.textContent = "No Lists";
+      document.title = "Tickr";
+    }
+  } catch (error) {
+    console.error("Failed to delete list:", error);
+    showErrorToast("Failed to delete list");
   }
 }
 
@@ -334,16 +351,21 @@ export async function deleteList(listId) {
 export async function createItem(text, listId) {
   const targetList = listId || state.currentListId;
   if (!targetList) return;
-  const timestamp = now();
-  await state.db.items.insert({
-    id: crypto.randomUUID(),
-    listId: targetList,
-    text,
-    completed: 0,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    completedAt: null,
-  });
+  try {
+    const timestamp = now();
+    await state.db.items.insert({
+      id: crypto.randomUUID(),
+      listId: targetList,
+      text,
+      completed: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      completedAt: null,
+    });
+  } catch (error) {
+    console.error("Failed to create item:", error);
+    showErrorToast("Failed to create item");
+  }
 }
 
 /**
@@ -355,13 +377,18 @@ export async function createItem(text, listId) {
 export async function updateItem(itemId, data) {
   const doc = await state.db.items.findOne(itemId).exec();
   if (!doc) return;
-  const patch = { updatedAt: now() };
-  if (data.text !== undefined) patch.text = data.text;
-  if (data.completed !== undefined) {
-    patch.completed = data.completed ? 1 : 0;
-    patch.completedAt = data.completed ? now() : null;
+  try {
+    const patch = { updatedAt: now() };
+    if (data.text !== undefined) patch.text = data.text;
+    if (data.completed !== undefined) {
+      patch.completed = data.completed ? 1 : 0;
+      patch.completedAt = data.completed ? now() : null;
+    }
+    await doc.patch(patch);
+  } catch (error) {
+    console.error("Failed to update item:", error);
+    showErrorToast("Failed to update item");
   }
-  await doc.patch(patch);
 }
 
 /**
@@ -372,7 +399,12 @@ export async function updateItem(itemId, data) {
 export async function deleteItem(itemId) {
   const doc = await state.db.items.findOne(itemId).exec();
   if (!doc) return;
-  await doc.remove();
+  try {
+    await doc.remove();
+  } catch (error) {
+    console.error("Failed to delete item:", error);
+    showErrorToast("Failed to delete item");
+  }
 }
 
 /**
@@ -381,10 +413,15 @@ export async function deleteItem(itemId) {
  * @param {string[]} listIds - Ordered list of list IDs.
  */
 export async function reorderLists(listIds) {
-  for (let i = 0; i < listIds.length; i++) {
-    const doc = await state.db.lists.findOne(listIds[i]).exec();
-    if (doc) {
-      await doc.patch({ sortOrder: i, updatedAt: now() });
+  try {
+    for (let i = 0; i < listIds.length; i++) {
+      const doc = await state.db.lists.findOne(listIds[i]).exec();
+      if (doc) {
+        await doc.patch({ sortOrder: i, updatedAt: now() });
+      }
     }
+  } catch (error) {
+    console.error("Failed to reorder lists:", error);
+    showErrorToast("Failed to reorder lists");
   }
 }

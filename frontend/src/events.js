@@ -22,7 +22,7 @@ import {
   now,
 } from "./data.js";
 import { openEditListModal, fetchHistory } from "./render.js";
-import { showUndoToast, initToastListeners } from "./toast.js";
+import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 
 /** Attach all application event listeners. */
 export function setupEventListeners() {
@@ -106,29 +106,34 @@ export function setupEventListeners() {
 
     await deleteList(state.currentListId);
     showUndoToast(`"${listName}" deleted`, async () => {
-      const timestamp = now();
-      const newListId = crypto.randomUUID();
-      await state.db.lists.insert({
-        id: newListId,
-        name: listName,
-        icon: listIcon,
-        itemSort: listSort,
-        sortOrder: listSortOrder,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      });
-      for (const item of savedItemsData) {
-        await state.db.items.insert({
-          id: crypto.randomUUID(),
-          listId: newListId,
-          text: item.text,
-          completed: item.completed,
-          createdAt: item.createdAt,
+      try {
+        const timestamp = now();
+        const newListId = crypto.randomUUID();
+        await state.db.lists.insert({
+          id: newListId,
+          name: listName,
+          icon: listIcon,
+          itemSort: listSort,
+          sortOrder: listSortOrder,
+          createdAt: timestamp,
           updatedAt: timestamp,
-          completedAt: item.completedAt || null,
         });
+        for (const item of savedItemsData) {
+          await state.db.items.insert({
+            id: crypto.randomUUID(),
+            listId: newListId,
+            text: item.text,
+            completed: item.completed,
+            createdAt: item.createdAt,
+            updatedAt: timestamp,
+            completedAt: item.completedAt || null,
+          });
+        }
+        selectList(newListId);
+      } catch (error) {
+        console.error("Failed to restore list:", error);
+        showErrorToast("Failed to restore list");
       }
-      selectList(newListId);
     });
   });
 
