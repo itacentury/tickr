@@ -24,6 +24,7 @@ import {
 import { openEditListModal, fetchHistory } from "./render.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
+import { reportError } from "./error-reporting.js";
 
 /** Attach all application event listeners. */
 export function setupEventListeners() {
@@ -132,7 +133,7 @@ export function setupEventListeners() {
         }
         selectList(newListId);
       } catch (error) {
-        console.error("Failed to restore list:", error);
+        reportError("restore list", error);
         showErrorToast("Failed to restore list");
       }
     });

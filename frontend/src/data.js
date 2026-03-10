@@ -12,6 +12,7 @@ import * as dom from "./dom.js";
 import { icons } from "./icons.js";
 import { renderNavigation, renderItems } from "./render.js";
 import { showErrorToast } from "./toast.js";
+import { reportError } from "./error-reporting.js";
 
 // ---- Helpers ----
 
@@ -274,7 +275,7 @@ export async function createList(name, icon) {
     });
     selectList(doc.id);
   } catch (error) {
-    console.error("Failed to create list:", error);
+    reportError("create list", error);
     showErrorToast("Failed to create list");
   }
 }
@@ -303,7 +304,7 @@ export async function updateList(listId, name, icon, itemSort) {
       subscribeItems(state.currentListId);
     }
   } catch (error) {
-    console.error("Failed to update list:", error);
+    reportError("update list", error);
     showErrorToast("Failed to update list");
   }
 }
@@ -337,7 +338,7 @@ export async function deleteList(listId) {
       document.title = "Tickr";
     }
   } catch (error) {
-    console.error("Failed to delete list:", error);
+    reportError("delete list", error);
     showErrorToast("Failed to delete list");
   }
 }
@@ -363,7 +364,7 @@ export async function createItem(text, listId) {
       completedAt: null,
     });
   } catch (error) {
-    console.error("Failed to create item:", error);
+    reportError("create item", error);
     showErrorToast("Failed to create item");
   }
 }
@@ -386,7 +387,7 @@ export async function updateItem(itemId, data) {
     }
     await doc.patch(patch);
   } catch (error) {
-    console.error("Failed to update item:", error);
+    reportError("update item", error);
     showErrorToast("Failed to update item");
   }
 }
@@ -402,7 +403,7 @@ export async function deleteItem(itemId) {
   try {
     await doc.remove();
   } catch (error) {
-    console.error("Failed to delete item:", error);
+    reportError("delete item", error);
     showErrorToast("Failed to delete item");
   }
 }
@@ -421,7 +422,7 @@ export async function reorderLists(listIds) {
       }
     }
   } catch (error) {
-    console.error("Failed to reorder lists:", error);
+    reportError("reorder lists", error);
     showErrorToast("Failed to reorder lists");
   }
 }

@@ -4,6 +4,7 @@
  * Imports styles and initializes the offline-first todo app with RxDB.
  */
 
+import "./error-reporting.js";
 import "./styles/variables.css";
 import "./styles/reset.css";
 import "./styles/layout.css";
@@ -19,10 +20,11 @@ import "./styles/metrics.css";
 import "./styles/animations.css";
 import "./styles/utilities.css";
 import "./styles/responsive.css";
+import { reportError } from "./error-reporting.js";
 import { initApp } from "./app.js";
 
 initApp().catch((err) => {
-  console.error("Failed to initialize app:", err);
+  reportError("initialize app", err);
 });
 
 // Register Service Worker
