@@ -134,16 +134,10 @@ class TestReorderLists:
         """Reordering updates sort_order for each list."""
         a = create_list(name="A")
         b = create_list(name="B")
-        resp = client.post(
-            "/api/v1/lists/reorder", json={"list_ids": [b["id"], a["id"]]}
-        )
+        resp = client.post("/api/v1/lists/reorder", json={"list_ids": [b["id"], a["id"]]})
         assert resp.status_code == 200
 
-        row_b = db.execute(
-            "SELECT sort_order FROM lists WHERE id = ?", (b["id"],)
-        ).fetchone()
-        row_a = db.execute(
-            "SELECT sort_order FROM lists WHERE id = ?", (a["id"],)
-        ).fetchone()
+        row_b = db.execute("SELECT sort_order FROM lists WHERE id = ?", (b["id"],)).fetchone()
+        row_a = db.execute("SELECT sort_order FROM lists WHERE id = ?", (a["id"],)).fetchone()
         assert row_b["sort_order"] == 0
         assert row_a["sort_order"] == 1

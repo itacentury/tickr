@@ -16,7 +16,13 @@ class TestUpdateSettings:
 
     def test_update_settings_valid_options(self, client):
         """Each valid list_sort option is accepted."""
-        for option in ["alphabetical", "alphabetical_desc", "created_desc", "created_asc", "custom"]:
+        for option in [
+            "alphabetical",
+            "alphabetical_desc",
+            "created_desc",
+            "created_asc",
+            "custom",
+        ]:
             resp = client.put("/api/v1/settings", json={"list_sort": option})
             assert resp.status_code == 200
             assert client.get("/api/v1/settings").json()["list_sort"] == option

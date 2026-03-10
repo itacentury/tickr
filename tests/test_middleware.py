@@ -4,6 +4,7 @@ import time
 
 from fastapi.testclient import TestClient
 
+import backend.main as main_module
 from backend.main import RATE_LIMIT_REQUESTS, app, rate_limit_store
 
 
@@ -45,6 +46,47 @@ class TestRateLimit:
         resp = client.get("/api/v1/settings")
         assert resp.status_code == 429
         assert "retry-after" in resp.headers
+
+    def test_store_evicts_stale_entries_when_over_max(self, client, monkeypatch):
+        """Stale IPs are removed when the store exceeds the max size."""
+        monkeypatch.setattr(main_module, "RATE_LIMIT_MAX_IPS", 3)
+        rate_limit_store.clear()
+
+        stale_time = time.time() - 120  # well outside the window
+        for i in range(5):
+            rate_limit_store[f"stale-{i}"] = [stale_time]
+
+        resp = client.get("/api/v1/settings")
+        assert resp.status_code == 200
+        # Stale entries should be evicted; only the requesting client remains
+        assert len(rate_limit_store) <= 3
+
+    def test_store_evicts_oldest_when_all_active(self, client, monkeypatch):
+        """When all IPs are active, the oldest are evicted to stay under the cap."""
+        monkeypatch.setattr(main_module, "RATE_LIMIT_MAX_IPS", 3)
+        rate_limit_store.clear()
+
+        now = time.time()
+        for i in range(5):
+            rate_limit_store[f"active-{i}"] = [now - 10 + i]
+
+        resp = client.get("/api/v1/settings")
+        assert resp.status_code == 200
+        assert len(rate_limit_store) <= 3
+
+    def test_store_no_eviction_under_max(self, client, monkeypatch):
+        """No eviction occurs when the store is under the max size."""
+        monkeypatch.setattr(main_module, "RATE_LIMIT_MAX_IPS", 100)
+        rate_limit_store.clear()
+
+        now = time.time()
+        for i in range(5):
+            rate_limit_store[f"ip-{i}"] = [now]
+
+        resp = client.get("/api/v1/settings")
+        assert resp.status_code == 200
+        # All 5 original IPs + the test client should still be present
+        assert len(rate_limit_store) >= 5
 
 
 class TestSecurityHeaders:

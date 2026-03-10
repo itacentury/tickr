@@ -15,7 +15,7 @@
 
 - [ ] **Set up reverse proxy with TLS** — App serves plain HTTP. Document that a reverse proxy (nginx, Caddy, Traefik) with TLS is required. Consider adding HSTS header when behind TLS.
 - [ ] **Automate database backups** — `backend/backup.py` exists but must be invoked manually via `docker exec`. Add a cron job or scheduled task (e.g. cron entry in Dockerfile or a sidecar container) to run backups automatically.
-- [ ] **Bound the in-memory rate limit store** — `rate_limit_store` in `main.py` is a plain `defaultdict(list)` with no max size. Stale IPs are pruned per-request, but many unique IPs without repeat visits cause unbounded growth. Add a max entry count or periodic full cleanup.
+- [x] **Bound the in-memory rate limit store** — `rate_limit_store` in `main.py` is a plain `defaultdict(list)` with no max size. Stale IPs are pruned per-request, but many unique IPs without repeat visits cause unbounded growth. Add a max entry count or periodic full cleanup.
 - [ ] **Add CORS configuration** — No explicit CORS middleware. Works when frontend is served from the same origin, but would break if the API were consumed from a different domain. Add configurable CORS origins for flexibility.
 - [ ] **Verify service worker cache invalidation** — `public/sw.js` should ensure stale frontends are updated after deployments. Verify the cache-busting strategy (e.g. versioned cache names or content hashes).
 - [x] **Replace f-string SQL with explicit table queries** — Sync endpoints in `main.py` use `f"SELECT * FROM {collection}"`. The collection parameter is whitelisted, so this is currently safe, but fragile if refactored. Use explicit per-table queries instead.

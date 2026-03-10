@@ -41,8 +41,25 @@ register_error_handlers(app)
 # Rate limiting configuration
 RATE_LIMIT_REQUESTS = 100
 RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX_IPS = 10_000
 rate_limit_store: dict[str, list[float]] = defaultdict(list)
 rate_limit_lock = Lock()
+
+
+def _evict_stale_entries(now: float) -> None:
+    """Remove expired entries and evict oldest if store still exceeds max size."""
+    cutoff = now - RATE_LIMIT_WINDOW
+    stale_keys = [ip for ip, ts in rate_limit_store.items() if not ts or ts[-1] <= cutoff]
+    for key in stale_keys:
+        del rate_limit_store[key]
+
+    if len(rate_limit_store) <= RATE_LIMIT_MAX_IPS:
+        return
+
+    by_staleness = sorted(rate_limit_store.items(), key=lambda kv: kv[1][-1])
+    to_remove = len(rate_limit_store) - RATE_LIMIT_MAX_IPS
+    for ip, _ in by_staleness[:to_remove]:
+        del rate_limit_store[ip]
 
 
 @app.middleware("http")
@@ -82,6 +99,9 @@ async def rate_limit_middleware(request: Request, call_next) -> Response:
         cutoff = now - RATE_LIMIT_WINDOW
         rate_limit_store[client_ip] = [t for t in timestamps if t > cutoff]
         timestamps = rate_limit_store[client_ip]
+
+        if len(rate_limit_store) > RATE_LIMIT_MAX_IPS:
+            _evict_stale_entries(now)
 
         if len(timestamps) >= RATE_LIMIT_REQUESTS:
             retry_after = int(timestamps[0] - cutoff) + 1

@@ -95,9 +95,7 @@ class TestUpdateItem:
         item = create_item(lst["id"])
         client.put(f"/api/v1/items/{item['id']}", json={"completed": True})
 
-        items = client.get(
-            f"/api/v1/lists/{lst['id']}/items?include_completed=true"
-        ).json()
+        items = client.get(f"/api/v1/lists/{lst['id']}/items?include_completed=true").json()
         updated = next(i for i in items if i["id"] == item["id"])
         assert updated["completed"] == 1
         assert updated["completed_at"] is not None

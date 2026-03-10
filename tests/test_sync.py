@@ -94,7 +94,11 @@ class TestSyncPush:
 
         changes = [
             {
-                "newDocumentState": {**current, "name": "Updated", "updated_at": "2099-01-01T00:00:00"},
+                "newDocumentState": {
+                    **current,
+                    "name": "Updated",
+                    "updated_at": "2099-01-01T00:00:00",
+                },
                 "assumedMasterState": current,
             }
         ]
@@ -113,7 +117,11 @@ class TestSyncPush:
 
         changes = [
             {
-                "newDocumentState": {**current, "name": "Client Update", "updated_at": "2099-01-01T00:00:00"},
+                "newDocumentState": {
+                    **current,
+                    "name": "Client Update",
+                    "updated_at": "2099-01-01T00:00:00",
+                },
                 "assumedMasterState": current,
             }
         ]
