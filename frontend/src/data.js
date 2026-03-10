@@ -36,7 +36,7 @@ export async function getItemCount(listId) {
  */
 export async function fetchSettings() {
   try {
-    const response = await fetch("/api/settings");
+    const response = await fetch("/api/v1/settings");
     if (response.ok) {
       state.appSettings = await response.json();
     }
@@ -53,7 +53,7 @@ export async function fetchSettings() {
  */
 export async function updateSettings(settings) {
   try {
-    const response = await fetch("/api/settings", {
+    const response = await fetch("/api/v1/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(settings),

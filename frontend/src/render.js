@@ -211,7 +211,7 @@ export function renderItems() {
  */
 export async function fetchHistory(listId) {
   try {
-    const response = await fetch(`/api/lists/${listId}/history`, {
+    const response = await fetch(`/api/v1/lists/${listId}/history`, {
       cache: "no-store",
     });
     const history = await response.json();

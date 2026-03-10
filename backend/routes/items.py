@@ -11,7 +11,7 @@ from ..models import SORT_SQL, ItemCreate, ItemUpdate
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/lists/{list_id}/items")

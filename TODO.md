@@ -20,7 +20,7 @@
 - [ ] **Add request logging middleware** — No general request/response logging (method, path, status code, duration). Add access log middleware or use Uvicorn's built-in access logging.
 - [x] **Implement graceful shutdown** — No explicit SIGTERM/SIGINT handling to drain SSE connections or finish in-flight requests. Add a shutdown event handler for SSE connections and the database.
 - [ ] **Set up database backup strategy** — SQLite database has no backup mechanism. Document or automate backups (e.g. periodic `cp` or `sqlite3 .backup` via cron). Consider WAL mode.
-- [ ] **Add API versioning** — All endpoints under `/api/` with no version prefix. Low priority for personal use, but consider `/api/v1/` if API will be consumed externally.
+- [x] **Add API versioning** — All endpoints under `/api/` with no version prefix. Low priority for personal use, but consider `/api/v1/` if API will be consumed externally.
 
 ## Minor
 

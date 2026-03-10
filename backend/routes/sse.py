@@ -11,7 +11,7 @@ from ..events import MAX_SSE_CLIENTS, clients_lock, connected_clients, shutdown_
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/events")

@@ -24,7 +24,7 @@ function connectSharedStream() {
     sharedEventSource = null;
   }
 
-  const eventSource = new EventSource("/api/sync/stream");
+  const eventSource = new EventSource("/api/v1/sync/stream");
   sharedEventSource = eventSource;
 
   eventSource.addEventListener("message", (event) => {
@@ -162,7 +162,7 @@ function createPullHandler(collection, toClient) {
         params.set("id", checkpoint.id);
       }
       const response = await fetch(
-        `/api/sync/${collection}/pull?${params.toString()}`,
+        `/api/v1/sync/${collection}/pull?${params.toString()}`,
       );
       if (!response.ok) {
         throw new Error(`Pull failed for ${collection}: ${response.status}`);
@@ -195,7 +195,7 @@ function createPushHandler(collection, toServer, toClient) {
           ? toServer(row.assumedMasterState)
           : null,
       }));
-      const response = await fetch(`/api/sync/${collection}/push`, {
+      const response = await fetch(`/api/v1/sync/${collection}/push`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

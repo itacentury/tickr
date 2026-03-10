@@ -11,7 +11,7 @@ from ..models import VALID_SORT_OPTIONS, ListCreate, ListReorder, ListUpdate
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/lists")

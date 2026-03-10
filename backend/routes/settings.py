@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from ..database import get_db
 from ..models import VALID_LIST_SORT_OPTIONS, SettingsUpdate
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/settings")

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from ..database import get_db
 from ..models import HistoryEntry
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/lists/{list_id}/history")

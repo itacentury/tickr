@@ -63,7 +63,7 @@ async def security_headers_middleware(request: Request, call_next) -> Response:
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next) -> Response:
     """Enforce per-IP sliding window rate limiting, excluding SSE."""
-    if request.url.path in ("/api/events", "/api/sync/stream"):
+    if request.url.path in ("/api/v1/events", "/api/v1/sync/stream"):
         return await call_next(request)
 
     client_ip = request.client.host if request.client else "unknown"

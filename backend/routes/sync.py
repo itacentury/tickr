@@ -20,7 +20,7 @@ from ..events import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/sync")
+router = APIRouter(prefix="/api/v1/sync")
 
 
 @router.get("/{collection}/pull")
