@@ -22,7 +22,7 @@ RUN python -c "import tomllib; \
     print('\n'.join(deps))" | pip install --no-cache-dir -r /dev/stdin
 
 # Build frontend
-COPY frontend/package.json frontend/package-lock.json* frontend/
+COPY frontend/package.json frontend/package-lock.json frontend/
 RUN cd frontend && npm ci --ignore-scripts
 COPY frontend/ frontend/
 RUN cd frontend && npm run build
