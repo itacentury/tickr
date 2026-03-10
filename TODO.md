@@ -13,7 +13,7 @@
 
 ## Moderate
 
-- [ ] **Replace f-string SQL with explicit table queries** — Sync endpoints in `main.py` use `f"SELECT * FROM {collection}"`. The collection parameter is whitelisted, so this is currently safe, but fragile if refactored. Use explicit per-table queries instead.
+- [x] **Replace f-string SQL with explicit table queries** — Sync endpoints in `main.py` use `f"SELECT * FROM {collection}"`. The collection parameter is whitelisted, so this is currently safe, but fragile if refactored. Use explicit per-table queries instead.
 - [ ] **Make `package-lock.json` required in Dockerfile** — `COPY frontend/package-lock.json*` uses a glob, making the file optional. Remove the asterisk to ensure deterministic `npm ci` builds.
 - [ ] **Document SQLite scalability limitation** — SQLite is single-writer and file-based. Works for single-instance but not for horizontal scaling. Document this; consider PostgreSQL if scaling is needed.
 - [ ] **Set up reverse proxy with TLS** — App serves plain HTTP. Document that a reverse proxy (nginx, Caddy, Traefik) with TLS is required. Consider adding HSTS header when behind TLS.

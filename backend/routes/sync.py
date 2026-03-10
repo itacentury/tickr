@@ -36,20 +36,7 @@ def sync_pull(
 
     cursor = db.cursor()
 
-    if updated_at and id:
-        cursor.execute(
-            f"SELECT * FROM {collection} "
-            f"WHERE (updated_at > ?) OR (updated_at = ? AND id > ?) "
-            f"ORDER BY updated_at ASC, id ASC LIMIT ?",
-            (updated_at, updated_at, id, limit),
-        )
-    else:
-        cursor.execute(
-            f"SELECT * FROM {collection} ORDER BY updated_at ASC, id ASC LIMIT ?",
-            (limit,),
-        )
-
-    rows = cursor.fetchall()
+    rows = _pull_docs(cursor, collection, updated_at, id, limit)
     documents = [dict(row) for row in rows]
 
     checkpoint = None
@@ -82,8 +69,7 @@ def sync_push(
         assumed = change.get("assumedMasterState")
         doc_id = new_state["id"]
 
-        cursor.execute(f"SELECT * FROM {collection} WHERE id = ?", (doc_id,))
-        current = cursor.fetchone()
+        current = _select_doc(cursor, collection, doc_id)
         current_dict = dict(current) if current else None
 
         try:
@@ -102,8 +88,7 @@ def sync_push(
                     continue
         except sqlite3.IntegrityError as exc:
             logger.warning("Integrity error in sync_push for %s/%s: %s", collection, doc_id, exc)
-            cursor.execute(f"SELECT * FROM {collection} WHERE id = ?", (doc_id,))
-            refreshed = cursor.fetchone()
+            refreshed = _select_doc(cursor, collection, doc_id)
             if refreshed:
                 conflicts.append(dict(refreshed))
             else:
@@ -116,6 +101,50 @@ def sync_push(
         broadcast_sync(collection)
 
     return conflicts
+
+
+def _select_doc(cursor: sqlite3.Cursor, collection: str, doc_id: str) -> sqlite3.Row | None:
+    """Select a single document by ID from the specified collection."""
+    if collection == "lists":
+        cursor.execute("SELECT * FROM lists WHERE id = ?", (doc_id,))
+    elif collection == "items":
+        cursor.execute("SELECT * FROM items WHERE id = ?", (doc_id,))
+    return cursor.fetchone()
+
+
+def _pull_docs(
+    cursor: sqlite3.Cursor,
+    collection: str,
+    updated_at: str | None,
+    id: str | None,
+    limit: int,
+) -> list[sqlite3.Row]:
+    """Fetch documents from a collection for replication pull."""
+    if updated_at and id:
+        if collection == "lists":
+            cursor.execute(
+                "SELECT * FROM lists WHERE (updated_at > ?) OR (updated_at = ? AND id > ?) "
+                "ORDER BY updated_at ASC, id ASC LIMIT ?",
+                (updated_at, updated_at, id, limit),
+            )
+        elif collection == "items":
+            cursor.execute(
+                "SELECT * FROM items WHERE (updated_at > ?) OR (updated_at = ? AND id > ?) "
+                "ORDER BY updated_at ASC, id ASC LIMIT ?",
+                (updated_at, updated_at, id, limit),
+            )
+    else:
+        if collection == "lists":
+            cursor.execute(
+                "SELECT * FROM lists ORDER BY updated_at ASC, id ASC LIMIT ?",
+                (limit,),
+            )
+        elif collection == "items":
+            cursor.execute(
+                "SELECT * FROM items ORDER BY updated_at ASC, id ASC LIMIT ?",
+                (limit,),
+            )
+    return cursor.fetchall()
 
 
 def _insert_doc(cursor: sqlite3.Cursor, collection: str, doc: dict) -> None:
