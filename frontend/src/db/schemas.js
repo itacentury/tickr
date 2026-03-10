@@ -17,6 +17,7 @@ export const listSchema = {
     sortOrder: { type: "integer" },
     createdAt: { type: "string" },
     updatedAt: { type: "string" },
+    _deleted: { type: "boolean" },
   },
   required: ["id", "name", "updatedAt"],
 };
@@ -33,6 +34,7 @@ export const itemSchema = {
     createdAt: { type: "string" },
     updatedAt: { type: "string" },
     completedAt: { type: ["string", "null"] },
+    _deleted: { type: "boolean" },
   },
   required: ["id", "listId", "text", "updatedAt"],
 };

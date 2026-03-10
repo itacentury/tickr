@@ -9,7 +9,7 @@
 - [x] **Add try-catch to RxDB operations in app.js** — All database operations (`insert`, `patch`, `remove`) lack error handling. Failures (e.g. IndexedDB quota exceeded) crash silently with no user feedback. Affects 8+ call sites.
 - [x] **Add error handling to `sync_push` endpoint** — `_insert_doc()` and `_update_doc()` in `main.py` are called without try-except. Database constraint violations (FK, unique) return 500 with stack trace instead of a proper conflict response.
 - [x] **Fix EventSource connection leak in replication.js** — SSE connections are created per collection but never closed on app shutdown or tab close. Multiple tabs can exhaust the browser's connection limit and the server's max SSE connections (10).
-- [ ] **Add `_deleted` field to RxDB schemas** — `schemas.js` doesn't declare `_deleted` in list/item schemas. RxDB may strip undeclared fields during replication, breaking soft-delete sync between client and server.
+- [x] **Add `_deleted` field to RxDB schemas** — `schemas.js` doesn't declare `_deleted` in list/item schemas. RxDB may strip undeclared fields during replication, breaking soft-delete sync between client and server.
 
 ## Moderate
 
