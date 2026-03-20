@@ -53,6 +53,29 @@ python main.py
 
 Open [http://localhost:8000](http://localhost:8000)
 
+## Configuration
+
+All settings can be overridden via `TICKR_*` environment variables. Copy the example file to get started:
+
+```bash
+cp .env.example .env
+```
+
+See [`.env.example`](.env.example) for the full list with defaults.
+
+| Variable                       | Default         | Description                       |
+| ------------------------------ | --------------- | --------------------------------- |
+| `TICKR_DATABASE`               | `data/tickr.db` | SQLite database path              |
+| `TICKR_RATE_LIMIT_REQUESTS`    | `100`           | Max requests per window per IP    |
+| `TICKR_RATE_LIMIT_WINDOW`      | `60`            | Rate limit window in seconds      |
+| `TICKR_RATE_LIMIT_MAX_IPS`     | `10000`         | Max tracked IPs in rate limiter   |
+| `TICKR_MAX_SSE_CLIENTS`        | `10`            | Max concurrent SSE connections    |
+| `TICKR_SSE_HEARTBEAT_INTERVAL` | `15`            | SSE heartbeat interval in seconds |
+| `TICKR_BACKUP_DIR`             | `data/backups`  | Backup output directory           |
+| `TICKR_BACKUP_RETAIN`          | `7`             | Number of backups to keep         |
+
+See [`docker-compose.yml`](docker-compose.yml) for a ready-to-use Docker Compose setup with commented-out environment overrides.
+
 ## API
 
 Interactive docs available at `/docs` (Swagger UI) and `/redoc`.

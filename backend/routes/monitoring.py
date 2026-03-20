@@ -6,9 +6,9 @@ import time
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
+from ..config import MAX_SSE_CLIENTS
 from ..database import DATABASE
 from ..events import (
-    MAX_SSE_CLIENTS,
     clients_lock,
     connected_clients,
     sync_clients_lock,

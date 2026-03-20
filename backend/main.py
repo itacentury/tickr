@@ -14,6 +14,7 @@ from threading import Lock
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
+from .config import RATE_LIMIT_MAX_IPS, RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW
 from .database import init_db
 from .errors import ErrorCode, register_error_handlers
 from .events import initiate_shutdown
@@ -38,10 +39,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Tickr", version="2.0.0", lifespan=lifespan)
 register_error_handlers(app)
 
-# Rate limiting configuration
-RATE_LIMIT_REQUESTS = 100
-RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX_IPS = 10_000
 rate_limit_store: dict[str, list[float]] = defaultdict(list)
 rate_limit_lock = Lock()
 

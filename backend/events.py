@@ -9,11 +9,9 @@ from threading import Lock
 
 logger = logging.getLogger(__name__)
 
+
 # Signals SSE loops to stop when the server is shutting down
 shutdown_event = asyncio.Event()
-
-# Maximum concurrent SSE connections
-MAX_SSE_CLIENTS = 10
 
 # Legacy SSE client management (thread-safe)
 clients_lock = Lock()

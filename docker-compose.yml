@@ -5,5 +5,11 @@ services:
     restart: unless-stopped
     ports:
       - 8000:8000/tcp
+    # env_file:
+    #   - .env
+    # environment:
+    #   - TICKR_DATABASE=data/tickr.db
+    #   - TICKR_RATE_LIMIT_REQUESTS=100
+    #   - TICKR_MAX_SSE_CLIENTS=10
     volumes:
       - ./data:/app/data

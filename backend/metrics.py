@@ -5,8 +5,8 @@ import time
 from collections import defaultdict, deque
 from threading import Lock
 
+from .config import MAX_SSE_CLIENTS
 from .events import (
-    MAX_SSE_CLIENTS,
     clients_lock,
     connected_clients,
     sync_clients_lock,

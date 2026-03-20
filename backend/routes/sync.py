@@ -8,10 +8,10 @@ from queue import Empty, Queue
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
+from ..config import MAX_SSE_CLIENTS, SSE_HEARTBEAT_INTERVAL
 from ..database import get_db, now
 from ..errors import AppError, ErrorCode
 from ..events import (
-    MAX_SSE_CLIENTS,
     broadcast_sync,
     broadcast_update,
     shutdown_event,
@@ -234,14 +234,13 @@ async def sync_stream() -> StreamingResponse:
 
     async def event_generator():
         """Generate SSE events for sync stream."""
-        heartbeat_interval = 15
         last_heartbeat = asyncio.get_event_loop().time()
 
         try:
             while not shutdown_event.is_set():
                 current_time = asyncio.get_event_loop().time()
 
-                if current_time - last_heartbeat >= heartbeat_interval:
+                if current_time - last_heartbeat >= SSE_HEARTBEAT_INTERVAL:
                     yield ": heartbeat\n\n"
                     last_heartbeat = current_time
 

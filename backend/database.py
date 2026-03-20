@@ -6,9 +6,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from backend.config import DATABASE
 
-DATABASE = "data/tickr.db"
+logger = logging.getLogger(__name__)
 
 
 def get_db():
