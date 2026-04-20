@@ -14,6 +14,21 @@ _UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 # Matches trailing filename segments (e.g. /static/app.js)
 _STATIC_FILE_RE = re.compile(r"(/static/).*")
 
+# Paths hit most frequently that never carry dynamic segments — skip regex entirely.
+# Keep this list tight: only paths that are guaranteed dynamic-free belong here.
+# For everything else the cheap `"-" not in path` prefilter handles the common case.
+_FAST_PATHS = frozenset(
+    {
+        "/api/v1/health",
+        "/api/v1/metrics",
+        "/api/v1/events",
+        "/api/v1/sync/stream",
+    }
+)
+
+# How long a computed percentile snapshot may be served from cache.
+_PERCENTILE_CACHE_TTL = 1.0
+
 
 class MetricsCollector:
     """Collect request counters and response time samples in memory.
@@ -30,6 +45,8 @@ class MetricsCollector:
         self.by_status: dict[str, int] = defaultdict(int)
         self.by_path: dict[str, int] = defaultdict(int)
         self._response_times: deque[tuple[float, float]] = deque(maxlen=max_samples)
+        # (monotonic_computed_at, window_seconds, snapshot_dict)
+        self._percentile_cache: tuple[float, int, dict] | None = None
 
     def record(self, method: str, path: str, status_code: int, duration_ms: float) -> None:
         """Record a single request's metrics.
@@ -54,8 +71,14 @@ class MetricsCollector:
     def _normalize_path(path: str) -> str:
         """Collapse dynamic path segments to prevent cardinality explosion.
 
-        Replaces UUIDs with ``{id}`` and static filenames with ``{file}``.
+        Fast paths (known-static endpoints and paths without the characters that
+        UUIDs or static-file routes require) short-circuit before touching the
+        regexes. Otherwise UUIDs become ``{id}`` and static filenames ``{file}``.
         """
+        if path in _FAST_PATHS:
+            return path
+        if "-" not in path and "/static/" not in path:
+            return path
         path = _UUID_RE.sub("{id}", path)
         path = _STATIC_FILE_RE.sub(r"\1{file}", path)
         return path
@@ -63,16 +86,27 @@ class MetricsCollector:
     def get_percentiles(self, window_seconds: int = 300) -> dict:
         """Compute response time percentiles over a recent time window.
 
-        Args:
-            window_seconds: How far back (in seconds) to include samples.
-
-        Returns:
-            Dict with p50, p95, p99, min, max, avg, sample_count, and window_seconds.
+        Results are cached for ``_PERCENTILE_CACHE_TTL`` seconds per window so
+        frequent scrapes (e.g. from Prometheus) don't re-sort the full sample
+        buffer on every call.
         """
-        cutoff = time.time() - window_seconds
-
         with self._lock:
-            samples = [d for ts, d in self._response_times if ts > cutoff]
+            cached = self._percentile_cache
+            if (
+                cached is not None
+                and cached[1] == window_seconds
+                and time.monotonic() - cached[0] < _PERCENTILE_CACHE_TTL
+            ):
+                return dict(cached[2])
+
+            snapshot = self._compute_percentiles_locked(window_seconds)
+            self._percentile_cache = (time.monotonic(), window_seconds, snapshot)
+            return dict(snapshot)
+
+    def _compute_percentiles_locked(self, window_seconds: int) -> dict:
+        """Compute percentile snapshot; caller must hold ``self._lock``."""
+        cutoff = time.time() - window_seconds
+        samples = [d for ts, d in self._response_times if ts > cutoff]
 
         if not samples:
             return {
