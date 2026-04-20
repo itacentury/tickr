@@ -26,6 +26,7 @@ async def health_check():
     """Return application health status including database connectivity."""
     try:
         conn = sqlite3.connect(DATABASE, timeout=2)
+        conn.execute("PRAGMA busy_timeout = 5000")
         conn.execute("SELECT 1")
         conn.close()
     except Exception as e:

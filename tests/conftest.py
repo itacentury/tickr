@@ -55,6 +55,10 @@ def db_connection():
             value TEXT NOT NULL
         );
 
+        CREATE INDEX idx_items_list_id ON items(list_id, _deleted);
+        CREATE INDEX idx_items_updated ON items(updated_at, id);
+        CREATE INDEX idx_lists_updated ON lists(updated_at, id);
+
         INSERT INTO settings (key, value) VALUES ('list_sort', 'alphabetical');
     """)
 

@@ -3,7 +3,7 @@
 import logging
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from backend.config import DATABASE
@@ -16,6 +16,7 @@ def get_db():
     conn = sqlite3.connect(DATABASE, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 5000")
     try:
         yield conn
     finally:
@@ -23,8 +24,8 @@ def get_db():
 
 
 def now() -> str:
-    """Return the current UTC timestamp as an ISO string."""
-    return datetime.now().isoformat()
+    """Return the current UTC timestamp as an ISO-8601 string with Z suffix."""
+    return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def new_uuid() -> str:
@@ -38,6 +39,7 @@ def init_db():
     Path(DATABASE).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DATABASE)
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     logger.info("WAL mode enabled")
     cursor = conn.cursor()
 
@@ -54,6 +56,8 @@ def init_db():
         _create_tables_fresh(conn)
     else:
         _ensure_columns(conn)
+
+    _ensure_indexes(conn)
 
     # Settings table
     cursor.execute("PRAGMA table_info(settings)")
@@ -262,11 +266,13 @@ def _migrate_to_uuid(conn: sqlite3.Connection) -> None:
 def _ensure_columns(conn: sqlite3.Connection) -> None:
     """Add any missing columns to existing UUID-based tables."""
     cursor = conn.cursor()
+    timestamp = now()
 
     cursor.execute("PRAGMA table_info(lists)")
     list_cols = [row[1] for row in cursor.fetchall()]
     if "updated_at" not in list_cols:
-        cursor.execute("ALTER TABLE lists ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''")
+        cursor.execute("ALTER TABLE lists ADD COLUMN updated_at TEXT")
+        cursor.execute("UPDATE lists SET updated_at = ? WHERE updated_at IS NULL", (timestamp))
     if "_deleted" not in list_cols:
         cursor.execute("ALTER TABLE lists ADD COLUMN _deleted INTEGER DEFAULT 0")
     if "item_sort" not in list_cols:
@@ -277,8 +283,18 @@ def _ensure_columns(conn: sqlite3.Connection) -> None:
     cursor.execute("PRAGMA table_info(items)")
     item_cols = [row[1] for row in cursor.fetchall()]
     if "updated_at" not in item_cols:
-        cursor.execute("ALTER TABLE items ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''")
+        cursor.execute("ALTER TABLE items ADD COLUMN updated_at TEXT")
+        cursor.execute("UPDATE items SET updated_at = ? WHERE updated_at IS NULL", (timestamp,))
     if "_deleted" not in item_cols:
         cursor.execute("ALTER TABLE items ADD COLUMN _deleted INTEGER DEFAULT 0")
 
+    conn.commit()
+
+
+def _ensure_indexes(conn: sqlite3.Connection) -> None:
+    """Create indexes on sync hot paths. Idempotent — safe to call repeatedly."""
+    cursor = conn.cursor()
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_items_list_id ON items(list_id, _deleted)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_items_updated ON items(updated_at, id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_lists_updated ON lists(updated_at, id)")
     conn.commit()
