@@ -1,23 +1,15 @@
 """RxDB-compatible sync endpoints for offline-first replication."""
 
-import asyncio
 import logging
 import sqlite3
-from queue import Empty, Queue
 
 from fastapi import APIRouter, Body, Depends
 from fastapi.responses import StreamingResponse
 
-from ..config import MAX_SSE_CLIENTS, SSE_HEARTBEAT_INTERVAL
+from ..config import SSE_HEARTBEAT_INTERVAL
 from ..database import get_db, now
 from ..errors import AppError, ErrorCode
-from ..events import (
-    broadcast_sync,
-    broadcast_update,
-    shutdown_event,
-    sync_clients_lock,
-    sync_connected_clients,
-)
+from ..events import broadcast_sync, broadcast_update, sync_broadcaster
 from ..models import SyncChange
 
 logger = logging.getLogger(__name__)
@@ -228,42 +220,9 @@ def _states_match(current: dict, assumed: dict) -> bool:
 @router.get("/stream")
 async def sync_stream() -> StreamingResponse:
     """SSE stream that notifies clients when collections change."""
-    with sync_clients_lock:
-        if len(sync_connected_clients) >= MAX_SSE_CLIENTS:
-            raise AppError(ErrorCode.TOO_MANY_CONNECTIONS, "Too many SSE connections", 429)
-
-    queue: Queue = Queue(maxsize=100)
-    with sync_clients_lock:
-        sync_connected_clients.append(queue)
-        logger.info("Sync SSE client connected (%d active)", len(sync_connected_clients))
-
-    async def event_generator():
-        """Generate SSE events for sync stream."""
-        last_heartbeat = asyncio.get_event_loop().time()
-
-        try:
-            while not shutdown_event.is_set():
-                current_time = asyncio.get_event_loop().time()
-
-                if current_time - last_heartbeat >= SSE_HEARTBEAT_INTERVAL:
-                    yield ": heartbeat\n\n"
-                    last_heartbeat = current_time
-
-                try:
-                    data = queue.get_nowait()
-                    yield f"data: {data}\n\n"
-                except Empty:
-                    await asyncio.sleep(0.1)
-        except asyncio.CancelledError:
-            pass
-        finally:
-            with sync_clients_lock:
-                if queue in sync_connected_clients:
-                    sync_connected_clients.remove(queue)
-                logger.info("Sync SSE client disconnected (%d active)", len(sync_connected_clients))
-
+    queue = await sync_broadcaster.register()
     return StreamingResponse(
-        event_generator(),
+        sync_broadcaster.stream(queue, heartbeat=SSE_HEARTBEAT_INTERVAL),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

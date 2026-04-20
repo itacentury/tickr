@@ -4,6 +4,7 @@ Provides endpoints for managing todo lists, items, history tracking,
 and RxDB-compatible sync endpoints for offline-first replication.
 """
 
+import asyncio
 import logging
 import time
 from collections import defaultdict
@@ -17,7 +18,7 @@ from fastapi.responses import JSONResponse
 from .config import RATE_LIMIT_MAX_IPS, RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW
 from .database import init_db
 from .errors import ErrorCode, register_error_handlers
-from .events import initiate_shutdown
+from .events import bind_loop, initiate_shutdown
 from .metrics import collector
 from .routes import all_routers
 from .routes.static import mount_static
@@ -30,6 +31,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Initialize database on startup."""
     logger.info("Starting Tickr application")
     init_db()
+    bind_loop(asyncio.get_running_loop())
     logger.info("Application startup complete")
     yield
     logger.info("Shutting down Tickr application")

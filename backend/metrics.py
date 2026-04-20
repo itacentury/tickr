@@ -6,12 +6,7 @@ from collections import defaultdict, deque
 from threading import Lock
 
 from .config import MAX_SSE_CLIENTS
-from .events import (
-    clients_lock,
-    connected_clients,
-    sync_clients_lock,
-    sync_connected_clients,
-)
+from .events import legacy_broadcaster, sync_broadcaster
 
 # Matches UUID v4 segments in URL paths
 _UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
@@ -116,19 +111,14 @@ class MetricsCollector:
                 "by_path": dict(self.by_path),
             }
 
-        with clients_lock:
-            legacy_count = len(connected_clients)
-        with sync_clients_lock:
-            sync_count = len(sync_connected_clients)
-
         return {
             "uptime_seconds": round(now - self._started_at, 1),
             "started_at": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(self._started_at)),
             "requests": requests,
             "response_times": self.get_percentiles(),
             "connections": {
-                "sse_legacy": legacy_count,
-                "sse_sync": sync_count,
+                "sse_legacy": legacy_broadcaster.client_count(),
+                "sse_sync": sync_broadcaster.client_count(),
                 "sse_max": MAX_SSE_CLIENTS,
             },
         }

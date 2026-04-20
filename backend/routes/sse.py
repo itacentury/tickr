@@ -1,15 +1,12 @@
 """Legacy SSE endpoint for real-time updates."""
 
-import asyncio
 import logging
-from queue import Empty, Queue
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from ..config import MAX_SSE_CLIENTS, SSE_HEARTBEAT_INTERVAL
-from ..errors import AppError, ErrorCode
-from ..events import clients_lock, connected_clients, shutdown_event
+from ..config import SSE_HEARTBEAT_INTERVAL
+from ..events import legacy_broadcaster
 
 logger = logging.getLogger(__name__)
 
@@ -19,43 +16,9 @@ router = APIRouter(prefix="/api/v1")
 @router.get("/events")
 async def sse_events() -> StreamingResponse:
     """SSE endpoint for real-time updates to connected clients (legacy)."""
-    with clients_lock:
-        if len(connected_clients) >= MAX_SSE_CLIENTS:
-            logger.warning("SSE connection rejected: max clients (%d) reached", MAX_SSE_CLIENTS)
-            raise AppError(ErrorCode.TOO_MANY_CONNECTIONS, "Too many SSE connections", 429)
-
-    queue: Queue = Queue(maxsize=100)
-    with clients_lock:
-        connected_clients.append(queue)
-        logger.info("SSE client connected (%d active)", len(connected_clients))
-
-    async def event_generator():
-        """Generate SSE events from the client's message queue."""
-        last_heartbeat = asyncio.get_event_loop().time()
-
-        try:
-            while not shutdown_event.is_set():
-                current_time = asyncio.get_event_loop().time()
-
-                if current_time - last_heartbeat >= SSE_HEARTBEAT_INTERVAL:
-                    yield ": heartbeat\n\n"
-                    last_heartbeat = current_time
-
-                try:
-                    data = queue.get_nowait()
-                    yield f"data: {data}\n\n"
-                except Empty:
-                    await asyncio.sleep(0.1)
-        except asyncio.CancelledError:
-            pass
-        finally:
-            with clients_lock:
-                if queue in connected_clients:
-                    connected_clients.remove(queue)
-                logger.info("SSE client disconnected (%d active)", len(connected_clients))
-
+    queue = await legacy_broadcaster.register()
     return StreamingResponse(
-        event_generator(),
+        legacy_broadcaster.stream(queue, heartbeat=SSE_HEARTBEAT_INTERVAL),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

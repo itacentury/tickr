@@ -8,12 +8,7 @@ from fastapi.responses import JSONResponse
 
 from ..config import MAX_SSE_CLIENTS
 from ..database import DATABASE
-from ..events import (
-    clients_lock,
-    connected_clients,
-    sync_clients_lock,
-    sync_connected_clients,
-)
+from ..events import legacy_broadcaster, sync_broadcaster
 from ..metrics import collector
 
 router = APIRouter(prefix="/api/v1", tags=["monitoring"])
@@ -41,18 +36,13 @@ async def health_check():
             },
         )
 
-    with clients_lock:
-        legacy_count = len(connected_clients)
-    with sync_clients_lock:
-        sync_count = len(sync_connected_clients)
-
     return {
         "status": "healthy",
         "uptime_seconds": round(time.time() - _app_start_time, 1),
         "database": "ok",
         "connections": {
-            "sse_legacy": legacy_count,
-            "sse_sync": sync_count,
+            "sse_legacy": legacy_broadcaster.client_count(),
+            "sse_sync": sync_broadcaster.client_count(),
             "sse_max": MAX_SSE_CLIENTS,
         },
     }
