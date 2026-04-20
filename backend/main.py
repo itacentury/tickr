@@ -101,7 +101,7 @@ async def rate_limit_middleware(request: Request, call_next) -> Response:
             _evict_stale_entries(now)
 
         if len(timestamps) >= RATE_LIMIT_REQUESTS:
-            retry_after = int(timestamps[0] - cutoff) + 1
+            retry_after = max(1, int(timestamps[0] - cutoff) + 1)
             logger.warning("Rate limit exceeded for %s (retry after %ds)", client_ip, retry_after)
             return JSONResponse(
                 status_code=429,

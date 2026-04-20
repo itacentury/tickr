@@ -5,7 +5,7 @@ import logging
 import sqlite3
 from queue import Empty, Queue
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 from fastapi.responses import StreamingResponse
 
 from ..config import MAX_SSE_CLIENTS, SSE_HEARTBEAT_INTERVAL
@@ -18,6 +18,7 @@ from ..events import (
     sync_clients_lock,
     sync_connected_clients,
 )
+from ..models import SyncChange
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ def sync_pull(
 @router.post("/{collection}/push")
 def sync_push(
     collection: str,
-    changes: list[dict],
+    changes: list[SyncChange] = Body(..., max_length=500),
     db: sqlite3.Connection = Depends(get_db),
 ):
     """Push local changes to the server for RxDB replication.
@@ -66,37 +67,41 @@ def sync_push(
     cursor = db.cursor()
     conflicts: list[dict] = []
 
-    for change in changes:
-        new_state = change["newDocumentState"]
-        assumed = change.get("assumedMasterState")
-        doc_id = new_state["id"]
+    with db:
+        for change in changes:
+            new_state = change.new_document_state
+            assumed = change.assumed_master_state
 
-        current = _select_doc(cursor, collection, doc_id)
-        current_dict = dict(current) if current else None
+            if "id" not in new_state:
+                raise AppError(ErrorCode.VALIDATION_ERROR, "newDocumentState.id missing", 422)
+            doc_id = new_state["id"]
 
-        try:
-            if assumed is None:
-                if current_dict:
-                    conflicts.append(current_dict)
-                    continue
-                _insert_doc(cursor, collection, new_state)
-            else:
-                if not current_dict:
+            current = _select_doc(cursor, collection, doc_id)
+            current_dict = dict(current) if current else None
+
+            try:
+                if assumed is None:
+                    if current_dict:
+                        conflicts.append(current_dict)
+                        continue
                     _insert_doc(cursor, collection, new_state)
-                elif _states_match(current_dict, assumed):
-                    _update_doc(cursor, collection, new_state)
                 else:
-                    conflicts.append(current_dict)
-                    continue
-        except sqlite3.IntegrityError as exc:
-            logger.warning("Integrity error in sync_push for %s/%s: %s", collection, doc_id, exc)
-            refreshed = _select_doc(cursor, collection, doc_id)
-            if refreshed:
-                conflicts.append(dict(refreshed))
-            else:
-                raise AppError(ErrorCode.CONFLICT, str(exc), 409) from exc
-
-    db.commit()
+                    if not current_dict:
+                        _insert_doc(cursor, collection, new_state)
+                    elif _states_match(current_dict, assumed):
+                        _update_doc(cursor, collection, new_state)
+                    else:
+                        conflicts.append(current_dict)
+                        continue
+            except sqlite3.IntegrityError as exc:
+                logger.warning(
+                    "Integrity error in sync_push for %s/%s: %s", collection, doc_id, exc
+                )
+                refreshed = _select_doc(cursor, collection, doc_id)
+                if refreshed:
+                    conflicts.append(dict(refreshed))
+                else:
+                    raise AppError(ErrorCode.CONFLICT, str(exc), 409) from exc
 
     if not conflicts:
         broadcast_update("lists_changed" if collection == "lists" else "items_changed")

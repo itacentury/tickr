@@ -11,6 +11,12 @@ class TestGetItems:
         assert resp.status_code == 200
         assert resp.json() == []
 
+    def test_get_items_nonexistent_list(self, client):
+        """Fetching items for an unknown list returns 404 with LIST_NOT_FOUND."""
+        resp = client.get("/api/v1/lists/does-not-exist/items")
+        assert resp.status_code == 404
+        assert resp.json()["error"]["code"] == "LIST_NOT_FOUND"
+
     def test_get_items_excludes_completed(self, client, create_list, create_item):
         """By default, completed items are excluded."""
         lst = create_list()

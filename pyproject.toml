@@ -37,7 +37,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.flake8-bugbear]
-extend-immutable-calls = ["Depends", "fastapi.Depends"]
+extend-immutable-calls = ["Depends", "fastapi.Depends", "Body", "fastapi.Body"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["backend"]

@@ -22,9 +22,11 @@ def get_items(
     """Return non-deleted items for a list, sorted according to list settings."""
     cursor = db.cursor()
 
-    cursor.execute("SELECT item_sort FROM lists WHERE id = ?", (list_id,))
+    cursor.execute("SELECT item_sort FROM lists WHERE id = ? AND _deleted = 0", (list_id,))
     row = cursor.fetchone()
-    sort_option = row["item_sort"] if row and row["item_sort"] else "alphabetical"
+    if row is None:
+        raise AppError(ErrorCode.LIST_NOT_FOUND, "List not found", 404)
+    sort_option = row["item_sort"] if row["item_sort"] else "alphabetical"
     order_by = SORT_SQL.get(sort_option, SORT_SQL["alphabetical"])
 
     if include_completed:

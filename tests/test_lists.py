@@ -124,7 +124,9 @@ class TestDeleteList:
         client.delete(f"/api/v1/lists/{lst['id']}")
 
         assert all(entry["id"] != lst["id"] for entry in client.get("/api/v1/lists").json())
-        assert client.get(f"/api/v1/lists/{lst['id']}/items").json() == []
+        resp = client.get(f"/api/v1/lists/{lst['id']}/items")
+        assert resp.status_code == 404
+        assert resp.json()["error"]["code"] == "LIST_NOT_FOUND"
 
 
 class TestReorderLists:

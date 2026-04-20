@@ -16,6 +16,7 @@ class ErrorCode(StrEnum):
     """Machine-readable error codes returned by the API."""
 
     ITEM_NOT_FOUND = "ITEM_NOT_FOUND"
+    LIST_NOT_FOUND = "LIST_NOT_FOUND"
     ICON_NOT_FOUND = "ICON_NOT_FOUND"
     INVALID_SORT_OPTION = "INVALID_SORT_OPTION"
     INVALID_COLLECTION = "INVALID_COLLECTION"

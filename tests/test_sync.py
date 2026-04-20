@@ -151,3 +151,27 @@ class TestSyncPush:
         resp = client.post("/api/v1/sync/bogus/push", json=[])
         assert resp.status_code == 400
         assert resp.json()["error"]["code"] == "INVALID_COLLECTION"
+
+    def test_push_malformed_change_missing_new_state(self, client):
+        """Change without newDocumentState is rejected with 422."""
+        resp = client.post("/api/v1/sync/lists/push", json=[{}])
+        assert resp.status_code == 422
+        assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    def test_push_missing_id_in_document_state(self, client):
+        """newDocumentState without id returns 422."""
+        resp = client.post(
+            "/api/v1/sync/lists/push",
+            json=[{"newDocumentState": {"name": "No ID"}, "assumedMasterState": None}],
+        )
+        assert resp.status_code == 422
+        assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    def test_push_batch_size_limit(self, client):
+        """Pushing more than 500 changes in one request is rejected."""
+        changes = [
+            {"newDocumentState": {"id": _uuid(), "name": "x"}, "assumedMasterState": None}
+            for _ in range(501)
+        ]
+        resp = client.post("/api/v1/sync/lists/push", json=changes)
+        assert resp.status_code == 422

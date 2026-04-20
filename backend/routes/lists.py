@@ -116,17 +116,17 @@ def delete_list(list_id: str, db: sqlite3.Connection = Depends(get_db)):
     cursor = db.cursor()
     ts = now()
 
-    cursor.execute(
-        "UPDATE items SET _deleted = 1, updated_at = ? WHERE list_id = ? AND _deleted = 0",
-        (ts, list_id),
-    )
-    cursor.execute(
-        "UPDATE lists SET _deleted = 1, updated_at = ? WHERE id = ?",
-        (ts, list_id),
-    )
-    cursor.execute("DELETE FROM history WHERE list_id = ?", (list_id,))
+    with db:
+        cursor.execute(
+            "UPDATE items SET _deleted = 1, updated_at = ? WHERE list_id = ? AND _deleted = 0",
+            (ts, list_id),
+        )
+        cursor.execute(
+            "UPDATE lists SET _deleted = 1, updated_at = ? WHERE id = ?",
+            (ts, list_id),
+        )
+        cursor.execute("DELETE FROM history WHERE list_id = ?", (list_id,))
 
-    db.commit()
     broadcast_update("lists_changed")
     broadcast_sync("lists")
     broadcast_sync("items")

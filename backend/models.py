@@ -1,6 +1,6 @@
 """Pydantic request models and validation constants."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ListCreate(BaseModel):
@@ -52,6 +52,18 @@ class HistoryEntry(BaseModel):
     action: str = Field(..., max_length=50)
     item_text: str | None = Field(None, max_length=1000)
     timestamp: str | None = Field(None, max_length=30)
+
+
+class SyncChange(BaseModel):
+    """A single document change from an RxDB replication push.
+
+    RxDB sends camelCase JSON keys; aliases map them to snake_case attributes.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    new_document_state: dict = Field(alias="newDocumentState")
+    assumed_master_state: dict | None = Field(default=None, alias="assumedMasterState")
 
 
 class FrontendErrorReport(BaseModel):
