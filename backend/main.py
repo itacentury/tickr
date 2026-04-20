@@ -2,6 +2,14 @@
 
 Provides endpoints for managing todo lists, items, history tracking,
 and RxDB-compatible sync endpoints for offline-first replication.
+
+Deployment note — single-process only:
+    Rate-limit state (``rate_limit_store``) and request metrics
+    (``backend.metrics.collector``) live in process-local memory. Running
+    with multiple workers (``uvicorn --workers N``) silently breaks both:
+    each worker sees only its own slice of traffic. Deploy as a single
+    process, or move rate limiting to ``slowapi`` + Redis and metrics to
+    ``prometheus_client`` with a multiprocess directory.
 """
 
 import asyncio
@@ -127,8 +135,14 @@ MONITORING_PATHS = frozenset({"/api/v1/health", "/api/v1/metrics"})
 
 
 @app.middleware("http")
-async def access_log_middleware(request: Request, call_next) -> Response:
-    """Log method, path, status code, and duration for every request."""
+async def access_log_and_metrics_middleware(request: Request, call_next) -> Response:
+    """Wrap every request with one access log line and (non-monitoring) metrics.
+
+    Declared last so it becomes the outermost middleware — that way 429 responses
+    returned from ``rate_limit_middleware`` still pass through here and get
+    logged. One ``time.monotonic()`` pair serves both the log line and the
+    metrics sample, so we pay only one coroutine frame for both.
+    """
     client_ip = request.client.host if request.client else "unknown"
     method = request.method
     path = request.url.path
@@ -144,21 +158,8 @@ async def access_log_middleware(request: Request, call_next) -> Response:
     logger.info(
         '%s - "%s %s" %d %.1fms', client_ip, method, path, response.status_code, duration_ms
     )
-    return response
-
-
-@app.middleware("http")
-async def metrics_middleware(request: Request, call_next) -> Response:
-    """Record request count and response time for all non-monitoring requests."""
-    path = request.url.path
-
-    if path in MONITORING_PATHS:
-        return await call_next(request)
-
-    start = time.monotonic()
-    response = await call_next(request)
-    duration_ms = (time.monotonic() - start) * 1000
-    collector.record(request.method, path, response.status_code, duration_ms)
+    if path not in MONITORING_PATHS:
+        collector.record(method, path, response.status_code, duration_ms)
     return response
 
 

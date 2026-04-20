@@ -1,5 +1,6 @@
 """Tests for rate limiting and security headers middleware."""
 
+import logging
 import time
 
 from fastapi.testclient import TestClient
@@ -87,6 +88,43 @@ class TestRateLimit:
         assert resp.status_code == 200
         # All 5 original IPs + the test client should still be present
         assert len(rate_limit_store) >= 5
+
+
+class TestAccessLog:
+    """Tests for the merged access_log_and_metrics_middleware."""
+
+    def test_rate_limited_requests_are_access_logged(self, client, caplog):
+        """A 429 from the rate limiter must still appear in the access log."""
+        now = time.time()
+        rate_limit_store["testclient"] = [now] * RATE_LIMIT_REQUESTS
+
+        with caplog.at_level(logging.INFO, logger="backend.main"):
+            resp = client.get("/api/v1/settings")
+
+        assert resp.status_code == 429
+        matching = [
+            rec
+            for rec in caplog.records
+            if rec.name == "backend.main"
+            and "/api/v1/settings" in rec.getMessage()
+            and "429" in rec.getMessage()
+        ]
+        assert matching, "Expected a backend.main log record for the 429 response"
+
+    def test_successful_requests_are_access_logged(self, client, caplog):
+        """Normal 2xx traffic is logged with method, path, status, and duration."""
+        with caplog.at_level(logging.INFO, logger="backend.main"):
+            resp = client.get("/api/v1/settings")
+
+        assert resp.status_code == 200
+        matching = [
+            rec
+            for rec in caplog.records
+            if rec.name == "backend.main"
+            and "GET" in rec.getMessage()
+            and "/api/v1/settings" in rec.getMessage()
+        ]
+        assert matching, "Expected access log record for successful request"
 
 
 class TestSecurityHeaders:
