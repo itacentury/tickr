@@ -80,6 +80,33 @@ class TestCreateItem:
         resp = client.post(f"/api/v1/lists/{lst['id']}/items", json={"text": "x" * 1001})
         assert resp.status_code == 422
 
+    def test_create_item_rejects_empty_text(self, client, create_list):
+        """Empty text returns 422 via min_length=1."""
+        lst = create_list()
+        resp = client.post(f"/api/v1/lists/{lst['id']}/items", json={"text": ""})
+        assert resp.status_code == 422
+
+    def test_create_item_rejects_whitespace_text(self, client, create_list):
+        """Whitespace-only text is stripped and rejected."""
+        lst = create_list()
+        resp = client.post(f"/api/v1/lists/{lst['id']}/items", json={"text": "   "})
+        assert resp.status_code == 422
+
+    def test_create_item_strips_whitespace(self, client, create_list):
+        """Surrounding whitespace is stripped from the stored text."""
+        lst = create_list()
+        resp = client.post(f"/api/v1/lists/{lst['id']}/items", json={"text": "  buy milk  "})
+        assert resp.status_code == 200
+        assert resp.json()["text"] == "buy milk"
+
+    def test_response_omits_deleted_field(self, client, create_list, create_item):
+        """The `_deleted` column must not leak through GET /items."""
+        lst = create_list()
+        create_item(lst["id"])
+        resp = client.get(f"/api/v1/lists/{lst['id']}/items")
+        assert resp.status_code == 200
+        assert all("_deleted" not in entry for entry in resp.json())
+
 
 class TestUpdateItem:
     """Tests for PUT /api/v1/items/{item_id}."""

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 
 from ..database import get_db
 from ..errors import AppError, ErrorCode
-from ..models import VALID_LIST_SORT_OPTIONS, SettingsUpdate
+from ..models import VALID_LIST_SORT_OPTIONS, SettingsUpdate, SuccessResponse
 
 router = APIRouter(prefix="/api/v1")
 
@@ -20,7 +20,7 @@ def get_settings(db: sqlite3.Connection = Depends(get_db)):
     return {row["key"]: row["value"] for row in rows}
 
 
-@router.put("/settings")
+@router.put("/settings", response_model=SuccessResponse)
 def update_settings(settings_data: SettingsUpdate, db: sqlite3.Connection = Depends(get_db)):
     """Update app settings."""
     cursor = db.cursor()

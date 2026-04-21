@@ -8,14 +8,14 @@ from fastapi import APIRouter, Depends
 from ..database import get_db, new_uuid, now
 from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update
-from ..models import SORT_SQL, ItemCreate, ItemUpdate
+from ..models import SORT_SQL, ItemCreate, ItemResponse, ItemUpdate, SuccessResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1")
 
 
-@router.get("/lists/{list_id}/items")
+@router.get("/lists/{list_id}/items", response_model=list[ItemResponse])
 def get_items(
     list_id: str, include_completed: bool = False, db: sqlite3.Connection = Depends(get_db)
 ):
@@ -45,7 +45,7 @@ def get_items(
     return [dict(row) for row in rows]
 
 
-@router.post("/lists/{list_id}/items")
+@router.post("/lists/{list_id}/items", response_model=ItemResponse)
 def create_item(list_id: str, item_data: ItemCreate, db: sqlite3.Connection = Depends(get_db)):
     """Create a new item in a list and log to history."""
     cursor = db.cursor()
@@ -67,10 +67,18 @@ def create_item(list_id: str, item_data: ItemCreate, db: sqlite3.Connection = De
     broadcast_update("items_changed", list_id)
     broadcast_sync("items")
     logger.info("Created item '%s' (id=%s) in list id=%s", item_data.text, item_id, list_id)
-    return {"id": item_id, "list_id": list_id, "text": item_data.text, "completed": False}
+    return {
+        "id": item_id,
+        "list_id": list_id,
+        "text": item_data.text,
+        "completed": False,
+        "created_at": ts,
+        "updated_at": ts,
+        "completed_at": None,
+    }
 
 
-@router.put("/items/{item_id}")
+@router.put("/items/{item_id}", response_model=SuccessResponse)
 def update_item(item_id: str, item_data: ItemUpdate, db: sqlite3.Connection = Depends(get_db)):
     """Update item text and/or completion status with history logging."""
     cursor = db.cursor()
@@ -131,7 +139,7 @@ def update_item(item_id: str, item_data: ItemUpdate, db: sqlite3.Connection = De
     return {"success": True}
 
 
-@router.delete("/items/{item_id}")
+@router.delete("/items/{item_id}", response_model=SuccessResponse)
 def delete_item(item_id: str, undo: bool = False, db: sqlite3.Connection = Depends(get_db)):
     """Soft-delete an item and log to history."""
     cursor = db.cursor()

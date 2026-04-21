@@ -74,6 +74,29 @@ class TestCreateList:
         resp = client.post("/api/v1/lists", json={"name": "x" * 201})
         assert resp.status_code == 422
 
+    def test_create_list_rejects_empty_name(self, client):
+        """Empty string name returns 422 via min_length=1."""
+        resp = client.post("/api/v1/lists", json={"name": ""})
+        assert resp.status_code == 422
+
+    def test_create_list_rejects_whitespace_name(self, client):
+        """Whitespace-only name is stripped to empty and rejected."""
+        resp = client.post("/api/v1/lists", json={"name": "   "})
+        assert resp.status_code == 422
+
+    def test_create_list_strips_whitespace(self, client):
+        """Surrounding whitespace is stripped from the stored name."""
+        resp = client.post("/api/v1/lists", json={"name": "  Padded  "})
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "Padded"
+
+    def test_response_omits_deleted_field(self, client, create_list):
+        """The `_deleted` column must not leak through GET /lists."""
+        create_list()
+        resp = client.get("/api/v1/lists")
+        assert resp.status_code == 200
+        assert all("_deleted" not in entry for entry in resp.json())
+
 
 class TestUpdateList:
     """Tests for PUT /api/v1/lists/{list_id}."""

@@ -8,14 +8,21 @@ from fastapi import APIRouter, Depends
 from ..database import get_db, new_uuid, now
 from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update
-from ..models import VALID_SORT_OPTIONS, ListCreate, ListReorder, ListUpdate
+from ..models import (
+    VALID_SORT_OPTIONS,
+    ListCreate,
+    ListReorder,
+    ListResponse,
+    ListUpdate,
+    SuccessResponse,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1")
 
 
-@router.get("/lists")
+@router.get("/lists", response_model=list[ListResponse])
 def get_lists(db: sqlite3.Connection = Depends(get_db)):
     """Return all non-deleted lists with item counts, sorted according to settings."""
     cursor = db.cursor()
@@ -47,7 +54,7 @@ def get_lists(db: sqlite3.Connection = Depends(get_db)):
     return [dict(row) for row in rows]
 
 
-@router.post("/lists")
+@router.post("/lists", response_model=ListResponse)
 def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db)):
     """Create a new list and log to history."""
     cursor = db.cursor()
@@ -58,9 +65,9 @@ def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db))
     next_sort_order = cursor.fetchone()[0]
 
     cursor.execute(
-        "INSERT INTO lists (id, name, icon, sort_order, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (list_id, list_data.name, list_data.icon, next_sort_order, ts, ts),
+        "INSERT INTO lists (id, name, icon, item_sort, sort_order, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (list_id, list_data.name, list_data.icon, "alphabetical", next_sort_order, ts, ts),
     )
 
     if not list_data.undo:
@@ -73,10 +80,18 @@ def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db))
     broadcast_update("lists_changed")
     broadcast_sync("lists")
     logger.info("Created list '%s' (id=%s)", list_data.name, list_id)
-    return {"id": list_id, "name": list_data.name, "icon": list_data.icon}
+    return {
+        "id": list_id,
+        "name": list_data.name,
+        "icon": list_data.icon,
+        "item_sort": "alphabetical",
+        "sort_order": next_sort_order,
+        "created_at": ts,
+        "updated_at": ts,
+    }
 
 
-@router.put("/lists/{list_id}")
+@router.put("/lists/{list_id}", response_model=SuccessResponse)
 def update_list(list_id: str, list_data: ListUpdate, db: sqlite3.Connection = Depends(get_db)):
     """Update list name, icon, and/or sorting preference."""
     cursor = db.cursor()
@@ -110,7 +125,7 @@ def update_list(list_id: str, list_data: ListUpdate, db: sqlite3.Connection = De
     return {"success": True}
 
 
-@router.delete("/lists/{list_id}")
+@router.delete("/lists/{list_id}", response_model=SuccessResponse)
 def delete_list(list_id: str, db: sqlite3.Connection = Depends(get_db)):
     """Soft-delete a list and its items."""
     cursor = db.cursor()
@@ -134,7 +149,7 @@ def delete_list(list_id: str, db: sqlite3.Connection = Depends(get_db)):
     return {"success": True}
 
 
-@router.post("/lists/reorder")
+@router.post("/lists/reorder", response_model=SuccessResponse)
 def reorder_lists(reorder_data: ListReorder, db: sqlite3.Connection = Depends(get_db)):
     """Update the sort order of lists based on provided order."""
     cursor = db.cursor()
