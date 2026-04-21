@@ -4,6 +4,7 @@ import re
 import time
 from collections import defaultdict, deque
 from threading import Lock
+from typing import Any
 
 from .config import MAX_SSE_CLIENTS
 from .events import get_connection_counts
@@ -17,7 +18,7 @@ _STATIC_FILE_RE = re.compile(r"(/static/).*")
 # Paths hit most frequently that never carry dynamic segments — skip regex entirely.
 # Keep this list tight: only paths that are guaranteed dynamic-free belong here.
 # For everything else the cheap `"-" not in path` prefilter handles the common case.
-_FAST_PATHS = frozenset(
+_FAST_PATHS: frozenset[str] = frozenset(
     {
         "/api/v1/health",
         "/api/v1/metrics",
@@ -27,7 +28,7 @@ _FAST_PATHS = frozenset(
 )
 
 # How long a computed percentile snapshot may be served from cache.
-_PERCENTILE_CACHE_TTL = 1.0
+_PERCENTILE_CACHE_TTL: float = 1.0
 
 
 class MetricsCollector:
@@ -38,15 +39,15 @@ class MetricsCollector:
     """
 
     def __init__(self, max_samples: int = 10_000) -> None:
-        self._lock = Lock()
-        self._started_at = time.time()
-        self.total_requests = 0
+        self._lock: Lock = Lock()
+        self._started_at: float = time.time()
+        self.total_requests: int = 0
         self.by_method: dict[str, int] = defaultdict(int)
         self.by_status: dict[str, int] = defaultdict(int)
         self.by_path: dict[str, int] = defaultdict(int)
         self._response_times: deque[tuple[float, float]] = deque(maxlen=max_samples)
         # (monotonic_computed_at, window_seconds, snapshot_dict)
-        self._percentile_cache: tuple[float, int, dict] | None = None
+        self._percentile_cache: tuple[float, int, dict[str, Any]] | None = None
 
     def record(self, method: str, path: str, status_code: int, duration_ms: float) -> None:
         """Record a single request's metrics.
@@ -57,8 +58,8 @@ class MetricsCollector:
             status_code: HTTP response status code.
             duration_ms: Request duration in milliseconds.
         """
-        normalized = self._normalize_path(path)
-        now = time.time()
+        normalized: str = self._normalize_path(path)
+        now: float = time.time()
 
         with self._lock:
             self.total_requests += 1
@@ -83,7 +84,7 @@ class MetricsCollector:
         path = _STATIC_FILE_RE.sub(r"\1{file}", path)
         return path
 
-    def get_percentiles(self, window_seconds: int = 300) -> dict:
+    def get_percentiles(self, window_seconds: int = 300) -> dict[str, Any]:
         """Compute response time percentiles over a recent time window.
 
         Results are cached for ``_PERCENTILE_CACHE_TTL`` seconds per window so
@@ -91,7 +92,7 @@ class MetricsCollector:
         buffer on every call.
         """
         with self._lock:
-            cached = self._percentile_cache
+            cached: tuple[float, int, dict[str, Any]] | None = self._percentile_cache
             if (
                 cached is not None
                 and cached[1] == window_seconds
@@ -99,14 +100,14 @@ class MetricsCollector:
             ):
                 return dict(cached[2])
 
-            snapshot = self._compute_percentiles_locked(window_seconds)
+            snapshot: dict[str, Any] = self._compute_percentiles_locked(window_seconds)
             self._percentile_cache = (time.monotonic(), window_seconds, snapshot)
             return dict(snapshot)
 
-    def _compute_percentiles_locked(self, window_seconds: int) -> dict:
+    def _compute_percentiles_locked(self, window_seconds: int) -> dict[str, Any]:
         """Compute percentile snapshot; caller must hold ``self._lock``."""
-        cutoff = time.time() - window_seconds
-        samples = [d for ts, d in self._response_times if ts > cutoff]
+        cutoff: float = time.time() - window_seconds
+        samples: list[float] = [d for timestamp, d in self._response_times if timestamp > cutoff]
 
         if not samples:
             return {
@@ -121,7 +122,7 @@ class MetricsCollector:
             }
 
         samples.sort()
-        n = len(samples)
+        n: int = len(samples)
         return {
             "p50_ms": round(samples[n * 50 // 100], 2),
             "p95_ms": round(samples[n * 95 // 100 - 1] if n >= 20 else samples[-1], 2),
@@ -133,12 +134,12 @@ class MetricsCollector:
             "window_seconds": window_seconds,
         }
 
-    def get_snapshot(self) -> dict:
+    def get_snapshot(self) -> dict[str, Any]:
         """Build a full metrics snapshot including request counters, percentiles, and SSE gauges."""
-        now = time.time()
+        now: float = time.time()
 
         with self._lock:
-            requests = {
+            requests: dict[str, Any] = {
                 "total": self.total_requests,
                 "by_method": dict(self.by_method),
                 "by_status": dict(self.by_status),
@@ -154,4 +155,4 @@ class MetricsCollector:
         }
 
 
-collector = MetricsCollector()
+collector: MetricsCollector = MetricsCollector()

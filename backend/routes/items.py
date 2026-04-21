@@ -18,16 +18,16 @@ router = APIRouter(prefix="/api/v1")
 @router.get("/lists/{list_id}/items", response_model=list[ItemResponse])
 def get_items(
     list_id: str, include_completed: bool = False, db: sqlite3.Connection = Depends(get_db)
-):
+) -> list[dict]:
     """Return non-deleted items for a list, sorted according to list settings."""
-    cursor = db.cursor()
+    cursor: sqlite3.Cursor = db.cursor()
 
     cursor.execute("SELECT item_sort FROM lists WHERE id = ? AND _deleted = 0", (list_id,))
-    row = cursor.fetchone()
+    row: sqlite3.Row | None = cursor.fetchone()
     if row is None:
         raise AppError(ErrorCode.LIST_NOT_FOUND, "List not found", 404)
-    sort_option = row["item_sort"] if row["item_sort"] else "alphabetical"
-    order_by = SORT_SQL.get(sort_option, SORT_SQL["alphabetical"])
+    sort_option: str = row["item_sort"] if row["item_sort"] else "alphabetical"
+    order_by: str = SORT_SQL.get(sort_option, SORT_SQL["alphabetical"])
 
     if include_completed:
         cursor.execute(
@@ -41,7 +41,7 @@ def get_items(
             f"ORDER BY {order_by}",
             (list_id,),
         )
-    rows = cursor.fetchall()
+    rows: list[sqlite3.Row] = cursor.fetchall()
     return [dict(row) for row in rows]
 
 
@@ -51,15 +51,15 @@ def create_item(
     item_data: ItemCreate,
     bg: BackgroundTasks,
     db: sqlite3.Connection = Depends(get_db),
-):
+) -> dict:
     """Create a new item in a list and log to history."""
-    cursor = db.cursor()
-    ts = now()
-    item_id = new_uuid()
+    cursor: sqlite3.Cursor = db.cursor()
+    timestamp: str = now()
+    item_id: str = new_uuid()
 
     cursor.execute(
         "INSERT INTO items (id, list_id, text, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        (item_id, list_id, item_data.text, ts, ts),
+        (item_id, list_id, item_data.text, timestamp, timestamp),
     )
 
     if not item_data.undo:
@@ -77,8 +77,8 @@ def create_item(
         "list_id": list_id,
         "text": item_data.text,
         "completed": False,
-        "created_at": ts,
-        "updated_at": ts,
+        "created_at": timestamp,
+        "updated_at": timestamp,
         "completed_at": None,
     }
 
@@ -89,19 +89,19 @@ def update_item(
     item_data: ItemUpdate,
     bg: BackgroundTasks,
     db: sqlite3.Connection = Depends(get_db),
-):
+) -> dict:
     """Update item text and/or completion status with history logging."""
-    cursor = db.cursor()
+    cursor: sqlite3.Cursor = db.cursor()
 
     cursor.execute("SELECT * FROM items WHERE id = ? AND _deleted = 0", (item_id,))
-    item = cursor.fetchone()
+    item: sqlite3.Row | None = cursor.fetchone()
     if not item:
         logger.warning("Item id=%s not found for update", item_id)
         raise AppError(ErrorCode.ITEM_NOT_FOUND, "Item not found", 404)
 
-    ts = now()
+    timestamp: str = now()
     updates: list[str] = ["updated_at = ?"]
-    values: list[str | int | bool] = [ts]
+    values: list[str | int | bool] = [timestamp]
 
     if item_data.text is not None and item_data.text != item["text"]:
         updates.append("text = ?")
@@ -118,7 +118,7 @@ def update_item(
         values.append(item_data.completed)
         if item_data.completed:
             updates.append("completed_at = ?")
-            values.append(ts)
+            values.append(timestamp)
 
             if not item_data.undo:
                 cursor.execute(
@@ -155,14 +155,14 @@ def delete_item(
     bg: BackgroundTasks,
     undo: bool = False,
     db: sqlite3.Connection = Depends(get_db),
-):
+) -> dict:
     """Soft-delete an item and log to history."""
-    cursor = db.cursor()
-    ts = now()
+    cursor: sqlite3.Cursor = db.cursor()
+    timestamp: str = now()
 
     cursor.execute("SELECT * FROM items WHERE id = ? AND _deleted = 0", (item_id,))
-    item = cursor.fetchone()
-    list_id = item["list_id"] if item else None
+    item: sqlite3.Row | None = cursor.fetchone()
+    list_id: str | None = item["list_id"] if item else None
 
     if item and not undo:
         cursor.execute(
@@ -172,7 +172,7 @@ def delete_item(
 
     cursor.execute(
         "UPDATE items SET _deleted = 1, updated_at = ? WHERE id = ?",
-        (ts, item_id),
+        (timestamp, item_id),
     )
     db.commit()
 

@@ -1,5 +1,6 @@
 """RxDB-compatible sync endpoints for offline-first replication."""
 
+import asyncio
 import logging
 import sqlite3
 from collections.abc import Callable
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/sync")
 
 
-HistoryLogger = Callable[[sqlite3.Cursor, dict | None, dict], None]
+HistoryLogger = Callable[[sqlite3.Cursor, dict[str, Any] | None, dict[str, Any]], None]
 
 
 @dataclass(frozen=True)
@@ -69,27 +70,27 @@ class CollectionSpec:
 
 def _list_defaults() -> dict[str, Any]:
     """Defaults for a fresh ``lists`` document (timestamps computed per call)."""
-    ts = now()
+    timestamp: str = now()
     return {
         "name": "",
         "icon": "list",
         "item_sort": "alphabetical",
         "sort_order": 0,
-        "created_at": ts,
-        "updated_at": ts,
+        "created_at": timestamp,
+        "updated_at": timestamp,
         "_deleted": 0,
     }
 
 
 def _item_defaults() -> dict[str, Any]:
     """Defaults for a fresh ``items`` document (timestamps computed per call)."""
-    ts = now()
+    timestamp: str = now()
     return {
         "list_id": "",
         "text": "",
         "completed": 0,
-        "created_at": ts,
-        "updated_at": ts,
+        "created_at": timestamp,
+        "updated_at": timestamp,
         "completed_at": None,
         "_deleted": 0,
     }
@@ -109,13 +110,21 @@ def _insert_history(
     )
 
 
-def _log_list_history(cursor: sqlite3.Cursor, current: dict | None, new_state: dict) -> None:
+def _log_list_history(
+    cursor: sqlite3.Cursor,
+    current: dict[str, Any] | None,
+    new_state: dict[str, Any],
+) -> None:
     """Log list_created on initial insert of a non-deleted list."""
     if current is None and not new_state.get("_deleted"):
         _insert_history(cursor, new_state["id"], None, "list_created", new_state.get("name"))
 
 
-def _log_item_history(cursor: sqlite3.Cursor, current: dict | None, new_state: dict) -> None:
+def _log_item_history(
+    cursor: sqlite3.Cursor,
+    current: dict[str, Any] | None,
+    new_state: dict[str, Any],
+) -> None:
     """Log item lifecycle events derived from the diff between current and new state."""
     list_id: str | None = new_state.get("list_id") or (current or {}).get("list_id")
     item_id: str = new_state["id"]
@@ -195,7 +204,7 @@ COLLECTIONS: dict[str, CollectionSpec] = {
 
 def _require_spec(collection: str) -> CollectionSpec:
     """Return the spec for ``collection`` or raise 400 if unknown."""
-    spec = COLLECTIONS.get(collection)
+    spec: CollectionSpec | None = COLLECTIONS.get(collection)
     if spec is None:
         raise AppError(ErrorCode.INVALID_COLLECTION, "Invalid collection", 400)
     return spec
@@ -222,24 +231,26 @@ def _pull_docs(
     return cursor.fetchall()
 
 
-def _resolve_values(spec: CollectionSpec, doc: dict, fields: tuple[str, ...]) -> tuple[Any, ...]:
+def _resolve_values(
+    spec: CollectionSpec, doc: dict[str, Any], fields: tuple[str, ...]
+) -> tuple[Any, ...]:
     """Pick ``fields`` from ``doc`` in order, filling gaps from ``spec.defaults()``."""
-    defaults = spec.defaults()
+    defaults: dict[str, Any] = spec.defaults()
     return tuple(doc.get(f, defaults.get(f)) for f in fields)
 
 
-def _insert_doc(cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict) -> None:
+def _insert_doc(cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict[str, Any]) -> None:
     """Insert a new document into the collection described by ``spec``."""
     cursor.execute(spec.insert_sql, _resolve_values(spec, doc, spec.insert_fields))
 
 
-def _update_doc(cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict) -> None:
+def _update_doc(cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict[str, Any]) -> None:
     """Update an existing document; ``id`` is appended as the WHERE parameter."""
-    values = _resolve_values(spec, doc, spec.update_fields)
+    values: tuple[Any, ...] = _resolve_values(spec, doc, spec.update_fields)
     cursor.execute(spec.update_sql, (*values, doc["id"]))
 
 
-def _states_match(current: dict, assumed: dict) -> bool:
+def _states_match(current: dict[str, Any], assumed: dict[str, Any]) -> bool:
     """Check if current server state matches the client's assumed state."""
     return current.get("updated_at") == assumed.get("updated_at")
 
@@ -251,17 +262,17 @@ def sync_pull(
     id: str | None = None,
     limit: int = 100,
     db: sqlite3.Connection = Depends(get_db),
-):
+) -> dict[str, Any]:
     """Pull documents newer than the given checkpoint for RxDB replication."""
-    spec = _require_spec(collection)
-    cursor = db.cursor()
+    spec: CollectionSpec = _require_spec(collection)
+    cursor: sqlite3.Cursor = db.cursor()
 
-    rows = _pull_docs(cursor, spec, updated_at, id, limit)
-    documents = [dict(row) for row in rows]
+    rows: list[sqlite3.Row] = _pull_docs(cursor, spec, updated_at, id, limit)
+    documents: list[dict[str, Any]] = [dict(row) for row in rows]
 
-    checkpoint = None
+    checkpoint: dict[str, Any] | None = None
     if documents:
-        last = documents[-1]
+        last: dict[str, Any] = documents[-1]
         checkpoint = {"updatedAt": last["updated_at"], "id": last["id"]}
 
     return {"documents": documents, "checkpoint": checkpoint}
@@ -273,27 +284,27 @@ def sync_push(
     bg: BackgroundTasks,
     changes: list[SyncChange] = Body(..., max_length=500),
     db: sqlite3.Connection = Depends(get_db),
-):
+) -> list[dict[str, Any]]:
     """Push local changes to the server for RxDB replication.
 
     Each change contains newDocumentState and optionally assumedMasterState.
     Returns an array of conflicts (empty means success).
     """
-    spec = _require_spec(collection)
-    cursor = db.cursor()
-    conflicts: list[dict] = []
+    spec: CollectionSpec = _require_spec(collection)
+    cursor: sqlite3.Cursor = db.cursor()
+    conflicts: list[dict[str, Any]] = []
 
     with db:
         for change in changes:
-            new_state = change.new_document_state
-            assumed = change.assumed_master_state
+            new_state: dict[str, Any] = change.new_document_state
+            assumed: dict[str, Any] | None = change.assumed_master_state
 
             if "id" not in new_state:
                 raise AppError(ErrorCode.VALIDATION_ERROR, "newDocumentState.id missing", 422)
-            doc_id = new_state["id"]
+            doc_id: str = new_state["id"]
 
-            current = _select_doc(cursor, spec, doc_id)
-            current_dict = dict(current) if current else None
+            current: sqlite3.Row | None = _select_doc(cursor, spec, doc_id)
+            current_dict: dict[str, Any] | None = dict(current) if current else None
 
             try:
                 if assumed is None:
@@ -319,7 +330,7 @@ def sync_push(
                 logger.warning(
                     "Integrity error in sync_push for %s/%s: %s", collection, doc_id, exc
                 )
-                refreshed = _select_doc(cursor, spec, doc_id)
+                refreshed: sqlite3.Row | None = _select_doc(cursor, spec, doc_id)
                 if refreshed:
                     conflicts.append(dict(refreshed))
                 else:
@@ -335,7 +346,7 @@ def sync_push(
 @router.get("/stream")
 async def sync_stream() -> StreamingResponse:
     """SSE stream that notifies clients when collections change."""
-    queue = await sync_broadcaster.register()
+    queue: asyncio.Queue[str] = await sync_broadcaster.register()
     return StreamingResponse(
         sync_broadcaster.stream(queue, heartbeat=SSE_HEARTBEAT_INTERVAL),
         media_type="text/event-stream",

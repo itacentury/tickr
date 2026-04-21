@@ -6,6 +6,7 @@ in the shape ``{"error": {"code": "...", "message": "...", "status": ...}}``.
 """
 
 from enum import StrEnum
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -35,6 +36,10 @@ class AppError(Exception):
         status_code: The HTTP status code for the response.
     """
 
+    code: ErrorCode
+    message: str
+    status_code: int
+
     def __init__(self, code: ErrorCode, message: str, status_code: int) -> None:
         self.code = code
         self.message = message
@@ -42,7 +47,7 @@ class AppError(Exception):
         super().__init__(message)
 
 
-def _error_body(code: str, message: str, status: int) -> dict:
+def _error_body(code: str, message: str, status: int) -> dict[str, Any]:
     """Build the canonical error response body."""
     return {"error": {"code": code, "message": message, "status": status}}
 
@@ -59,7 +64,7 @@ async def _app_error_handler(_request: Request, exc: Exception) -> JSONResponse:
 async def _validation_error_handler(_request: Request, exc: Exception) -> JSONResponse:
     """Handle Pydantic validation errors with structured JSON and field details."""
     assert isinstance(exc, RequestValidationError)
-    details = []
+    details: list[dict[str, Any]] = []
     for err in exc.errors():
         details.append(
             {
@@ -69,7 +74,7 @@ async def _validation_error_handler(_request: Request, exc: Exception) -> JSONRe
             }
         )
 
-    body = _error_body(ErrorCode.VALIDATION_ERROR, "Validation error", 422)
+    body: dict[str, Any] = _error_body(ErrorCode.VALIDATION_ERROR, "Validation error", 422)
     body["error"]["details"] = details
     return JSONResponse(status_code=422, content=body)
 

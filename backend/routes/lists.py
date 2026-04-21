@@ -23,22 +23,22 @@ router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/lists", response_model=list[ListResponse])
-def get_lists(db: sqlite3.Connection = Depends(get_db)):
+def get_lists(db: sqlite3.Connection = Depends(get_db)) -> list[dict]:
     """Return all non-deleted lists with item counts, sorted according to settings."""
-    cursor = db.cursor()
+    cursor: sqlite3.Cursor = db.cursor()
 
     cursor.execute("SELECT value FROM settings WHERE key = 'list_sort'")
-    row = cursor.fetchone()
-    list_sort = row["value"] if row else "alphabetical"
+    row: sqlite3.Row | None = cursor.fetchone()
+    list_sort: str = row["value"] if row else "alphabetical"
 
-    list_sort_sql = {
+    list_sort_sql: dict[str, str] = {
         "alphabetical": "l.name COLLATE NOCASE ASC",
         "alphabetical_desc": "l.name COLLATE NOCASE DESC",
         "created_desc": "l.created_at DESC",
         "created_asc": "l.created_at ASC",
         "custom": "l.sort_order, l.created_at",
     }
-    order_by = list_sort_sql.get(list_sort, list_sort_sql["alphabetical"])
+    order_by: str = list_sort_sql.get(list_sort, list_sort_sql["alphabetical"])
 
     cursor.execute(f"""
         SELECT l.*,
@@ -50,7 +50,7 @@ def get_lists(db: sqlite3.Connection = Depends(get_db)):
         GROUP BY l.id
         ORDER BY {order_by}
     """)
-    rows = cursor.fetchall()
+    rows: list[sqlite3.Row] = cursor.fetchall()
     return [dict(row) for row in rows]
 
 
@@ -59,19 +59,27 @@ def create_list(
     list_data: ListCreate,
     bg: BackgroundTasks,
     db: sqlite3.Connection = Depends(get_db),
-):
+) -> dict:
     """Create a new list and log to history."""
-    cursor = db.cursor()
-    ts = now()
-    list_id = new_uuid()
+    cursor: sqlite3.Cursor = db.cursor()
+    timestamp: str = now()
+    list_id: str = new_uuid()
 
     cursor.execute("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM lists WHERE _deleted = 0")
-    next_sort_order = cursor.fetchone()[0]
+    next_sort_order: int = cursor.fetchone()[0]
 
     cursor.execute(
         "INSERT INTO lists (id, name, icon, item_sort, sort_order, created_at, updated_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (list_id, list_data.name, list_data.icon, "alphabetical", next_sort_order, ts, ts),
+        (
+            list_id,
+            list_data.name,
+            list_data.icon,
+            "alphabetical",
+            next_sort_order,
+            timestamp,
+            timestamp,
+        ),
     )
 
     if not list_data.undo:
@@ -90,8 +98,8 @@ def create_list(
         "icon": list_data.icon,
         "item_sort": "alphabetical",
         "sort_order": next_sort_order,
-        "created_at": ts,
-        "updated_at": ts,
+        "created_at": timestamp,
+        "updated_at": timestamp,
     }
 
 
@@ -101,9 +109,9 @@ def update_list(
     list_data: ListUpdate,
     bg: BackgroundTasks,
     db: sqlite3.Connection = Depends(get_db),
-):
+) -> dict:
     """Update list name, icon, and/or sorting preference."""
-    cursor = db.cursor()
+    cursor: sqlite3.Cursor = db.cursor()
 
     if list_data.item_sort is not None and list_data.item_sort not in VALID_SORT_OPTIONS:
         raise AppError(
@@ -139,19 +147,19 @@ def delete_list(
     list_id: str,
     bg: BackgroundTasks,
     db: sqlite3.Connection = Depends(get_db),
-):
+) -> dict:
     """Soft-delete a list and its items."""
-    cursor = db.cursor()
-    ts = now()
+    cursor: sqlite3.Cursor = db.cursor()
+    timestamp: str = now()
 
     with db:
         cursor.execute(
             "UPDATE items SET _deleted = 1, updated_at = ? WHERE list_id = ? AND _deleted = 0",
-            (ts, list_id),
+            (timestamp, list_id),
         )
         cursor.execute(
             "UPDATE lists SET _deleted = 1, updated_at = ? WHERE id = ?",
-            (ts, list_id),
+            (timestamp, list_id),
         )
         cursor.execute("DELETE FROM history WHERE list_id = ?", (list_id,))
 
@@ -167,15 +175,15 @@ def reorder_lists(
     reorder_data: ListReorder,
     bg: BackgroundTasks,
     db: sqlite3.Connection = Depends(get_db),
-):
+) -> dict:
     """Update the sort order of lists based on provided order."""
-    cursor = db.cursor()
-    ts = now()
+    cursor: sqlite3.Cursor = db.cursor()
+    timestamp: str = now()
 
     for idx, list_id in enumerate(reorder_data.list_ids):
         cursor.execute(
             "UPDATE lists SET sort_order = ?, updated_at = ? WHERE id = ?",
-            (idx, ts, list_id),
+            (idx, timestamp, list_id),
         )
 
     db.commit()

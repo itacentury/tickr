@@ -3,6 +3,7 @@
 import logging
 import sqlite3
 import uuid
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
@@ -57,9 +58,9 @@ CREATE INDEX IF NOT EXISTS idx_lists_updated ON lists(updated_at, id);
 """
 
 
-def get_db():
+def get_db() -> Iterator[sqlite3.Connection]:
     """Yield a database connection for dependency injection."""
-    conn = sqlite3.connect(DATABASE, check_same_thread=False)
+    conn: sqlite3.Connection = sqlite3.connect(DATABASE, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA busy_timeout = 5000")
@@ -103,13 +104,13 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout = 5000")
     logger.info("WAL mode enabled")
-    cursor = conn.cursor()
+    cursor: sqlite3.Cursor = conn.cursor()
 
     # Check if migration from INTEGER to TEXT PKs is needed
     cursor.execute("PRAGMA table_info(lists)")
-    list_cols = {row[1]: row[2] for row in cursor.fetchall()}
+    list_cols: dict[str, str] = {row[1]: row[2] for row in cursor.fetchall()}
 
-    needs_uuid_migration = list_cols.get("id") == "INTEGER"
+    needs_uuid_migration: bool = list_cols.get("id") == "INTEGER"
 
     if needs_uuid_migration and list_cols:
         logger.info("Migrating database: INTEGER PKs -> UUID TEXT PKs")
@@ -123,7 +124,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
 
     # Settings table
     cursor.execute("PRAGMA table_info(settings)")
-    settings_columns = [row[1] for row in cursor.fetchall()]
+    settings_columns: list[str] = [row[1] for row in cursor.fetchall()]
     if settings_columns and "key" not in settings_columns:
         logger.info("Migrating database: recreating settings table with new schema")
         cursor.execute("DROP TABLE settings")
@@ -143,12 +144,12 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
     cursor.execute("SELECT COUNT(*) FROM lists WHERE _deleted = 0")
     if cursor.fetchone()[0] == 0:
         logger.info("Empty database detected, inserting default list")
-        ts = now()
-        list_id = new_uuid()
+        timestamp: str = now()
+        list_id: str = new_uuid()
         cursor.execute(
             "INSERT INTO lists (id, name, icon, item_sort, sort_order, created_at, updated_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (list_id, "Todos", "check", "alphabetical", 0, ts, ts),
+            (list_id, "Todos", "check", "alphabetical", 0, timestamp, timestamp),
         )
 
     conn.commit()
@@ -164,12 +165,12 @@ def _create_tables_fresh(conn: sqlite3.Connection) -> None:
 
 def _migrate_to_uuid(conn: sqlite3.Connection) -> None:
     """Migrate existing INTEGER PK tables to TEXT UUID primary keys."""
-    cursor = conn.cursor()
-    ts = now()
+    cursor: sqlite3.Cursor = conn.cursor()
+    timestamp: str = now()
 
     # Build ID mapping for lists
     cursor.execute("SELECT id, name, icon, item_sort, sort_order, created_at FROM lists")
-    old_lists = cursor.fetchall()
+    old_lists: list[sqlite3.Row] = cursor.fetchall()
     list_id_map: dict[int, str] = {}
 
     cursor.execute("DROP TABLE IF EXISTS lists_new")
@@ -187,10 +188,10 @@ def _migrate_to_uuid(conn: sqlite3.Connection) -> None:
     """)
 
     for row in old_lists:
-        old_id = row[0]
-        new_id = new_uuid()
+        old_id: int = row[0]
+        new_id: str = new_uuid()
         list_id_map[old_id] = new_id
-        created_at = row[5] if row[5] else ts
+        created_at: str = row[5] if row[5] else timestamp
         cursor.execute(
             "INSERT INTO lists_new (id, name, icon, item_sort, sort_order, created_at, updated_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -201,13 +202,13 @@ def _migrate_to_uuid(conn: sqlite3.Connection) -> None:
                 row[3] or "alphabetical",
                 row[4] or 0,
                 created_at,
-                ts,
+                timestamp,
             ),
         )
 
     # Build ID mapping for items
     cursor.execute("SELECT id, list_id, text, completed, created_at, completed_at FROM items")
-    old_items = cursor.fetchall()
+    old_items: list[sqlite3.Row] = cursor.fetchall()
     item_id_map: dict[int, str] = {}
 
     cursor.execute("DROP TABLE IF EXISTS items_new")
@@ -226,23 +227,23 @@ def _migrate_to_uuid(conn: sqlite3.Connection) -> None:
     """)
 
     for row in old_items:
-        old_id = row[0]
-        new_id = new_uuid()
-        item_id_map[old_id] = new_id
-        new_list_id = list_id_map.get(row[1])
+        old_id_item: int = row[0]
+        new_id_item: str = new_uuid()
+        item_id_map[old_id_item] = new_id_item
+        new_list_id: str | None = list_id_map.get(row[1])
         if not new_list_id:
             continue
-        created_at = row[4] if row[4] else ts
+        created_at_item: str = row[4] if row[4] else timestamp
         cursor.execute(
             "INSERT INTO items_new "
             "(id, list_id, text, completed, created_at, updated_at, completed_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (new_id, new_list_id, row[2], row[3] or 0, created_at, ts, row[5]),
+            (new_id_item, new_list_id, row[2], row[3] or 0, created_at_item, timestamp, row[5]),
         )
 
     # Migrate history
     cursor.execute("SELECT id, list_id, item_id, action, item_text, timestamp FROM history")
-    old_history = cursor.fetchall()
+    old_history: list[sqlite3.Row] = cursor.fetchall()
 
     cursor.execute("DROP TABLE IF EXISTS history_new")
     cursor.execute("""
@@ -258,14 +259,14 @@ def _migrate_to_uuid(conn: sqlite3.Connection) -> None:
     """)
 
     for row in old_history:
-        new_list_id = list_id_map.get(row[1])
-        if not new_list_id:
+        new_list_id_hist: str | None = list_id_map.get(row[1])
+        if not new_list_id_hist:
             continue
-        new_item_id = item_id_map.get(row[2]) if row[2] else None
+        new_item_id: str | None = item_id_map.get(row[2]) if row[2] else None
         cursor.execute(
             "INSERT INTO history_new (list_id, item_id, action, item_text, timestamp) "
             "VALUES (?, ?, ?, ?, ?)",
-            (new_list_id, new_item_id, row[3], row[4], row[5]),
+            (new_list_id_hist, new_item_id, row[3], row[4], row[5]),
         )
 
     # Swap tables
@@ -287,11 +288,11 @@ def _migrate_to_uuid(conn: sqlite3.Connection) -> None:
 
 def _ensure_columns(conn: sqlite3.Connection) -> None:
     """Add any missing columns to existing UUID-based tables."""
-    cursor = conn.cursor()
-    timestamp = now()
+    cursor: sqlite3.Cursor = conn.cursor()
+    timestamp: str = now()
 
     cursor.execute("PRAGMA table_info(lists)")
-    list_cols = [row[1] for row in cursor.fetchall()]
+    list_cols: list[str] = [row[1] for row in cursor.fetchall()]
     if "updated_at" not in list_cols:
         cursor.execute("ALTER TABLE lists ADD COLUMN updated_at TEXT")
         cursor.execute("UPDATE lists SET updated_at = ? WHERE updated_at IS NULL", (timestamp))
@@ -303,7 +304,7 @@ def _ensure_columns(conn: sqlite3.Connection) -> None:
         cursor.execute("ALTER TABLE lists ADD COLUMN sort_order INTEGER DEFAULT 0")
 
     cursor.execute("PRAGMA table_info(items)")
-    item_cols = [row[1] for row in cursor.fetchall()]
+    item_cols: list[str] = [row[1] for row in cursor.fetchall()]
     if "updated_at" not in item_cols:
         cursor.execute("ALTER TABLE items ADD COLUMN updated_at TEXT")
         cursor.execute("UPDATE items SET updated_at = ? WHERE updated_at IS NULL", (timestamp,))
@@ -315,7 +316,7 @@ def _ensure_columns(conn: sqlite3.Connection) -> None:
 
 def _ensure_indexes(conn: sqlite3.Connection) -> None:
     """Create indexes on sync hot paths. Idempotent — safe to call repeatedly."""
-    cursor = conn.cursor()
+    cursor: sqlite3.Cursor = conn.cursor()
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_items_list_id ON items(list_id, _deleted)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_items_updated ON items(updated_at, id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_lists_updated ON lists(updated_at, id)")

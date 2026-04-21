@@ -36,14 +36,14 @@ def create_backup(db_path: str, backup_dir: str = "data/backups", retain: int = 
     Returns:
         Path to the newly created backup file.
     """
-    backup_path = Path(backup_dir)
+    backup_path: Path = Path(backup_dir)
     backup_path.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    dest_file = backup_path / f"tickr_{timestamp}.db"
+    timestamp: str = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    dest_file: Path = backup_path / f"tickr_{timestamp}.db"
 
-    src = sqlite3.connect(db_path)
-    dst = sqlite3.connect(str(dest_file))
+    src: sqlite3.Connection = sqlite3.connect(db_path)
+    dst: sqlite3.Connection = sqlite3.connect(str(dest_file))
     try:
         src.backup(dst)
         logger.info("Backup created: %s", dest_file)
@@ -62,8 +62,8 @@ def _enforce_retention(backup_dir: Path, retain: int) -> None:
         backup_dir: Directory containing backup files.
         retain: Maximum number of backup files to keep.
     """
-    backups = sorted(backup_dir.glob("tickr_*.db"))
-    excess = backups[: len(backups) - retain]
+    backups: list[Path] = sorted(backup_dir.glob("tickr_*.db"))
+    excess: list[Path] = backups[: len(backups) - retain]
     for old in excess:
         old.unlink()
         logger.info("Deleted old backup: %s", old)
@@ -72,8 +72,8 @@ def _enforce_retention(backup_dir: Path, retain: int) -> None:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    backup_dir = os.getenv("TICKR_BACKUP_DIR", "data/backups")
-    retain = int(os.getenv("TICKR_BACKUP_RETAIN", "7"))
+    backup_dir: str = os.getenv("TICKR_BACKUP_DIR", "data/backups")
+    retain: int = int(os.getenv("TICKR_BACKUP_RETAIN", "7"))
 
     try:
         create_backup(DATABASE, backup_dir, retain)

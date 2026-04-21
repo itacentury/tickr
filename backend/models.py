@@ -1,5 +1,7 @@
 """Pydantic request/response models and validation constants."""
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -75,8 +77,8 @@ class SyncChange(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    new_document_state: dict = Field(alias="newDocumentState")
-    assumed_master_state: dict | None = Field(default=None, alias="assumedMasterState")
+    new_document_state: dict[str, Any] = Field(alias="newDocumentState")
+    assumed_master_state: dict[str, Any] | None = Field(default=None, alias="assumedMasterState")
 
 
 class FrontendErrorReport(BaseModel):
@@ -124,10 +126,15 @@ class SuccessResponse(BaseModel):
 
 
 # Valid sort options for items
-VALID_SORT_OPTIONS = ["alphabetical", "alphabetical_desc", "created_desc", "created_asc"]
+VALID_SORT_OPTIONS: list[str] = [
+    "alphabetical",
+    "alphabetical_desc",
+    "created_desc",
+    "created_asc",
+]
 
 # Valid sort options for lists
-VALID_LIST_SORT_OPTIONS = [
+VALID_LIST_SORT_OPTIONS: list[str] = [
     "alphabetical",
     "alphabetical_desc",
     "created_desc",
@@ -136,7 +143,7 @@ VALID_LIST_SORT_OPTIONS = [
 ]
 
 # Sort option to SQL ORDER BY mapping
-SORT_SQL = {
+SORT_SQL: dict[str, str] = {
     "alphabetical": "text COLLATE NOCASE ASC",
     "alphabetical_desc": "text COLLATE NOCASE DESC",
     "created_desc": "created_at DESC",
