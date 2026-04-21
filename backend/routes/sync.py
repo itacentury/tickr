@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/sync")
 
 
+HistoryLogger = Callable[[sqlite3.Cursor, dict | None, dict], None]
+
+
 @dataclass(frozen=True)
 class CollectionSpec:
     """Describes how to persist and replicate a single RxDB collection."""
@@ -29,6 +32,7 @@ class CollectionSpec:
     update_fields: tuple[str, ...]
     defaults: Callable[[], dict[str, Any]]
     broadcast_event: str
+    log_history: HistoryLogger | None = None
 
     @property
     def select_sql(self) -> str:
@@ -91,6 +95,52 @@ def _item_defaults() -> dict[str, Any]:
     }
 
 
+def _insert_history(
+    cursor: sqlite3.Cursor,
+    list_id: str | None,
+    item_id: str | None,
+    action: str,
+    item_text: str | None,
+) -> None:
+    """Append one history row; timestamp defaults to CURRENT_TIMESTAMP."""
+    cursor.execute(
+        "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+        (list_id, item_id, action, item_text),
+    )
+
+
+def _log_list_history(cursor: sqlite3.Cursor, current: dict | None, new_state: dict) -> None:
+    """Log list_created on initial insert of a non-deleted list."""
+    if current is None and not new_state.get("_deleted"):
+        _insert_history(cursor, new_state["id"], None, "list_created", new_state.get("name"))
+
+
+def _log_item_history(cursor: sqlite3.Cursor, current: dict | None, new_state: dict) -> None:
+    """Log item lifecycle events derived from the diff between current and new state."""
+    list_id: str | None = new_state.get("list_id") or (current or {}).get("list_id")
+    item_id: str = new_state["id"]
+
+    if current is None:
+        if not new_state.get("_deleted"):
+            _insert_history(cursor, list_id, item_id, "item_created", new_state.get("text"))
+        return
+
+    if not current.get("_deleted") and new_state.get("_deleted"):
+        _insert_history(cursor, list_id, item_id, "item_deleted", current.get("text"))
+        return
+
+    old_text: str | None = current.get("text")
+    new_text: str | None = new_state.get("text")
+    if old_text != new_text:
+        _insert_history(cursor, list_id, item_id, "item_edited", f"{old_text} \u2192 {new_text}")
+
+    old_completed: bool = bool(current.get("completed"))
+    new_completed: bool = bool(new_state.get("completed"))
+    if old_completed != new_completed:
+        action: str = "item_completed" if new_completed else "item_uncompleted"
+        _insert_history(cursor, list_id, item_id, action, new_text)
+
+
 COLLECTIONS: dict[str, CollectionSpec] = {
     "lists": CollectionSpec(
         table="lists",
@@ -114,6 +164,7 @@ COLLECTIONS: dict[str, CollectionSpec] = {
         ),
         defaults=_list_defaults,
         broadcast_event="lists_changed",
+        log_history=_log_list_history,
     ),
     "items": CollectionSpec(
         table="items",
@@ -137,6 +188,7 @@ COLLECTIONS: dict[str, CollectionSpec] = {
         ),
         defaults=_item_defaults,
         broadcast_event="items_changed",
+        log_history=_log_item_history,
     ),
 }
 
@@ -249,11 +301,17 @@ def sync_push(
                         conflicts.append(current_dict)
                         continue
                     _insert_doc(cursor, spec, new_state)
+                    if spec.log_history is not None:
+                        spec.log_history(cursor, None, new_state)
                 else:
                     if not current_dict:
                         _insert_doc(cursor, spec, new_state)
+                        if spec.log_history is not None:
+                            spec.log_history(cursor, None, new_state)
                     elif _states_match(current_dict, assumed):
                         _update_doc(cursor, spec, new_state)
+                        if spec.log_history is not None:
+                            spec.log_history(cursor, current_dict, new_state)
                     else:
                         conflicts.append(current_dict)
                         continue

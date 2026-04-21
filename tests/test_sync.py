@@ -167,6 +167,155 @@ class TestSyncPush:
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
+
+def _push_item(client, *, new_state, assumed=None):
+    """Send a single items push and return (status, conflicts)."""
+    resp = client.post(
+        "/api/v1/sync/items/push",
+        json=[{"newDocumentState": new_state, "assumedMasterState": assumed}],
+    )
+    return resp.status_code, resp.json()
+
+
+def _push_list(client, *, new_state, assumed=None):
+    """Send a single lists push and return (status, conflicts)."""
+    resp = client.post(
+        "/api/v1/sync/lists/push",
+        json=[{"newDocumentState": new_state, "assumedMasterState": assumed}],
+    )
+    return resp.status_code, resp.json()
+
+
+class TestSyncHistory:
+    """Sync push must derive history entries from the state diff."""
+
+    def test_list_insert_logs_list_created(self, client):
+        """Inserting a new list via sync push logs list_created."""
+        list_id = _uuid()
+        _push_list(
+            client,
+            new_state={
+                "id": list_id,
+                "name": "Synced List",
+                "icon": "list",
+                "item_sort": "alphabetical",
+                "sort_order": 0,
+                "created_at": "2025-01-01T00:00:00",
+                "updated_at": "2025-01-01T00:00:00",
+                "_deleted": 0,
+            },
+        )
+        history = client.get(f"/api/v1/lists/{list_id}/history").json()
+        assert [h["action"] for h in history] == ["list_created"]
+        assert history[0]["item_text"] == "Synced List"
+
+    def test_item_insert_logs_item_created(self, client, create_list):
+        """Inserting a new item via sync push logs item_created."""
+        lst = create_list(undo=True)
+        item_id = _uuid()
+        _push_item(
+            client,
+            new_state={
+                "id": item_id,
+                "list_id": lst["id"],
+                "text": "Buy milk",
+                "completed": 0,
+                "created_at": "2025-01-01T00:00:00",
+                "updated_at": "2025-01-01T00:00:00",
+                "completed_at": None,
+                "_deleted": 0,
+            },
+        )
+        history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
+        assert [h["action"] for h in history] == ["item_created"]
+        assert history[0]["item_text"] == "Buy milk"
+
+    def test_item_completion_toggle_logs_both_directions(self, client, create_list):
+        """Completing then uncompleting logs item_completed and item_uncompleted."""
+        lst = create_list(undo=True)
+        item_id = _uuid()
+        base = {
+            "id": item_id,
+            "list_id": lst["id"],
+            "text": "Task",
+            "completed": 0,
+            "created_at": "2025-01-01T00:00:00",
+            "updated_at": "2025-01-01T00:00:00",
+            "completed_at": None,
+            "_deleted": 0,
+        }
+        _push_item(client, new_state=base)
+        inserted = client.get("/api/v1/sync/items/pull").json()["documents"][-1]
+
+        completed = {**inserted, "completed": 1, "updated_at": "2025-01-02T00:00:00"}
+        _push_item(client, new_state=completed, assumed=inserted)
+
+        reopened = {**completed, "completed": 0, "updated_at": "2025-01-03T00:00:00"}
+        _push_item(client, new_state=reopened, assumed=completed)
+
+        actions = {h["action"] for h in client.get(f"/api/v1/lists/{lst['id']}/history").json()}
+        assert actions == {"item_created", "item_completed", "item_uncompleted"}
+
+    def test_item_text_change_logs_item_edited(self, client, create_list):
+        """Changing text logs item_edited with 'old → new' format."""
+        lst = create_list(undo=True)
+        item_id = _uuid()
+        base = {
+            "id": item_id,
+            "list_id": lst["id"],
+            "text": "Old text",
+            "completed": 0,
+            "created_at": "2025-01-01T00:00:00",
+            "updated_at": "2025-01-01T00:00:00",
+            "completed_at": None,
+            "_deleted": 0,
+        }
+        _push_item(client, new_state=base)
+        inserted = client.get("/api/v1/sync/items/pull").json()["documents"][-1]
+
+        edited = {**inserted, "text": "New text", "updated_at": "2025-01-02T00:00:00"}
+        _push_item(client, new_state=edited, assumed=inserted)
+
+        history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
+        edit = next(h for h in history if h["action"] == "item_edited")
+        assert edit["item_text"] == "Old text \u2192 New text"
+
+    def test_item_soft_delete_logs_item_deleted(self, client, create_list):
+        """Setting _deleted=1 logs item_deleted with the pre-delete text."""
+        lst = create_list(undo=True)
+        item_id = _uuid()
+        base = {
+            "id": item_id,
+            "list_id": lst["id"],
+            "text": "Doomed",
+            "completed": 0,
+            "created_at": "2025-01-01T00:00:00",
+            "updated_at": "2025-01-01T00:00:00",
+            "completed_at": None,
+            "_deleted": 0,
+        }
+        _push_item(client, new_state=base)
+        inserted = client.get("/api/v1/sync/items/pull").json()["documents"][-1]
+
+        deleted = {**inserted, "_deleted": 1, "updated_at": "2025-01-02T00:00:00"}
+        _push_item(client, new_state=deleted, assumed=inserted)
+
+        history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
+        deleted_entry = next(h for h in history if h["action"] == "item_deleted")
+        assert deleted_entry["item_text"] == "Doomed"
+
+    def test_list_rename_does_not_log(self, client, create_list):
+        """List edits (name/icon) do not produce history rows."""
+        lst = create_list(undo=True)
+        pull = client.get("/api/v1/sync/lists/pull").json()
+        current = next(d for d in pull["documents"] if d["id"] == lst["id"])
+
+        renamed = {**current, "name": "Renamed", "updated_at": "2099-01-01T00:00:00"}
+        _push_list(client, new_state=renamed, assumed=current)
+
+        history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
+        assert history == []
+
     def test_push_batch_size_limit(self, client):
         """Pushing more than 500 changes in one request is rejected."""
         changes = [
