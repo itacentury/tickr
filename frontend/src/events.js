@@ -162,6 +162,8 @@ export function setupEventListeners() {
     dom.iconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
       opt.classList.toggle("selected", opt.dataset.icon === state.selectedIcon);
     });
+    dom.iconPickerToggle.classList.remove("open");
+    dom.iconOptionsContainer.classList.remove("expanded");
   });
 
   // Icon selection for edit list
@@ -178,6 +180,8 @@ export function setupEventListeners() {
           opt.dataset.icon === state.editSelectedIcon,
         );
       });
+    dom.editIconPickerToggle.classList.remove("open");
+    dom.editIconOptionsContainer.classList.remove("expanded");
   });
 
   // New list form
