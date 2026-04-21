@@ -3,7 +3,7 @@
 import logging
 import sqlite3
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from ..database import get_db, new_uuid, now
 from ..errors import AppError, ErrorCode
@@ -46,7 +46,12 @@ def get_items(
 
 
 @router.post("/lists/{list_id}/items", response_model=ItemResponse)
-def create_item(list_id: str, item_data: ItemCreate, db: sqlite3.Connection = Depends(get_db)):
+def create_item(
+    list_id: str,
+    item_data: ItemCreate,
+    bg: BackgroundTasks,
+    db: sqlite3.Connection = Depends(get_db),
+):
     """Create a new item in a list and log to history."""
     cursor = db.cursor()
     ts = now()
@@ -64,8 +69,8 @@ def create_item(list_id: str, item_data: ItemCreate, db: sqlite3.Connection = De
         )
 
     db.commit()
-    broadcast_update("items_changed", list_id)
-    broadcast_sync("items")
+    bg.add_task(broadcast_update, "items_changed", list_id)
+    bg.add_task(broadcast_sync, "items")
     logger.info("Created item '%s' (id=%s) in list id=%s", item_data.text, item_id, list_id)
     return {
         "id": item_id,
@@ -79,7 +84,12 @@ def create_item(list_id: str, item_data: ItemCreate, db: sqlite3.Connection = De
 
 
 @router.put("/items/{item_id}", response_model=SuccessResponse)
-def update_item(item_id: str, item_data: ItemUpdate, db: sqlite3.Connection = Depends(get_db)):
+def update_item(
+    item_id: str,
+    item_data: ItemUpdate,
+    bg: BackgroundTasks,
+    db: sqlite3.Connection = Depends(get_db),
+):
     """Update item text and/or completion status with history logging."""
     cursor = db.cursor()
 
@@ -132,15 +142,20 @@ def update_item(item_id: str, item_data: ItemUpdate, db: sqlite3.Connection = De
     values.append(item_id)
     cursor.execute(f"UPDATE items SET {', '.join(updates)} WHERE id = ?", values)
     db.commit()
-    broadcast_update("items_changed", item["list_id"])
-    broadcast_sync("items")
+    bg.add_task(broadcast_update, "items_changed", item["list_id"])
+    bg.add_task(broadcast_sync, "items")
     logger.info("Updated item id=%s", item_id)
 
     return {"success": True}
 
 
 @router.delete("/items/{item_id}", response_model=SuccessResponse)
-def delete_item(item_id: str, undo: bool = False, db: sqlite3.Connection = Depends(get_db)):
+def delete_item(
+    item_id: str,
+    bg: BackgroundTasks,
+    undo: bool = False,
+    db: sqlite3.Connection = Depends(get_db),
+):
     """Soft-delete an item and log to history."""
     cursor = db.cursor()
     ts = now()
@@ -162,7 +177,7 @@ def delete_item(item_id: str, undo: bool = False, db: sqlite3.Connection = Depen
     db.commit()
 
     if list_id:
-        broadcast_update("items_changed", list_id)
-    broadcast_sync("items")
+        bg.add_task(broadcast_update, "items_changed", list_id)
+    bg.add_task(broadcast_sync, "items")
     logger.info("Soft-deleted item id=%s", item_id)
     return {"success": True}

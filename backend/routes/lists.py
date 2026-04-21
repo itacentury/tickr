@@ -3,7 +3,7 @@
 import logging
 import sqlite3
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from ..database import get_db, new_uuid, now
 from ..errors import AppError, ErrorCode
@@ -55,7 +55,11 @@ def get_lists(db: sqlite3.Connection = Depends(get_db)):
 
 
 @router.post("/lists", response_model=ListResponse)
-def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db)):
+def create_list(
+    list_data: ListCreate,
+    bg: BackgroundTasks,
+    db: sqlite3.Connection = Depends(get_db),
+):
     """Create a new list and log to history."""
     cursor = db.cursor()
     ts = now()
@@ -77,8 +81,8 @@ def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db))
         )
 
     db.commit()
-    broadcast_update("lists_changed")
-    broadcast_sync("lists")
+    bg.add_task(broadcast_update, "lists_changed")
+    bg.add_task(broadcast_sync, "lists")
     logger.info("Created list '%s' (id=%s)", list_data.name, list_id)
     return {
         "id": list_id,
@@ -92,7 +96,12 @@ def create_list(list_data: ListCreate, db: sqlite3.Connection = Depends(get_db))
 
 
 @router.put("/lists/{list_id}", response_model=SuccessResponse)
-def update_list(list_id: str, list_data: ListUpdate, db: sqlite3.Connection = Depends(get_db)):
+def update_list(
+    list_id: str,
+    list_data: ListUpdate,
+    bg: BackgroundTasks,
+    db: sqlite3.Connection = Depends(get_db),
+):
     """Update list name, icon, and/or sorting preference."""
     cursor = db.cursor()
 
@@ -118,15 +127,19 @@ def update_list(list_id: str, list_data: ListUpdate, db: sqlite3.Connection = De
     values.append(list_id)
     cursor.execute(f"UPDATE lists SET {', '.join(updates)} WHERE id = ?", values)
     db.commit()
-    broadcast_update("lists_changed", list_id)
-    broadcast_sync("lists")
+    bg.add_task(broadcast_update, "lists_changed", list_id)
+    bg.add_task(broadcast_sync, "lists")
     logger.info("Updated list id=%s", list_id)
 
     return {"success": True}
 
 
 @router.delete("/lists/{list_id}", response_model=SuccessResponse)
-def delete_list(list_id: str, db: sqlite3.Connection = Depends(get_db)):
+def delete_list(
+    list_id: str,
+    bg: BackgroundTasks,
+    db: sqlite3.Connection = Depends(get_db),
+):
     """Soft-delete a list and its items."""
     cursor = db.cursor()
     ts = now()
@@ -142,15 +155,19 @@ def delete_list(list_id: str, db: sqlite3.Connection = Depends(get_db)):
         )
         cursor.execute("DELETE FROM history WHERE list_id = ?", (list_id,))
 
-    broadcast_update("lists_changed")
-    broadcast_sync("lists")
-    broadcast_sync("items")
+    bg.add_task(broadcast_update, "lists_changed")
+    bg.add_task(broadcast_sync, "lists")
+    bg.add_task(broadcast_sync, "items")
     logger.info("Soft-deleted list id=%s", list_id)
     return {"success": True}
 
 
 @router.post("/lists/reorder", response_model=SuccessResponse)
-def reorder_lists(reorder_data: ListReorder, db: sqlite3.Connection = Depends(get_db)):
+def reorder_lists(
+    reorder_data: ListReorder,
+    bg: BackgroundTasks,
+    db: sqlite3.Connection = Depends(get_db),
+):
     """Update the sort order of lists based on provided order."""
     cursor = db.cursor()
     ts = now()
@@ -162,6 +179,6 @@ def reorder_lists(reorder_data: ListReorder, db: sqlite3.Connection = Depends(ge
         )
 
     db.commit()
-    broadcast_update("lists_changed")
-    broadcast_sync("lists")
+    bg.add_task(broadcast_update, "lists_changed")
+    bg.add_task(broadcast_sync, "lists")
     return {"success": True}

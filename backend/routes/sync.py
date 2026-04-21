@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, BackgroundTasks, Body, Depends
 from fastapi.responses import StreamingResponse
 
 from ..config import SSE_HEARTBEAT_INTERVAL
@@ -218,6 +218,7 @@ def sync_pull(
 @router.post("/{collection}/push")
 def sync_push(
     collection: str,
+    bg: BackgroundTasks,
     changes: list[SyncChange] = Body(..., max_length=500),
     db: sqlite3.Connection = Depends(get_db),
 ):
@@ -267,8 +268,8 @@ def sync_push(
                     raise AppError(ErrorCode.CONFLICT, str(exc), 409) from exc
 
     if not conflicts:
-        broadcast_update(spec.broadcast_event)
-        broadcast_sync(collection)
+        bg.add_task(broadcast_update, spec.broadcast_event)
+        bg.add_task(broadcast_sync, collection)
 
     return conflicts
 

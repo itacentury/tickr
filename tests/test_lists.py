@@ -1,5 +1,7 @@
 """Tests for list CRUD and reorder endpoints."""
 
+from backend.routes import lists as lists_module
+
 
 class TestGetLists:
     """Tests for GET /api/v1/lists."""
@@ -154,6 +156,24 @@ class TestDeleteList:
 
 class TestReorderLists:
     """Tests for POST /api/v1/lists/reorder."""
+
+    def test_reorder_lists_enqueues_broadcasts(self, client, create_list, monkeypatch):
+        """Reordering schedules broadcast_update + broadcast_sync via BackgroundTasks."""
+        calls: list[tuple[str, tuple]] = []
+        monkeypatch.setattr(
+            lists_module, "broadcast_update", lambda *a, **_k: calls.append(("update", a))
+        )
+        monkeypatch.setattr(
+            lists_module, "broadcast_sync", lambda *a, **_k: calls.append(("sync", a))
+        )
+
+        a = create_list(name="A")
+        b = create_list(name="B")
+        resp = client.post("/api/v1/lists/reorder", json={"list_ids": [b["id"], a["id"]]})
+        assert resp.status_code == 200
+
+        kinds = [kind for kind, _ in calls]
+        assert "update" in kinds and "sync" in kinds
 
     def test_reorder_lists(self, client, create_list, db):
         """Reordering updates sort_order for each list."""
