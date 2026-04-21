@@ -10,8 +10,7 @@ import { state } from "./state.js";
 import * as dom from "./dom.js";
 import { icons } from "./icons.js";
 import { updateIconPreview } from "./icons.js";
-import { selectList, getItemCount, reorderLists, updateItem } from "./data.js";
-import { showUndoToast } from "./toast.js";
+import { reorderLists } from "./data.js";
 
 /** Escape HTML entities to prevent XSS in rendered content. */
 function escapeHtml(text) {
@@ -32,37 +31,25 @@ export function updateNoListsState() {
 // ---- Navigation rendering ----
 
 /** Render the sidebar navigation list with item counts. */
-export async function renderNavigation() {
+export function renderNavigation() {
   updateNoListsState();
   const isCustomSort = state.appSettings.list_sort === "custom";
 
-  const countsMap = {};
-  for (const list of state.lists) {
-    countsMap[list.id] = await getItemCount(list.id);
-  }
-
   dom.navList.innerHTML = state.lists
     .map((list) => {
-      const counts = countsMap[list.id] || { remaining: 0 };
+      const remaining = state.itemCounts[list.id] || 0;
       return `
             <li class="nav-item" data-list-id="${list.id}" ${isCustomSort ? 'draggable="true"' : ""}>
                 <button class="nav-link ${list.id === state.currentListId ? "active" : ""}"
                         data-id="${list.id}">
                     <span class="nav-icon">${icons[list.icon] || icons.list}</span>
                     <span class="nav-text">${escapeHtml(list.name)}</span>
-                    ${counts.remaining > 0 ? `<span class="nav-count">${counts.remaining}</span>` : ""}
+                    ${remaining > 0 ? `<span class="nav-count">${remaining}</span>` : ""}
                 </button>
             </li>
         `;
     })
     .join("");
-
-  dom.navList.querySelectorAll(".nav-link").forEach((link) => {
-    link.addEventListener("click", () => {
-      selectList(link.dataset.id);
-      dom.closeMobileMenu();
-    });
-  });
 
   if (isCustomSort) {
     setupDragAndDrop();
@@ -177,29 +164,6 @@ export function renderItems() {
     `,
     )
     .join("");
-
-  dom.itemsList.querySelectorAll(".item").forEach((itemEl) => {
-    const itemId = itemEl.dataset.id;
-    const item = state.items.find((i) => i.id === itemId);
-
-    const checkbox = itemEl.querySelector('input[type="checkbox"]');
-    checkbox.addEventListener("change", async () => {
-      const isCompleted = checkbox.checked;
-      const itemText = item.text;
-      await updateItem(itemId, { completed: isCompleted });
-      if (isCompleted) {
-        showUndoToast(`"${itemText}" completed`, async () => {
-          await updateItem(itemId, { completed: false });
-        });
-      }
-    });
-
-    itemEl.addEventListener("click", (e) => {
-      if (!e.target.closest(".item-checkbox")) {
-        openEditItemModal(itemId, item.text);
-      }
-    });
-  });
 }
 
 // ---- History ----

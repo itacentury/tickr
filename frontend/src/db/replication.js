@@ -43,6 +43,7 @@ function connectSharedStream() {
   eventSource.addEventListener("error", () => {
     eventSource.close();
     sharedEventSource = null;
+    clearTimeout(reconnectTimeout);
     reconnectTimeout = setTimeout(() => connectSharedStream(), 3000);
   });
 }

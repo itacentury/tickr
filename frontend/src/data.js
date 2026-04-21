@@ -203,7 +203,13 @@ export function subscribeItemCounts() {
     subscriptions.itemsCount.unsubscribe();
   }
 
-  subscriptions.itemsCount = state.db.items.find().$.subscribe(() => {
+  subscriptions.itemsCount = state.db.items.find().$.subscribe((docs) => {
+    const counts = {};
+    for (const doc of docs) {
+      if (doc.completed) continue;
+      counts[doc.listId] = (counts[doc.listId] || 0) + 1;
+    }
+    state.itemCounts = counts;
     renderNavigation();
   });
 }

@@ -21,7 +21,11 @@ import {
   selectList,
   now,
 } from "./data.js";
-import { openEditListModal, fetchHistory } from "./render.js";
+import {
+  openEditListModal,
+  openEditItemModal,
+  fetchHistory,
+} from "./render.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
 import { reportError } from "./error-reporting.js";
@@ -34,6 +38,44 @@ export function setupEventListeners() {
 
   // Toast interaction listeners
   initToastListeners();
+
+  // Navigation click delegation
+  dom.navList.addEventListener("click", (e) => {
+    const link = e.target.closest(".nav-link");
+    if (!link) return;
+    selectList(link.dataset.id);
+    dom.closeMobileMenu();
+  });
+
+  // Items checkbox delegation
+  dom.itemsList.addEventListener("change", async (e) => {
+    const checkbox = e.target.closest('input[type="checkbox"]');
+    if (!checkbox) return;
+    const itemEl = checkbox.closest(".item");
+    if (!itemEl) return;
+    const itemId = itemEl.dataset.id;
+    const item = state.items.find((i) => i.id === itemId);
+    if (!item) return;
+    const isCompleted = checkbox.checked;
+    const itemText = item.text;
+    await updateItem(itemId, { completed: isCompleted });
+    if (isCompleted) {
+      showUndoToast(`"${itemText}" completed`, async () => {
+        await updateItem(itemId, { completed: false });
+      });
+    }
+  });
+
+  // Items click delegation (open edit modal)
+  dom.itemsList.addEventListener("click", (e) => {
+    if (e.target.closest(".item-checkbox")) return;
+    const itemEl = e.target.closest(".item");
+    if (!itemEl) return;
+    const itemId = itemEl.dataset.id;
+    const item = state.items.find((i) => i.id === itemId);
+    if (!item) return;
+    openEditItemModal(itemId, item.text);
+  });
 
   // Sidebar toggle
   dom.sidebarToggle.addEventListener("click", () => {

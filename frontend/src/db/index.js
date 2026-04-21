@@ -22,7 +22,10 @@ let dbPromise = null;
 export function getDatabase() {
   if (dbPromise) return dbPromise;
 
-  dbPromise = _createDatabase();
+  dbPromise = _createDatabase().catch((err) => {
+    dbPromise = null;
+    throw err;
+  });
   return dbPromise;
 }
 

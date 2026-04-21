@@ -14,6 +14,7 @@ export const state = {
   editingItemId: null,
   editSelectedIcon: "list",
   appSettings: { list_sort: "alphabetical" },
+  itemCounts: {},
 };
 
 /** Active RxDB subscriptions that may need to be replaced on re-subscribe. */
