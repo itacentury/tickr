@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/v1", tags=["monitoring"])
 @router.post("/errors", status_code=204, response_class=Response)
 async def report_frontend_error(report: FrontendErrorReport, request: Request):
     """Receive and log a frontend error report."""
-    logger.error(
+    logger.warning(
         "Frontend error | action=%s | message=%s | ip=%s | user_agent=%s | stack=%s",
         report.action,
         report.message,

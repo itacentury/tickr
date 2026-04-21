@@ -105,6 +105,14 @@ legacy_broadcaster = SseBroadcaster("legacy", MAX_SSE_CLIENTS)
 sync_broadcaster = SseBroadcaster("sync", MAX_SSE_CLIENTS)
 
 
+def get_connection_counts() -> dict[str, int]:
+    """Return SSE client counts per broadcaster for health/metrics endpoints."""
+    return {
+        "sse_legacy": legacy_broadcaster.client_count(),
+        "sse_sync": sync_broadcaster.client_count(),
+    }
+
+
 def broadcast_update(event_type: str, list_id: str | None = None) -> None:
     """Notify all legacy SSE clients of a data change."""
     legacy_broadcaster.broadcast(json.dumps({"type": event_type, "list_id": list_id}))
@@ -158,6 +166,7 @@ __all__ = [
     "bind_loop",
     "broadcast_sync",
     "broadcast_update",
+    "get_connection_counts",
     "initiate_shutdown",
     "legacy_broadcaster",
     "shutdown_event",

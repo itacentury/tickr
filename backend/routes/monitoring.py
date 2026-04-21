@@ -3,12 +3,12 @@
 import sqlite3
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from ..config import MAX_SSE_CLIENTS
-from ..database import DATABASE
-from ..events import legacy_broadcaster, sync_broadcaster
+from ..database import get_db
+from ..events import get_connection_counts
 from ..metrics import collector
 
 router = APIRouter(prefix="/api/v1", tags=["monitoring"])
@@ -17,13 +17,10 @@ _app_start_time = time.time()
 
 
 @router.get("/health")
-async def health_check():
+async def health_check(db: sqlite3.Connection = Depends(get_db)):
     """Return application health status including database connectivity."""
     try:
-        conn = sqlite3.connect(DATABASE, timeout=2)
-        conn.execute("PRAGMA busy_timeout = 5000")
-        conn.execute("SELECT 1")
-        conn.close()
+        db.execute("SELECT 1").fetchone()
     except Exception as e:
         return JSONResponse(
             status_code=503,
@@ -40,11 +37,7 @@ async def health_check():
         "status": "healthy",
         "uptime_seconds": round(time.time() - _app_start_time, 1),
         "database": "ok",
-        "connections": {
-            "sse_legacy": legacy_broadcaster.client_count(),
-            "sse_sync": sync_broadcaster.client_count(),
-            "sse_max": MAX_SSE_CLIENTS,
-        },
+        "connections": {**get_connection_counts(), "sse_max": MAX_SSE_CLIENTS},
     }
 
 

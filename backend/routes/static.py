@@ -1,5 +1,6 @@
 """Static file serving and PWA endpoints."""
 
+from functools import cache
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -11,6 +12,25 @@ from ..errors import AppError, ErrorCode
 router = APIRouter()
 
 DIST_DIR = Path("static/dist")
+LEGACY_ICON_DIR = Path("static/icons")
+
+
+@cache
+def _icon_index() -> dict[str, Path]:
+    """Build a filename → path index over static + dist icon dirs.
+
+    Dist wins over legacy because it's iterated last. Built once per process
+    (icons are shipped assets, never change at runtime), so per-request
+    serving becomes a single dict lookup — no ``stat()`` calls.
+    """
+    index: dict[str, Path] = {}
+    for base in (LEGACY_ICON_DIR, DIST_DIR / "icons"):
+        if not base.is_dir():
+            continue
+        for file in base.iterdir():
+            if file.is_file():
+                index[file.name] = file
+    return index
 
 
 def mount_static(app) -> None:
@@ -63,11 +83,8 @@ def service_worker():
 
 @router.get("/icons/{file_path:path}")
 def serve_icon(file_path: str):
-    """Serve icon files from the Vite build output or legacy static directory."""
-    dist_path = DIST_DIR / "icons" / file_path
-    if dist_path.exists():
-        return FileResponse(str(dist_path))
-    legacy_path = Path("static/icons") / file_path
-    if legacy_path.exists():
-        return FileResponse(str(legacy_path))
-    raise AppError(ErrorCode.ICON_NOT_FOUND, "Icon not found", 404)
+    """Serve icon files via the cached index built at first request."""
+    path = _icon_index().get(file_path)
+    if path is None:
+        raise AppError(ErrorCode.ICON_NOT_FOUND, "Icon not found", 404)
+    return FileResponse(str(path))
