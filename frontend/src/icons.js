@@ -304,3 +304,21 @@ export function updateIconPreview(previewElement, iconKey) {
     previewElement.innerHTML = icons[iconKey];
   }
 }
+
+/**
+ * Apply an icon selection to a picker: update preview, mark the matching
+ * option as selected, and collapse the toggle/options panel.
+ *
+ * @param {HTMLElement} container - The icon-options container.
+ * @param {HTMLElement} toggle - The picker toggle button.
+ * @param {HTMLElement} preview - The preview element inside the toggle.
+ * @param {string} iconKey - The icon key to select.
+ */
+export function applyIconSelection(container, toggle, preview, iconKey) {
+  updateIconPreview(preview, iconKey);
+  container.querySelectorAll(".icon-option").forEach((opt) => {
+    opt.classList.toggle("selected", opt.dataset.icon === iconKey);
+  });
+  toggle.classList.remove("open");
+  container.classList.remove("expanded");
+}

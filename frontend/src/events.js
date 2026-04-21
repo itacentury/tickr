@@ -9,7 +9,7 @@
 
 import { state } from "./state.js";
 import * as dom from "./dom.js";
-import { populateIconPicker, updateIconPreview } from "./icons.js";
+import { populateIconPicker, applyIconSelection } from "./icons.js";
 import {
   createList,
   updateList,
@@ -29,6 +29,31 @@ import {
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
 import { reportError } from "./error-reporting.js";
+
+/** Close every modal/panel/overlay and reset transient UI state. */
+function closeAllModals() {
+  dom.newListModal.classList.remove("open");
+  dom.editListModal.classList.remove("open");
+  dom.editItemModal.classList.remove("open");
+  dom.settingsModal.classList.remove("open");
+  closeMetrics();
+  dom.historyPanel.classList.remove("open");
+  dom.overlay.classList.remove("visible");
+  dom.closeMobileMenu();
+  state.editingItemId = null;
+}
+
+/**
+ * Wire backdrop-click dismissal for a modal. onClose (if provided) runs
+ * after removing `open`, so transient state (e.g. editingItemId) can reset.
+ */
+function makeBackdropDismiss(modal, onClose) {
+  modal.addEventListener("click", (e) => {
+    if (e.target !== modal) return;
+    modal.classList.remove("open");
+    onClose?.();
+  });
+}
 
 /** Attach all application event listeners. */
 export function setupEventListeners() {
@@ -186,12 +211,12 @@ export function setupEventListeners() {
     dom.newListModal.classList.add("open");
     dom.newListName.value = "";
     state.selectedIcon = "list";
-    updateIconPreview(dom.iconPreview, state.selectedIcon);
-    dom.iconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
-      opt.classList.toggle("selected", opt.dataset.icon === state.selectedIcon);
-    });
-    dom.iconPickerToggle.classList.remove("open");
-    dom.iconOptionsContainer.classList.remove("expanded");
+    applyIconSelection(
+      dom.iconOptionsContainer,
+      dom.iconPickerToggle,
+      dom.iconPreview,
+      state.selectedIcon,
+    );
     setTimeout(() => dom.newListName.focus(), 100);
   });
 
@@ -200,12 +225,12 @@ export function setupEventListeners() {
     const option = e.target.closest(".icon-option");
     if (!option) return;
     state.selectedIcon = option.dataset.icon;
-    updateIconPreview(dom.iconPreview, state.selectedIcon);
-    dom.iconOptionsContainer.querySelectorAll(".icon-option").forEach((opt) => {
-      opt.classList.toggle("selected", opt.dataset.icon === state.selectedIcon);
-    });
-    dom.iconPickerToggle.classList.remove("open");
-    dom.iconOptionsContainer.classList.remove("expanded");
+    applyIconSelection(
+      dom.iconOptionsContainer,
+      dom.iconPickerToggle,
+      dom.iconPreview,
+      state.selectedIcon,
+    );
   });
 
   // Icon selection for edit list
@@ -213,17 +238,12 @@ export function setupEventListeners() {
     const option = e.target.closest(".icon-option");
     if (!option) return;
     state.editSelectedIcon = option.dataset.icon;
-    updateIconPreview(dom.editIconPreview, state.editSelectedIcon);
-    dom.editIconOptionsContainer
-      .querySelectorAll(".icon-option")
-      .forEach((opt) => {
-        opt.classList.toggle(
-          "selected",
-          opt.dataset.icon === state.editSelectedIcon,
-        );
-      });
-    dom.editIconPickerToggle.classList.remove("open");
-    dom.editIconOptionsContainer.classList.remove("expanded");
+    applyIconSelection(
+      dom.editIconOptionsContainer,
+      dom.editIconPickerToggle,
+      dom.editIconPreview,
+      state.editSelectedIcon,
+    );
   });
 
   // New list form
@@ -291,19 +311,10 @@ export function setupEventListeners() {
   });
 
   // Modal backdrop dismiss
-  dom.newListModal.addEventListener("click", (e) => {
-    if (e.target === dom.newListModal)
-      dom.newListModal.classList.remove("open");
-  });
-  dom.editListModal.addEventListener("click", (e) => {
-    if (e.target === dom.editListModal)
-      dom.editListModal.classList.remove("open");
-  });
-  dom.editItemModal.addEventListener("click", (e) => {
-    if (e.target === dom.editItemModal) {
-      dom.editItemModal.classList.remove("open");
-      state.editingItemId = null;
-    }
+  makeBackdropDismiss(dom.newListModal);
+  makeBackdropDismiss(dom.editListModal);
+  makeBackdropDismiss(dom.editItemModal, () => {
+    state.editingItemId = null;
   });
 
   // Metrics modal
@@ -314,9 +325,7 @@ export function setupEventListeners() {
 
   dom.closeMetricsBtn.addEventListener("click", closeMetrics);
 
-  dom.metricsModal.addEventListener("click", (e) => {
-    if (e.target === dom.metricsModal) closeMetrics();
-  });
+  makeBackdropDismiss(dom.metricsModal, closeMetrics);
 
   // Settings modal
   dom.settingsBtn.addEventListener("click", () => {
@@ -350,23 +359,12 @@ export function setupEventListeners() {
     location.reload();
   });
 
-  dom.settingsModal.addEventListener("click", (e) => {
-    if (e.target === dom.settingsModal)
-      dom.settingsModal.classList.remove("open");
-  });
+  makeBackdropDismiss(dom.settingsModal);
 
   // Keyboard shortcuts
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      dom.newListModal.classList.remove("open");
-      dom.editListModal.classList.remove("open");
-      dom.editItemModal.classList.remove("open");
-      dom.settingsModal.classList.remove("open");
-      closeMetrics();
-      state.editingItemId = null;
-      dom.historyPanel.classList.remove("open");
-      dom.overlay.classList.remove("visible");
-      dom.closeMobileMenu();
+      closeAllModals();
     }
     if (
       (e.ctrlKey || e.metaKey) &&

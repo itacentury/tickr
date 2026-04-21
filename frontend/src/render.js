@@ -9,7 +9,7 @@
 import { state } from "./state.js";
 import * as dom from "./dom.js";
 import { icons } from "./icons.js";
-import { updateIconPreview } from "./icons.js";
+import { applyIconSelection } from "./icons.js";
 import { reorderLists } from "./data.js";
 
 /** Escape HTML entities to prevent XSS in rendered content. */
@@ -281,17 +281,12 @@ export function openEditListModal() {
   dom.editListName.value = list.name;
   state.editSelectedIcon = list.icon || "list";
   dom.editListSort.value = list.itemSort || "alphabetical";
-  updateIconPreview(dom.editIconPreview, state.editSelectedIcon);
-  dom.editIconOptionsContainer
-    .querySelectorAll(".icon-option")
-    .forEach((opt) => {
-      opt.classList.toggle(
-        "selected",
-        opt.dataset.icon === state.editSelectedIcon,
-      );
-    });
-  dom.editIconPickerToggle.classList.remove("open");
-  dom.editIconOptionsContainer.classList.remove("expanded");
+  applyIconSelection(
+    dom.editIconOptionsContainer,
+    dom.editIconPickerToggle,
+    dom.editIconPreview,
+    state.editSelectedIcon,
+  );
   dom.editListModal.classList.add("open");
   if (window.matchMedia("(hover: hover)").matches) {
     setTimeout(() => dom.editListName.focus(), 100);
