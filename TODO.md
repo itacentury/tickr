@@ -8,37 +8,6 @@ Kosmetik und spekulative Senior-Pattern sind bewusst ausgelassen.
 
 ## Tier 2 — Doppelter Code & Klarheit
 
-### 2.1 Icon-Picker-Reset 4× dupliziert
-
-- **Dateien:** `frontend/src/events.js:148-167`, `:170-185`,
-  `frontend/src/render.js:openEditListModal`
-- **Problem:** Der Block "Icon-Auswahl markieren + Toggle/Container schließen"
-  steht beim Add-List-Modal-Öffnen, beim Add-Icon-Click, beim Edit-Icon-Click
-  und beim Edit-List-Modal-Öffnen.
-- **Fix:** Helper `applyIconSelection(container, toggle, preview, iconKey)`
-  in `icons.js`, alle vier Stellen rufen ihn auf.
-
-### 2.2 "Alle Modals schließen"-Logik mehrfach
-
-- **Datei:** `frontend/src/events.js:317-328` (Escape) und :252-265, :275-277,
-  :311-314 (Backdrop-Dismiss)
-- **Problem:** Escape-Handler enumeriert vier Modals plus History/Overlay/
-  Mobile-Menu. Backdrop-Dismiss ist 4× das gleiche `if (e.target === modal)`.
-- **Fix:** Zwei kleine Helpers:
-  ```js
-  function closeAllModals() {
-    /* alle Modals + History + Overlay schließen */
-  }
-  function makeBackdropDismiss(modal, onClose) {
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) {
-        modal.classList.remove("open");
-        onClose?.();
-      }
-    });
-  }
-  ```
-
 ### 2.3 Zirkuläre Abhängigkeit `data.js` ↔ `render.js`
 
 - **Dateien:** `frontend/src/data.js:13`, `frontend/src/render.js:13`
