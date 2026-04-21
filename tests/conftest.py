@@ -5,85 +5,35 @@ import sqlite3
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.database import get_db
+from backend.database import get_db, init_db
 from backend.main import app, rate_limit_store
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def db_connection():
-    """Create an in-memory SQLite database with all tables for the test session."""
+    """Create a fresh in-memory SQLite database per test via `init_db(conn)`.
+
+    Function-scope means every test gets a clean slate without hand-written
+    teardown SQL. Schema lives in `backend.database._SCHEMA_SQL` — one
+    source of truth shared with production.
+    """
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-
-    conn.executescript("""
-        CREATE TABLE lists (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            icon TEXT DEFAULT 'list',
-            item_sort TEXT DEFAULT 'alphabetical',
-            sort_order INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            _deleted INTEGER DEFAULT 0
-        );
-
-        CREATE TABLE items (
-            id TEXT PRIMARY KEY,
-            list_id TEXT NOT NULL,
-            text TEXT NOT NULL,
-            completed INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            completed_at TEXT,
-            _deleted INTEGER DEFAULT 0,
-            FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            list_id TEXT NOT NULL,
-            item_id TEXT,
-            action TEXT NOT NULL,
-            item_text TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-
-        CREATE INDEX idx_items_list_id ON items(list_id, _deleted);
-        CREATE INDEX idx_items_updated ON items(updated_at, id);
-        CREATE INDEX idx_lists_updated ON lists(updated_at, id);
-
-        INSERT INTO settings (key, value) VALUES ('list_sort', 'alphabetical');
-    """)
-
+    init_db(conn)
     yield conn
     conn.close()
 
 
 @pytest.fixture(autouse=True)
 def db(db_connection):
-    """Override get_db to use the shared in-memory connection and clean up after each test."""
+    """Override get_db to yield the per-test in-memory connection."""
 
     def override_get_db():
         yield db_connection
 
     app.dependency_overrides[get_db] = override_get_db
     yield db_connection
-
-    # Clean all tables after each test
-    db_connection.execute("DELETE FROM history")
-    db_connection.execute("DELETE FROM items")
-    db_connection.execute("DELETE FROM lists")
-    db_connection.execute("DELETE FROM settings")
-    db_connection.execute("INSERT INTO settings (key, value) VALUES ('list_sort', 'alphabetical')")
-    db_connection.commit()
-
     app.dependency_overrides.pop(get_db, None)
 
 

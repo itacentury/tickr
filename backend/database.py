@@ -5,10 +5,56 @@ import sqlite3
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Final
 
 from backend.config import DATABASE
 
 logger = logging.getLogger(__name__)
+
+
+_SCHEMA_SQL: Final[str] = """
+CREATE TABLE IF NOT EXISTS lists (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    icon TEXT DEFAULT 'list',
+    item_sort TEXT DEFAULT 'alphabetical',
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    _deleted INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS items (
+    id TEXT PRIMARY KEY,
+    list_id TEXT NOT NULL,
+    text TEXT NOT NULL,
+    completed INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    completed_at TEXT,
+    _deleted INTEGER DEFAULT 0,
+    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    list_id TEXT NOT NULL,
+    item_id TEXT,
+    action TEXT NOT NULL,
+    item_text TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_list_id ON items(list_id, _deleted);
+CREATE INDEX IF NOT EXISTS idx_items_updated ON items(updated_at, id);
+CREATE INDEX IF NOT EXISTS idx_lists_updated ON lists(updated_at, id);
+"""
 
 
 def get_db():
@@ -33,8 +79,24 @@ def new_uuid() -> str:
     return str(uuid.uuid4())
 
 
-def init_db():
-    """Create database tables and run migrations for UUID primary keys."""
+def init_db(conn: sqlite3.Connection | None = None) -> None:
+    """Create database tables and run migrations for UUID primary keys.
+
+    When ``conn`` is provided (e.g. from tests with an in-memory DB) the
+    shared ``_SCHEMA_SQL`` is applied idempotently, the ``list_sort`` setting
+    is seeded, and migration logic is skipped — we assume the caller wants a
+    clean slate. When ``conn`` is ``None`` a file-backed connection is opened
+    with WAL and the full migration path runs.
+    """
+    if conn is not None:
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute(
+            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
+            ("list_sort", "alphabetical"),
+        )
+        conn.commit()
+        return
+
     logger.info("Initializing database at %s", DATABASE)
     Path(DATABASE).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DATABASE)
@@ -95,48 +157,8 @@ def init_db():
 
 
 def _create_tables_fresh(conn: sqlite3.Connection) -> None:
-    """Create all tables with UUID TEXT primary keys from scratch."""
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS lists (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            icon TEXT DEFAULT 'list',
-            item_sort TEXT DEFAULT 'alphabetical',
-            sort_order INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            _deleted INTEGER DEFAULT 0
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS items (
-            id TEXT PRIMARY KEY,
-            list_id TEXT NOT NULL,
-            text TEXT NOT NULL,
-            completed INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            completed_at TEXT,
-            _deleted INTEGER DEFAULT 0,
-            FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
-        )
-    """)
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            list_id TEXT NOT NULL,
-            item_id TEXT,
-            action TEXT NOT NULL,
-            item_text TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
-        )
-    """)
-
+    """Create all tables and indexes with UUID TEXT primary keys from scratch."""
+    conn.executescript(_SCHEMA_SQL)
     conn.commit()
 
 
