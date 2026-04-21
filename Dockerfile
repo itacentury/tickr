@@ -49,5 +49,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
 
-# Run the application
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+# Run the application. Shell form is intentional so ${TICKR_TRUSTED_PROXIES}
+# expands at container start — uvicorn only honors X-Forwarded-For from the
+# configured peer IP(s), so misconfiguring this fails *closed* (all clients
+# look like the proxy) rather than trusting forged headers from anywhere.
+CMD ["sh", "-c", "exec uvicorn backend.main:app --host 0.0.0.0 --port 8000 --no-access-log --proxy-headers --forwarded-allow-ips=${TICKR_TRUSTED_PROXIES:-127.0.0.1}"]

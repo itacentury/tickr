@@ -10,6 +10,18 @@ Deployment note — single-process only:
     each worker sees only its own slice of traffic. Deploy as a single
     process, or move rate limiting to ``slowapi`` + Redis and metrics to
     ``prometheus_client`` with a multiprocess directory.
+
+Deployment note — behind a reverse proxy:
+    ``request.client.host`` is read by the rate limiter and the frontend
+    error reporter. Without extra flags, Starlette reports the immediate
+    peer socket, which behind nginx/traefik collapses every real client
+    onto the proxy IP. To get the real IP, pass ``--proxy-headers`` and
+    ``--forwarded-allow-ips=<trusted proxy IP(s)>`` to uvicorn (the
+    Dockerfile CMD does this via the ``TICKR_TRUSTED_PROXIES`` env var,
+    default ``127.0.0.1``). uvicorn only rewrites the client address
+    when the peer matches that allow-list, so a misconfigured or absent
+    env var fails closed: everyone looks like the proxy, never the
+    attacker-controlled ``X-Forwarded-For`` value.
 """
 
 import asyncio
