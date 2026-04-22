@@ -321,13 +321,9 @@ def _rename_legacy_history_actions(conn: sqlite3.Connection) -> None:
     Idempotent — only logs when rows are actually updated.
     """
     cursor: sqlite3.Cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE history SET action = 'item_renamed' WHERE action = 'item_edited'"
-    )
+    cursor.execute("UPDATE history SET action = 'item_renamed' WHERE action = 'item_edited'")
     if cursor.rowcount > 0:
-        logger.info(
-            "Renamed %d legacy history rows: item_edited -> item_renamed", cursor.rowcount
-        )
+        logger.info("Renamed %d legacy history rows: item_edited -> item_renamed", cursor.rowcount)
     conn.commit()
 
 

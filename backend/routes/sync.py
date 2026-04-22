@@ -122,9 +122,7 @@ def _log_list_history(
     """
     if current is None:
         if not new_state.get("_deleted"):
-            _insert_history(
-                cursor, new_state["id"], None, "list_created", new_state.get("name")
-            )
+            _insert_history(cursor, new_state["id"], None, "list_created", new_state.get("name"))
         return
 
     if not current.get("_deleted") and new_state.get("_deleted"):
@@ -135,23 +133,17 @@ def _log_list_history(
     old_name: str | None = current.get("name")
     new_name: str | None = new_state.get("name")
     if new_name is not None and old_name != new_name:
-        _insert_history(
-            cursor, list_id, None, "list_renamed", f"{old_name} → {new_name}"
-        )
+        _insert_history(cursor, list_id, None, "list_renamed", f"{old_name} → {new_name}")
 
     old_icon: str | None = current.get("icon")
     new_icon: str | None = new_state.get("icon")
     if new_icon is not None and old_icon != new_icon:
-        _insert_history(
-            cursor, list_id, None, "list_icon_changed", f"{old_icon} → {new_icon}"
-        )
+        _insert_history(cursor, list_id, None, "list_icon_changed", f"{old_icon} → {new_icon}")
 
     old_sort: str | None = current.get("item_sort")
     new_sort: str | None = new_state.get("item_sort")
     if new_sort is not None and old_sort != new_sort:
-        _insert_history(
-            cursor, list_id, None, "list_sort_changed", f"{old_sort} → {new_sort}"
-        )
+        _insert_history(cursor, list_id, None, "list_sort_changed", f"{old_sort} → {new_sort}")
 
 
 def _log_item_history(
