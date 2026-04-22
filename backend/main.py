@@ -25,7 +25,6 @@ Deployment note — behind a reverse proxy:
 """
 
 import asyncio
-import logging
 import time
 from collections import defaultdict
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -46,22 +45,24 @@ from .config import (
 from .database import init_db
 from .errors import ErrorCode, register_error_handlers
 from .events import bind_loop, initiate_shutdown
+from .logging_config import configure_logging, get_logger
 from .metrics import collector
 from .routes import all_routers
 from .routes.static import mount_static
 
-logger = logging.getLogger(__name__)
+configure_logging()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Initialize database on startup."""
-    logger.info("Starting Tickr application")
+    logger.info("app_startup_begin")
     init_db()
     bind_loop(asyncio.get_running_loop())
-    logger.info("Application startup complete")
+    logger.info("app_startup_complete")
     yield
-    logger.info("Shutting down Tickr application")
+    logger.info("app_shutdown_begin")
     await initiate_shutdown()
 
 
@@ -146,7 +147,9 @@ async def rate_limit_middleware(request: Request, call_next: CallNext) -> Respon
 
         if len(timestamps) >= RATE_LIMIT_REQUESTS:
             retry_after: int = max(1, int(timestamps[0] - cutoff) + 1)
-            logger.warning("Rate limit exceeded for %s (retry after %ds)", client_ip, retry_after)
+            logger.warning(
+                "rate_limit_exceeded", client_ip=client_ip, retry_after_seconds=retry_after
+            )
             return JSONResponse(
                 status_code=429,
                 content={
@@ -183,14 +186,26 @@ async def access_log_and_metrics_middleware(request: Request, call_next: CallNex
 
     if path in SSE_PATHS:
         response: Response = await call_next(request)
-        logger.info('%s - "%s %s" %d [SSE]', client_ip, method, path, response.status_code)
+        logger.info(
+            "http_access",
+            client_ip=client_ip,
+            method=method,
+            path=path,
+            status=response.status_code,
+            sse=True,
+        )
         return response
 
     start: float = time.monotonic()
     response = await call_next(request)
     duration_ms: float = (time.monotonic() - start) * 1000
     logger.info(
-        '%s - "%s %s" %d %.1fms', client_ip, method, path, response.status_code, duration_ms
+        "http_access",
+        client_ip=client_ip,
+        method=method,
+        path=path,
+        status=response.status_code,
+        duration_ms=round(duration_ms, 1),
     )
     if path not in MONITORING_PATHS:
         collector.record(method, path, response.status_code, duration_ms)

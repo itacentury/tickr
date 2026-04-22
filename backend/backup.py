@@ -10,7 +10,6 @@ Configuration via environment variables:
     TICKR_BACKUP_RETAIN — number of backups to keep (default: 7)
 """
 
-import logging
 import os
 import sqlite3
 import sys
@@ -18,8 +17,9 @@ from datetime import datetime
 from pathlib import Path
 
 from backend.database import DATABASE
+from backend.logging_config import configure_logging, get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def create_backup(db_path: str, backup_dir: str = "data/backups", retain: int = 7) -> Path:
@@ -46,7 +46,7 @@ def create_backup(db_path: str, backup_dir: str = "data/backups", retain: int = 
     dst: sqlite3.Connection = sqlite3.connect(str(dest_file))
     try:
         src.backup(dst)
-        logger.info("Backup created: %s", dest_file)
+        logger.info("backup_created", path=str(dest_file))
     finally:
         dst.close()
         src.close()
@@ -66,11 +66,11 @@ def _enforce_retention(backup_dir: Path, retain: int) -> None:
     excess: list[Path] = backups[: len(backups) - retain]
     for old in excess:
         old.unlink()
-        logger.info("Deleted old backup: %s", old)
+        logger.info("backup_deleted", path=str(old))
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    configure_logging()
 
     backup_dir: str = os.getenv("TICKR_BACKUP_DIR", "data/backups")
     retain: int = int(os.getenv("TICKR_BACKUP_RETAIN", "7"))
@@ -78,5 +78,5 @@ if __name__ == "__main__":
     try:
         create_backup(DATABASE, backup_dir, retain)
     except Exception:
-        logger.exception("Backup failed")
+        logger.exception("backup_failed")
         sys.exit(1)

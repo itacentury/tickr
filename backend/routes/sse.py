@@ -1,14 +1,13 @@
 """Legacy SSE endpoint for real-time updates."""
 
-import logging
-
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from ..config import SSE_HEARTBEAT_INTERVAL
 from ..events import legacy_broadcaster
+from ..logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1")
 

@@ -1,6 +1,5 @@
 """List CRUD and reorder endpoints."""
 
-import logging
 import sqlite3
 
 from fastapi import APIRouter, BackgroundTasks, Depends
@@ -8,6 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from ..database import get_db, new_uuid, now
 from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update
+from ..logging_config import get_logger
 from ..models import (
     VALID_SORT_OPTIONS,
     ListCreate,
@@ -17,7 +17,7 @@ from ..models import (
     SuccessResponse,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -91,7 +91,7 @@ def create_list(
     db.commit()
     bg.add_task(broadcast_update, "lists_changed")
     bg.add_task(broadcast_sync, "lists")
-    logger.info("Created list '%s' (id=%s)", list_data.name, list_id)
+    logger.info("list_created", list_id=list_id, name=list_data.name[:50])
     return {
         "id": list_id,
         "name": list_data.name,
@@ -137,7 +137,7 @@ def update_list(
     db.commit()
     bg.add_task(broadcast_update, "lists_changed", list_id)
     bg.add_task(broadcast_sync, "lists")
-    logger.info("Updated list id=%s", list_id)
+    logger.info("list_updated", list_id=list_id)
 
     return {"success": True}
 
@@ -166,7 +166,7 @@ def delete_list(
     bg.add_task(broadcast_update, "lists_changed")
     bg.add_task(broadcast_sync, "lists")
     bg.add_task(broadcast_sync, "items")
-    logger.info("Soft-deleted list id=%s", list_id)
+    logger.info("list_deleted", list_id=list_id)
     return {"success": True}
 
 

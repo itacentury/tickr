@@ -9,14 +9,14 @@ the loop thread.
 
 import asyncio
 import json
-import logging
 from collections.abc import AsyncIterator
 from contextlib import suppress
 
 from .config import MAX_SSE_CLIENTS, SSE_HEARTBEAT_INTERVAL
 from .errors import AppError, ErrorCode
+from .logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 shutdown_event: asyncio.Event = asyncio.Event()
@@ -44,20 +44,21 @@ class SseBroadcaster:
         """Create a new client queue; raise 429 if at capacity."""
         if len(self._clients) >= self._max_clients:
             logger.warning(
-                "%s SSE connection rejected: max clients (%d) reached",
-                self._name,
-                self._max_clients,
+                "sse_connection_rejected",
+                broadcaster=self._name,
+                reason="max_clients_reached",
+                max_clients=self._max_clients,
             )
             raise AppError(ErrorCode.TOO_MANY_CONNECTIONS, "Too many SSE connections", 429)
         queue: asyncio.Queue[str] = asyncio.Queue(maxsize=self._queue_size)
         self._clients.add(queue)
-        logger.info("%s SSE client connected (%d active)", self._name, len(self._clients))
+        logger.info("sse_client_connected", broadcaster=self._name, active=len(self._clients))
         return queue
 
     async def unregister(self, queue: asyncio.Queue[str]) -> None:
         """Remove a client queue from the active set."""
         self._clients.discard(queue)
-        logger.info("%s SSE client disconnected (%d active)", self._name, len(self._clients))
+        logger.info("sse_client_disconnected", broadcaster=self._name, active=len(self._clients))
 
     def broadcast(self, message: str) -> None:
         """Fan out a message to every client queue.
@@ -68,7 +69,7 @@ class SseBroadcaster:
         """
         loop: asyncio.AbstractEventLoop | None = self._loop
         if loop is None:
-            logger.debug("%s broadcast skipped — no loop bound", self._name)
+            logger.debug("sse_broadcast_skipped", broadcaster=self._name, reason="no_loop_bound")
             return
         for queue in tuple(self._clients):
             loop.call_soon_threadsafe(self._enqueue, queue, message)
@@ -79,7 +80,7 @@ class SseBroadcaster:
         try:
             queue.put_nowait(message)
         except asyncio.QueueFull:
-            logger.warning("SSE client queue full, dropping message")
+            logger.warning("sse_queue_full_drop")
 
     async def stream(self, queue: asyncio.Queue[str], heartbeat: float) -> AsyncIterator[str]:
         """Yield SSE frames from the given client queue until shutdown or cancel.
@@ -148,16 +149,16 @@ async def initiate_shutdown(drain_timeout: float = 2.0) -> None:
         legacy_count: int = legacy_broadcaster.client_count()
         sync_count: int = sync_broadcaster.client_count()
         if legacy_count == 0 and sync_count == 0:
-            logger.info("All SSE clients disconnected")
+            logger.info("sse_shutdown_drained")
             return
         with suppress(asyncio.CancelledError):
             await asyncio.sleep(poll_interval)
         elapsed += poll_interval
 
     logger.warning(
-        "Shutdown drain timeout: %d legacy + %d sync clients still connected",
-        legacy_broadcaster.client_count(),
-        sync_broadcaster.client_count(),
+        "sse_shutdown_drain_timeout",
+        legacy_clients=legacy_broadcaster.client_count(),
+        sync_clients=sync_broadcaster.client_count(),
     )
 
 

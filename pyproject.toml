@@ -5,6 +5,7 @@ description = "Offline-first todo list app with FastAPI backend and RxDB sync."
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.109.0",
+    "structlog>=24.1.0",
     "uvicorn>=0.27.0",
 ]
 

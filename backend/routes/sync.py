@@ -1,7 +1,6 @@
 """RxDB-compatible sync endpoints for offline-first replication."""
 
 import asyncio
-import logging
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -14,9 +13,10 @@ from ..config import SSE_HEARTBEAT_INTERVAL
 from ..database import get_db, now
 from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update, sync_broadcaster
+from ..logging_config import get_logger
 from ..models import SyncChange
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/sync")
 
@@ -354,7 +354,10 @@ def sync_push(
                         continue
             except sqlite3.IntegrityError as exc:
                 logger.warning(
-                    "Integrity error in sync_push for %s/%s: %s", collection, doc_id, exc
+                    "sync_push_integrity_error",
+                    collection=collection,
+                    doc_id=doc_id,
+                    error=str(exc),
                 )
                 refreshed: sqlite3.Row | None = _select_doc(cursor, spec, doc_id)
                 if refreshed:

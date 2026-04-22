@@ -1,6 +1,5 @@
 """Item CRUD endpoints."""
 
-import logging
 import sqlite3
 
 from fastapi import APIRouter, BackgroundTasks, Depends
@@ -8,9 +7,10 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from ..database import get_db, new_uuid, now
 from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update
+from ..logging_config import get_logger
 from ..models import SORT_SQL, ItemCreate, ItemResponse, ItemUpdate, SuccessResponse
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -71,7 +71,7 @@ def create_item(
     db.commit()
     bg.add_task(broadcast_update, "items_changed", list_id)
     bg.add_task(broadcast_sync, "items")
-    logger.info("Created item '%s' (id=%s) in list id=%s", item_data.text, item_id, list_id)
+    logger.info("item_created", item_id=item_id, list_id=list_id, text=item_data.text[:50])
     return {
         "id": item_id,
         "list_id": list_id,
@@ -96,7 +96,7 @@ def update_item(
     cursor.execute("SELECT * FROM items WHERE id = ? AND _deleted = 0", (item_id,))
     item: sqlite3.Row | None = cursor.fetchone()
     if not item:
-        logger.warning("Item id=%s not found for update", item_id)
+        logger.warning("item_not_found", item_id=item_id, op="update")
         raise AppError(ErrorCode.ITEM_NOT_FOUND, "Item not found", 404)
 
     timestamp: str = now()
@@ -144,7 +144,7 @@ def update_item(
     db.commit()
     bg.add_task(broadcast_update, "items_changed", item["list_id"])
     bg.add_task(broadcast_sync, "items")
-    logger.info("Updated item id=%s", item_id)
+    logger.info("item_updated", item_id=item_id)
 
     return {"success": True}
 
@@ -179,5 +179,5 @@ def delete_item(
     if list_id:
         bg.add_task(broadcast_update, "items_changed", list_id)
     bg.add_task(broadcast_sync, "items")
-    logger.info("Soft-deleted item id=%s", item_id)
+    logger.info("item_deleted", item_id=item_id)
     return {"success": True}

@@ -4,6 +4,8 @@ import os
 
 DATABASE: str = os.getenv("TICKR_DATABASE", "data/tickr.db")
 
+LOG_LEVEL: str = os.getenv("TICKR_LOG_LEVEL", "INFO")
+
 RATE_LIMIT_REQUESTS: int = int(os.getenv("TICKR_RATE_LIMIT_REQUESTS", "100"))
 RATE_LIMIT_WINDOW: int = int(os.getenv("TICKR_RATE_LIMIT_WINDOW", "60"))
 RATE_LIMIT_MAX_IPS: int = int(os.getenv("TICKR_RATE_LIMIT_MAX_IPS", "10000"))

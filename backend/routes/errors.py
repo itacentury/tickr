@@ -1,13 +1,12 @@
 """Frontend error reporting endpoint."""
 
-import logging
-
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
 
+from ..logging_config import get_logger
 from ..models import FrontendErrorReport
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["monitoring"])
 
@@ -16,10 +15,10 @@ router = APIRouter(prefix="/api/v1", tags=["monitoring"])
 async def report_frontend_error(report: FrontendErrorReport, request: Request):
     """Receive and log a frontend error report."""
     logger.warning(
-        "Frontend error | action=%s | message=%s | ip=%s | user_agent=%s | stack=%s",
-        report.action,
-        report.message,
-        request.client.host if request.client else "unknown",
-        report.user_agent or "unknown",
-        report.stack or "none",
+        "frontend_error",
+        action=report.action,
+        message=report.message,
+        client_ip=request.client.host if request.client else "unknown",
+        user_agent=report.user_agent or "unknown",
+        stack=report.stack or "none",
     )

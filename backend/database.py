@@ -1,6 +1,5 @@
 """Database connection, initialization, and migration logic."""
 
-import logging
 import sqlite3
 import uuid
 from collections.abc import Iterator
@@ -9,8 +8,9 @@ from pathlib import Path
 from typing import Final
 
 from backend.config import DATABASE
+from backend.logging_config import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 _SCHEMA_SQL: Final[str] = """
@@ -98,12 +98,12 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
         conn.commit()
         return
 
-    logger.info("Initializing database at %s", DATABASE)
+    logger.info("db_init_begin", database=DATABASE)
     Path(DATABASE).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DATABASE)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout = 5000")
-    logger.info("WAL mode enabled")
+    logger.info("db_wal_enabled")
     cursor: sqlite3.Cursor = conn.cursor()
 
     # Check if migration from INTEGER to TEXT PKs is needed
@@ -113,7 +113,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
     needs_uuid_migration: bool = list_cols.get("id") == "INTEGER"
 
     if needs_uuid_migration and list_cols:
-        logger.info("Migrating database: INTEGER PKs -> UUID TEXT PKs")
+        logger.info("db_migration_begin", migration="integer_pk_to_uuid")
         _migrate_to_uuid(conn)
     elif not list_cols:
         _create_tables_fresh(conn)
@@ -127,7 +127,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
     cursor.execute("PRAGMA table_info(settings)")
     settings_columns: list[str] = [row[1] for row in cursor.fetchall()]
     if settings_columns and "key" not in settings_columns:
-        logger.info("Migrating database: recreating settings table with new schema")
+        logger.info("db_migration_begin", migration="settings_schema_recreate")
         cursor.execute("DROP TABLE settings")
 
     cursor.execute("""
@@ -144,7 +144,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
     # Insert default list if empty
     cursor.execute("SELECT COUNT(*) FROM lists WHERE _deleted = 0")
     if cursor.fetchone()[0] == 0:
-        logger.info("Empty database detected, inserting default list")
+        logger.info("db_default_list_inserted")
         timestamp: str = now()
         list_id: str = new_uuid()
         cursor.execute(
@@ -155,7 +155,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
 
     conn.commit()
     conn.close()
-    logger.info("Database initialization complete")
+    logger.info("db_init_complete")
 
 
 def _create_tables_fresh(conn: sqlite3.Connection) -> None:
@@ -280,10 +280,11 @@ def _migrate_to_uuid(conn: sqlite3.Connection) -> None:
 
     conn.commit()
     logger.info(
-        "Migration complete: %d lists, %d items, %d history entries",
-        len(list_id_map),
-        len(item_id_map),
-        len(old_history),
+        "db_migration_complete",
+        migration="integer_pk_to_uuid",
+        lists=len(list_id_map),
+        items=len(item_id_map),
+        history_entries=len(old_history),
     )
 
 
@@ -323,7 +324,9 @@ def _rename_legacy_history_actions(conn: sqlite3.Connection) -> None:
     cursor: sqlite3.Cursor = conn.cursor()
     cursor.execute("UPDATE history SET action = 'item_renamed' WHERE action = 'item_edited'")
     if cursor.rowcount > 0:
-        logger.info("Renamed %d legacy history rows: item_edited -> item_renamed", cursor.rowcount)
+        logger.info(
+            "history_action_renamed", rows=cursor.rowcount, old="item_edited", new="item_renamed"
+        )
     conn.commit()
 
 

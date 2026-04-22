@@ -43,7 +43,7 @@ class TestReportError:
         matching = [
             rec
             for rec in caplog.records
-            if rec.name == "backend.routes.errors" and "Frontend error" in rec.getMessage()
+            if rec.name == "backend.routes.errors" and "frontend_error" in rec.getMessage()
         ]
         assert matching, "Expected a WARNING log record for the frontend error report"
         assert all(rec.levelno == logging.WARNING for rec in matching)
