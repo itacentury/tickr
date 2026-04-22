@@ -6,24 +6,6 @@ Kosmetik und spekulative Senior-Pattern sind bewusst ausgelassen.
 
 ---
 
-## Tier 2 — Doppelter Code & Klarheit
-
-### 2.3 Zirkuläre Abhängigkeit `data.js` ↔ `render.js`
-
-- **Dateien:** `frontend/src/data.js:13`, `frontend/src/render.js:13`
-- **Problem:** `data.js` importiert `renderNavigation`/`renderItems`,
-  `render.js` importiert `selectList`/`reorderLists`/`updateItem`/
-  `getItemCount`. Funktioniert nur, weil die Aufrufe erst nach Modul-Init
-  passieren — bricht beim nächsten Refactor.
-- **Fix (pragmatisch):** `data.js` ruft `render.js` nicht mehr direkt auf.
-  Subscriptions schreiben nur `state` und emittieren auf einem RxJS-`Subject`
-  (oder `EventTarget`); `render.js` und `events.js` abonnieren. Richtung wird
-  einseitig: `render → data`.
-- **Fix (alternativ, kleiner):** `selectList` und `getItemCount` aus `data.js`
-  in ein neues `navigation.js` extrahieren — bricht den Zyklus ohne Pub/Sub.
-
----
-
 ## Tier 3 — Punktuelle Härtungen
 
 - **`frontend/src/db/schemas.js`**

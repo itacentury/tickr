@@ -10,7 +10,7 @@
 import { state, subscriptions } from "./state.js";
 import * as dom from "./dom.js";
 import { icons } from "./icons.js";
-import { renderNavigation, renderItems } from "./render.js";
+import { navigationChanged$, itemsChanged$ } from "./bus.js";
 import { showErrorToast } from "./toast.js";
 import { reportError } from "./error-reporting.js";
 
@@ -148,7 +148,7 @@ export function subscribeLists() {
   subscriptions.lists = query.$.subscribe((docs) => {
     const sortedDocs = sortLists(docs.map((d) => d.toJSON()));
     state.lists = sortedDocs;
-    renderNavigation();
+    navigationChanged$.next();
 
     if (state.lists.length > 0 && !state.currentListId) {
       selectList(getInitialListId());
@@ -164,7 +164,7 @@ export function subscribeLists() {
         state.currentListId = null;
         localStorage.removeItem("tickr_current_list");
         state.items = [];
-        renderItems();
+        itemsChanged$.next();
         dom.listTitle.textContent = "No Lists";
         document.title = "Tickr";
       }
@@ -190,7 +190,7 @@ export function subscribeItems(listId) {
       docs.map((d) => d.toJSON()),
       sortOption,
     );
-    renderItems();
+    itemsChanged$.next();
   });
 }
 
@@ -210,7 +210,7 @@ export function subscribeItemCounts() {
       counts[doc.listId] = (counts[doc.listId] || 0) + 1;
     }
     state.itemCounts = counts;
-    renderNavigation();
+    navigationChanged$.next();
   });
 }
 
@@ -339,7 +339,7 @@ export async function deleteList(listId) {
       state.currentListId = null;
       localStorage.removeItem("tickr_current_list");
       state.items = [];
-      renderItems();
+      itemsChanged$.next();
       dom.listTitle.textContent = "No Lists";
       document.title = "Tickr";
     }

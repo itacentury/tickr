@@ -10,6 +10,7 @@ import { setupReplication } from "./db/replication.js";
 import { initSyncStatus } from "./sync-status.js";
 import { state } from "./state.js";
 import { fetchSettings, subscribeLists, subscribeItemCounts } from "./data.js";
+import { initRenderSubscriptions } from "./render.js";
 import { setupEventListeners } from "./events.js";
 
 /**
@@ -18,6 +19,7 @@ import { setupEventListeners } from "./events.js";
 export async function initApp() {
   state.db = await getDatabase();
   await fetchSettings();
+  initRenderSubscriptions();
   subscribeLists();
   subscribeItemCounts();
 

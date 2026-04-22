@@ -11,6 +11,16 @@ import * as dom from "./dom.js";
 import { icons } from "./icons.js";
 import { applyIconSelection } from "./icons.js";
 import { reorderLists } from "./data.js";
+import { navigationChanged$, itemsChanged$ } from "./bus.js";
+
+/**
+ * Wire the view layer to the event bus.
+ * Called once during app init, after state.db is ready.
+ */
+export function initRenderSubscriptions() {
+  navigationChanged$.subscribe(() => renderNavigation());
+  itemsChanged$.subscribe(() => renderItems());
+}
 
 /** Escape HTML entities to prevent XSS in rendered content. */
 function escapeHtml(text) {
