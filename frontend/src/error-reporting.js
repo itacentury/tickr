@@ -38,10 +38,14 @@ export function reportError(action, error) {
 
 // ---- Global error handlers ----
 
-window.addEventListener("error", (event) => {
-  reportError("unhandled error", event.error);
-});
+if (!window.__errorReportingInit) {
+  window.__errorReportingInit = true;
 
-window.addEventListener("unhandledrejection", (event) => {
-  reportError("unhandled rejection", event.reason);
-});
+  window.addEventListener("error", (event) => {
+    reportError("unhandled error", event.error);
+  });
+
+  window.addEventListener("unhandledrejection", (event) => {
+    reportError("unhandled rejection", event.reason);
+  });
+}

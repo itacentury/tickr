@@ -123,7 +123,7 @@ function serverItemToClient(doc) {
     id: doc.id,
     listId: doc.list_id,
     text: doc.text,
-    completed: doc.completed ? 1 : 0,
+    completed: !!doc.completed,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
     completedAt: doc.completed_at || null,

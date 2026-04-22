@@ -24,7 +24,7 @@ export function now() {
 /** Get the count of non-completed items for a list. */
 export async function getItemCount(listId) {
   const allItems = await state.db.items
-    .find({ selector: { listId, completed: 0 } })
+    .find({ selector: { listId, completed: false } })
     .exec();
   return { remaining: allItems.length };
 }
@@ -182,7 +182,7 @@ export function subscribeItems(listId) {
     subscriptions.items.unsubscribe();
   }
 
-  const query = state.db.items.find({ selector: { listId, completed: 0 } });
+  const query = state.db.items.find({ selector: { listId, completed: false } });
   subscriptions.items = query.$.subscribe((docs) => {
     const list = state.lists.find((l) => l.id === listId);
     const sortOption = list?.itemSort || "alphabetical";
@@ -364,7 +364,7 @@ export async function createItem(text, listId) {
       id: crypto.randomUUID(),
       listId: targetList,
       text,
-      completed: 0,
+      completed: false,
       createdAt: timestamp,
       updatedAt: timestamp,
       completedAt: null,
@@ -388,7 +388,7 @@ export async function updateItem(itemId, data) {
     const patch = { updatedAt: now() };
     if (data.text !== undefined) patch.text = data.text;
     if (data.completed !== undefined) {
-      patch.completed = data.completed ? 1 : 0;
+      patch.completed = !!data.completed;
       patch.completedAt = data.completed ? now() : null;
     }
     await doc.patch(patch);

@@ -6,7 +6,7 @@
  * Vite-built assets use content hashes, so they are cache-safe.
  */
 
-const CACHE_NAME = "tickr-v2";
+const CACHE_NAME = "tickr-v__APP_VERSION__";
 
 // Install event - pre-cache the app shell
 self.addEventListener("install", (event) => {
