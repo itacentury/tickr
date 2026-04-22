@@ -6,7 +6,7 @@
  */
 
 export const listSchema = {
-  version: 0,
+  version: 1,
   primaryKey: "id",
   type: "object",
   properties: {
@@ -23,7 +23,7 @@ export const listSchema = {
 };
 
 export const itemSchema = {
-  version: 0,
+  version: 1,
   primaryKey: "id",
   type: "object",
   properties: {

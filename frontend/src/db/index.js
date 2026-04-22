@@ -7,10 +7,12 @@
 import { createRxDatabase } from "rxdb/plugins/core";
 import { getRxStorageDexie } from "rxdb/plugins/storage-dexie";
 import { RxDBLeaderElectionPlugin } from "rxdb/plugins/leader-election";
+import { RxDBMigrationSchemaPlugin } from "rxdb/plugins/migration-schema";
 import { addRxPlugin } from "rxdb/plugins/core";
 import { listSchema, itemSchema } from "./schemas.js";
 
 addRxPlugin(RxDBLeaderElectionPlugin);
+addRxPlugin(RxDBMigrationSchemaPlugin);
 
 let dbPromise = null;
 
@@ -39,9 +41,18 @@ async function _createDatabase() {
   await db.addCollections({
     lists: {
       schema: listSchema,
+      migrationStrategies: {
+        1: (doc) => doc,
+      },
     },
     items: {
       schema: itemSchema,
+      migrationStrategies: {
+        1: (doc) => {
+          doc.completed = !!doc.completed;
+          return doc;
+        },
+      },
     },
   });
 

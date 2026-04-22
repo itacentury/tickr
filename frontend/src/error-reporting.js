@@ -14,8 +14,9 @@
  */
 export function reportError(action, error) {
   try {
-    const message =
+    const rawMessage =
       error instanceof Error ? error.message : String(error ?? "Unknown error");
+    const message = rawMessage || "Unknown error";
     const stack = error instanceof Error ? error.stack : undefined;
 
     console.error(`Failed to ${action}:`, error);
