@@ -33,9 +33,16 @@ from contextlib import asynccontextmanager
 from threading import Lock
 
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .config import RATE_LIMIT_MAX_IPS, RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW
+from .config import (
+    CORS_ORIGINS,
+    CSP_CONNECT_SRC,
+    RATE_LIMIT_MAX_IPS,
+    RATE_LIMIT_REQUESTS,
+    RATE_LIMIT_WINDOW,
+)
 from .database import init_db
 from .errors import ErrorCode, register_error_handlers
 from .events import bind_loop, initiate_shutdown
@@ -59,6 +66,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app: FastAPI = FastAPI(title="Tickr", version="2.0.0", lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["Content-Type"],
+)
 register_error_handlers(app)
 
 rate_limit_store: dict[str, list[float]] = defaultdict(list)
@@ -97,7 +112,7 @@ async def security_headers_middleware(request: Request, call_next: CallNext) -> 
         "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data:; "
-        "connect-src 'self'"
+        f"connect-src {CSP_CONNECT_SRC}"
     )
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
