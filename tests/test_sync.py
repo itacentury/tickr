@@ -256,8 +256,8 @@ class TestSyncHistory:
         actions = {h["action"] for h in client.get(f"/api/v1/lists/{lst['id']}/history").json()}
         assert actions == {"item_created", "item_completed", "item_uncompleted"}
 
-    def test_item_text_change_logs_item_edited(self, client, create_list):
-        """Changing text logs item_edited with 'old → new' format."""
+    def test_item_text_change_logs_item_renamed(self, client, create_list):
+        """Changing text logs item_renamed with 'old → new' format."""
         lst = create_list(undo=True)
         item_id = _uuid()
         base = {
@@ -277,7 +277,7 @@ class TestSyncHistory:
         _push_item(client, new_state=edited, assumed=inserted)
 
         history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
-        edit = next(h for h in history if h["action"] == "item_edited")
+        edit = next(h for h in history if h["action"] == "item_renamed")
         assert edit["item_text"] == "Old text \u2192 New text"
 
     def test_item_soft_delete_logs_item_deleted(self, client, create_list):
@@ -304,14 +304,47 @@ class TestSyncHistory:
         deleted_entry = next(h for h in history if h["action"] == "item_deleted")
         assert deleted_entry["item_text"] == "Doomed"
 
-    def test_list_rename_does_not_log(self, client, create_list):
-        """List edits (name/icon) do not produce history rows."""
-        lst = create_list(undo=True)
+    def test_list_rename_logs_list_renamed(self, client, create_list):
+        """Renaming a list via sync logs list_renamed with 'old → new' format."""
+        lst = create_list(name="Original", undo=True)
         pull = client.get("/api/v1/sync/lists/pull").json()
         current = next(d for d in pull["documents"] if d["id"] == lst["id"])
 
         renamed = {**current, "name": "Renamed", "updated_at": "2099-01-01T00:00:00"}
         _push_list(client, new_state=renamed, assumed=current)
+
+        history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
+        entry = next(h for h in history if h["action"] == "list_renamed")
+        assert entry["item_text"] == "Original → Renamed"
+        assert entry["item_id"] is None
+
+    def test_list_icon_and_sort_change_log_history(self, client, create_list):
+        """Icon and item_sort changes each produce their own history row."""
+        lst = create_list(undo=True)
+        pull = client.get("/api/v1/sync/lists/pull").json()
+        current = next(d for d in pull["documents"] if d["id"] == lst["id"])
+
+        updated = {
+            **current,
+            "icon": "star",
+            "item_sort": "created_desc",
+            "updated_at": "2099-01-01T00:00:00",
+        }
+        _push_list(client, new_state=updated, assumed=current)
+
+        history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
+        actions = {h["action"] for h in history}
+        assert "list_icon_changed" in actions
+        assert "list_sort_changed" in actions
+
+    def test_list_sort_order_change_does_not_log(self, client, create_list):
+        """Reordering lists (sort_order only) produces no history rows."""
+        lst = create_list(undo=True)
+        pull = client.get("/api/v1/sync/lists/pull").json()
+        current = next(d for d in pull["documents"] if d["id"] == lst["id"])
+
+        reordered = {**current, "sort_order": 5, "updated_at": "2099-01-01T00:00:00"}
+        _push_list(client, new_state=reordered, assumed=current)
 
         history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
         assert history == []

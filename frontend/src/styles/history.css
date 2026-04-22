@@ -124,8 +124,24 @@
   color: #f59e0b;
 }
 
-.action-type.edited {
+.action-type.edited,
+.action-type.renamed {
   color: #a855f7;
+}
+
+.action-type.list {
+  color: #38bdf8;
+}
+
+.history-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
 }
 
 .history-text {

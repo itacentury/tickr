@@ -198,8 +198,11 @@ function renderHistory(history) {
     item_completed: { text: "Completed", class: "completed" },
     item_uncompleted: { text: "Reopened", class: "uncompleted" },
     item_deleted: { text: "Deleted", class: "deleted" },
-    item_edited: { text: "Edited", class: "edited" },
-    list_created: { text: "List created", class: "created" },
+    item_renamed: { text: "Renamed", class: "renamed" },
+    list_created: { text: "List created", class: "list" },
+    list_renamed: { text: "List renamed", class: "list" },
+    list_icon_changed: { text: "Icon changed", class: "list" },
+    list_sort_changed: { text: "Sort changed", class: "list" },
   };
 
   function getDateGroup(timestamp) {
@@ -254,12 +257,17 @@ function renderHistory(history) {
           };
           const itemText = entry.item_text || "";
           const displayText =
-            entry.action === "item_edited" && itemText.includes(" \u2192 ")
+            entry.action === "item_renamed" && itemText.includes(" \u2192 ")
               ? itemText.split(" \u2192 ")[1]
               : itemText;
+          const shortId = entry.item_id ? entry.item_id.slice(0, 6) : "";
+          const idBadge = shortId
+            ? `<span class="history-id" title="${escapeHtml(entry.item_id)}">${escapeHtml(shortId)}</span>`
+            : "";
           return `<li class="history-entry">
             <span class="history-time">${formatTime(entry.timestamp)}</span>
             <span class="action-type ${action.class}">${action.text}</span>
+            ${idBadge}
             <span class="history-text">${escapeHtml(displayText)}</span>
           </li>`;
         })

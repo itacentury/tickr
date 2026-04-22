@@ -115,9 +115,43 @@ def _log_list_history(
     current: dict[str, Any] | None,
     new_state: dict[str, Any],
 ) -> None:
-    """Log list_created on initial insert of a non-deleted list."""
-    if current is None and not new_state.get("_deleted"):
-        _insert_history(cursor, new_state["id"], None, "list_created", new_state.get("name"))
+    """Log list lifecycle events derived from the diff between current and new state.
+
+    Reorder-only updates (``sort_order`` changes) are intentionally ignored — they
+    reflect UI preference, not a meaningful list change.
+    """
+    if current is None:
+        if not new_state.get("_deleted"):
+            _insert_history(
+                cursor, new_state["id"], None, "list_created", new_state.get("name")
+            )
+        return
+
+    if not current.get("_deleted") and new_state.get("_deleted"):
+        return
+
+    list_id: str = new_state["id"]
+
+    old_name: str | None = current.get("name")
+    new_name: str | None = new_state.get("name")
+    if new_name is not None and old_name != new_name:
+        _insert_history(
+            cursor, list_id, None, "list_renamed", f"{old_name} → {new_name}"
+        )
+
+    old_icon: str | None = current.get("icon")
+    new_icon: str | None = new_state.get("icon")
+    if new_icon is not None and old_icon != new_icon:
+        _insert_history(
+            cursor, list_id, None, "list_icon_changed", f"{old_icon} → {new_icon}"
+        )
+
+    old_sort: str | None = current.get("item_sort")
+    new_sort: str | None = new_state.get("item_sort")
+    if new_sort is not None and old_sort != new_sort:
+        _insert_history(
+            cursor, list_id, None, "list_sort_changed", f"{old_sort} → {new_sort}"
+        )
 
 
 def _log_item_history(
@@ -141,7 +175,7 @@ def _log_item_history(
     old_text: str | None = current.get("text")
     new_text: str | None = new_state.get("text")
     if old_text != new_text:
-        _insert_history(cursor, list_id, item_id, "item_edited", f"{old_text} \u2192 {new_text}")
+        _insert_history(cursor, list_id, item_id, "item_renamed", f"{old_text} \u2192 {new_text}")
 
     old_completed: bool = bool(current.get("completed"))
     new_completed: bool = bool(new_state.get("completed"))

@@ -121,6 +121,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
         _ensure_columns(conn)
 
     _ensure_indexes(conn)
+    _rename_legacy_history_actions(conn)
 
     # Settings table
     cursor.execute("PRAGMA table_info(settings)")
@@ -311,6 +312,22 @@ def _ensure_columns(conn: sqlite3.Connection) -> None:
     if "_deleted" not in item_cols:
         cursor.execute("ALTER TABLE items ADD COLUMN _deleted INTEGER DEFAULT 0")
 
+    conn.commit()
+
+
+def _rename_legacy_history_actions(conn: sqlite3.Connection) -> None:
+    """Rename legacy ``item_edited`` history rows to ``item_renamed``.
+
+    Idempotent — only logs when rows are actually updated.
+    """
+    cursor: sqlite3.Cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE history SET action = 'item_renamed' WHERE action = 'item_edited'"
+    )
+    if cursor.rowcount > 0:
+        logger.info(
+            "Renamed %d legacy history rows: item_edited -> item_renamed", cursor.rowcount
+        )
     conn.commit()
 
 
