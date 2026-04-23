@@ -66,7 +66,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await initiate_shutdown()
 
 
-app: FastAPI = FastAPI(title="Tickr", version="2.0.0", lifespan=lifespan)
+app: FastAPI = FastAPI(
+    title="Tickr",
+    version="2.0.0",
+    description="Offline-first to-do app with real-time sync",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
