@@ -8,8 +8,8 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install gosu and Node.js for frontend build
-RUN apt-get update && apt-get install -y --no-install-recommends gosu nodejs npm \
+# Install gosu, Node.js for frontend build, and cron for backup scheduling
+RUN apt-get update && apt-get install -y --no-install-recommends gosu nodejs npm cron \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security

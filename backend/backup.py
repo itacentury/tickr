@@ -5,18 +5,18 @@ a configurable retention policy. Designed to be invoked via cron:
 
     docker exec tickr python -m backend.backup
 
-Configuration via environment variables:
-    TICKR_BACKUP_DIR   — backup output directory (default: data/backups)
-    TICKR_BACKUP_RETAIN — number of backups to keep (default: 7)
+Configuration via environment variables (see ``backend.config``):
+    TICKR_DATABASE       — source SQLite database path
+    TICKR_BACKUP_DIR     — backup output directory (default: data/backups)
+    TICKR_BACKUP_RETAIN  — number of backups to keep (default: 7)
 """
 
-import os
 import sqlite3
 import sys
 from datetime import datetime
 from pathlib import Path
 
-from backend.database import DATABASE
+from backend.config import BACKUP_DIR, BACKUP_RETAIN, DATABASE
 from backend.logging_config import configure_logging, get_logger
 
 logger = get_logger(__name__)
@@ -72,11 +72,8 @@ def _enforce_retention(backup_dir: Path, retain: int) -> None:
 if __name__ == "__main__":
     configure_logging()
 
-    backup_dir: str = os.getenv("TICKR_BACKUP_DIR", "data/backups")
-    retain: int = int(os.getenv("TICKR_BACKUP_RETAIN", "7"))
-
     try:
-        create_backup(DATABASE, backup_dir, retain)
+        create_backup(DATABASE, BACKUP_DIR, BACKUP_RETAIN)
     except Exception:
         logger.exception("backup_failed")
         sys.exit(1)
