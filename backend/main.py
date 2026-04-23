@@ -145,13 +145,9 @@ async def rate_limit_middleware(request: Request, call_next: CallNext) -> Respon
     now: float = time.time()
 
     with rate_limit_lock:
-        timestamps: list[float] = rate_limit_store[client_ip]
         cutoff: float = now - RATE_LIMIT_WINDOW
-        rate_limit_store[client_ip] = [t for t in timestamps if t > cutoff]
-        timestamps = rate_limit_store[client_ip]
-
-        if len(rate_limit_store) > RATE_LIMIT_MAX_IPS:
-            _evict_stale_entries(now)
+        timestamps: list[float] = [t for t in rate_limit_store[client_ip] if t > cutoff]
+        rate_limit_store[client_ip] = timestamps
 
         if len(timestamps) >= RATE_LIMIT_REQUESTS:
             retry_after: int = max(1, int(timestamps[0] - cutoff) + 1)
@@ -171,6 +167,11 @@ async def rate_limit_middleware(request: Request, call_next: CallNext) -> Respon
             )
 
         timestamps.append(now)
+
+        # Evict only after appending so the current client's entry is non-empty
+        # and won't be removed as "stale" by _evict_stale_entries.
+        if len(rate_limit_store) > RATE_LIMIT_MAX_IPS:
+            _evict_stale_entries(now)
 
     return await call_next(request)
 
