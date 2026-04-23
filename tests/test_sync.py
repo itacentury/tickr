@@ -51,6 +51,12 @@ class TestSyncPull:
         resp = client.get("/api/v1/sync/lists/pull?limit=2")
         assert len(resp.json()["documents"]) == 2
 
+    def test_pull_limit_rejects_out_of_range(self, client):
+        """Limit outside [1, 1000] is rejected with 422 before touching the DB."""
+        assert client.get("/api/v1/sync/lists/pull?limit=0").status_code == 422
+        assert client.get("/api/v1/sync/lists/pull?limit=9999999").status_code == 422
+        assert client.get("/api/v1/sync/lists/pull?limit=-5").status_code == 422
+
     def test_pull_invalid_collection(self, client):
         """Invalid collection name returns 400 INVALID_COLLECTION."""
         resp = client.get("/api/v1/sync/bogus/pull")

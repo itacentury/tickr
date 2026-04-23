@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query
 from fastapi.responses import StreamingResponse
 
 from ..config import SSE_HEARTBEAT_INTERVAL
@@ -286,7 +286,7 @@ def sync_pull(
     collection: str,
     updated_at: str | None = None,
     id: str | None = None,
-    limit: int = 100,
+    limit: int = Query(default=100, ge=1, le=1000),
     db: sqlite3.Connection = Depends(get_db),
 ) -> dict[str, Any]:
     """Pull documents newer than the given checkpoint for RxDB replication."""
