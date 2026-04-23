@@ -288,7 +288,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.109.0" },
     { name = "structlog", specifier = ">=24.1.0" },
-    { name = "uvicorn", specifier = ">=0.27.0" },
+    { name = "uvicorn", specifier = ">=0.44.0" },
 ]
 
 [package.metadata.requires-dev]

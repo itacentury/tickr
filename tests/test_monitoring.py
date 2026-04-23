@@ -16,6 +16,8 @@ class TestHealthCheck:
         data = resp.json()
         assert data["status"] == "healthy"
         assert data["database"] == "ok"
+        assert isinstance(data["list_count"], int)
+        assert "timestamp" in data
 
     def test_health_check_connections(self, client):
         """Health response includes the connections sub-object."""
@@ -26,18 +28,20 @@ class TestHealthCheck:
         assert "sse_max" in conns
 
     def test_health_check_db_failure_returns_503(self, client):
-        """A broken DB dependency surfaces as 503 SERVICE_UNAVAILABLE."""
+        """A broken DB dependency surfaces as 503 unhealthy."""
 
         def broken_db():
             conn = sqlite3.connect(":memory:")
-            conn.close()  # closed before the handler runs — SELECT 1 fails
+            conn.close()  # closed before the handler runs — query fails
             yield conn
 
         app.dependency_overrides[get_db] = broken_db
         try:
             resp = client.get("/api/v1/health")
             assert resp.status_code == 503
-            assert resp.json()["error"]["code"] == "SERVICE_UNAVAILABLE"
+            body = resp.json()
+            assert body["status"] == "unhealthy"
+            assert body["database"].startswith("database_error:")
         finally:
             app.dependency_overrides.pop(get_db, None)
 
