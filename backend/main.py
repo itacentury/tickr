@@ -118,7 +118,7 @@ async def security_headers_middleware(request: Request, call_next: CallNext) -> 
     response: Response = await call_next(request)
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
+        "style-src 'self' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data:; "
         f"connect-src {CSP_CONNECT_SRC}"

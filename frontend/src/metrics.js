@@ -115,13 +115,18 @@ function renderMetrics(metrics, health) {
         <span class="gauge-value">${esc(sseTotal)} / ${esc(conn.sse_max)}</span>
       </div>
       <div class="gauge-track">
-        <div class="gauge-fill" style="width: ${Math.min(ssePct, 100)}%"></div>
+        <div class="gauge-fill" data-pct="${Math.min(ssePct, 100)}"></div>
       </div>
     </div>
     ${methodBars.length ? `<div class="bar-chart"><div class="bar-chart-title">Requests by Method</div>${methodBars}</div>` : ""}
     ${statusBars.length ? `<div class="bar-chart"><div class="bar-chart-title">Requests by Status</div>${statusBars}</div>` : ""}
     ${pathBars.length ? `<div class="bar-chart"><div class="bar-chart-title">Requests by Path</div>${pathBars}</div>` : ""}
   `;
+
+  // CSP-safe bar/gauge widths: apply via CSSOM instead of inline style attributes.
+  for (const el of dom.metricsBody.querySelectorAll("[data-pct]")) {
+    el.style.width = `${el.dataset.pct}%`;
+  }
 }
 
 /** Show an error state with a retry button. */
@@ -161,7 +166,7 @@ function buildBarRows(data, fillClass) {
       return `
         <div class="bar-row">
           <span class="bar-label" title="${esc(label)}">${esc(label)}</span>
-          <div class="bar-track"><div class="bar-fill ${fillClass}" style="width: ${pct}%"></div></div>
+          <div class="bar-track"><div class="bar-fill ${fillClass}" data-pct="${pct}"></div></div>
           <span class="bar-value">${Number(count).toLocaleString()}</span>
         </div>`;
     })
@@ -191,7 +196,7 @@ function buildStatusBars(data) {
       return `
         <div class="bar-row">
           <span class="bar-label">${esc(code)}</span>
-          <div class="bar-track"><div class="bar-fill ${fillClass}" style="width: ${pct}%"></div></div>
+          <div class="bar-track"><div class="bar-fill ${fillClass}" data-pct="${pct}"></div></div>
           <span class="bar-value">${Number(count).toLocaleString()}</span>
         </div>`;
     })

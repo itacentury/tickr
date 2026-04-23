@@ -158,7 +158,7 @@ export function renderItems() {
   dom.itemsList.innerHTML = state.items
     .map(
       (item, index) => `
-        <li class="item" data-id="${item.id}" style="--i:${index}">
+        <li class="item" data-id="${item.id}" data-index="${index}">
             <label class="item-checkbox">
                 <input type="checkbox">
                 <span class="checkmark">
@@ -174,6 +174,11 @@ export function renderItems() {
     `,
     )
     .join("");
+
+  // CSP-safe stagger: set --i via CSSOM instead of an inline style attribute.
+  for (const li of dom.itemsList.children) {
+    li.style.setProperty("--i", li.dataset.index);
+  }
 }
 
 // ---- History ----
