@@ -69,6 +69,44 @@ class HistoryEntry(BaseModel):
     timestamp: str | None = Field(None, max_length=30)
 
 
+class SyncListState(BaseModel):
+    """Validated ``newDocumentState`` for the ``lists`` RxDB collection.
+
+    Fields mirror the REST ``ListCreate``/``ListUpdate`` length constraints so the
+    sync path cannot be used to bypass them. All fields except ``id`` are optional
+    because RxDB replication sends partial states.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    id: str = Field(..., min_length=1, max_length=64)
+    name: str | None = Field(None, max_length=200)
+    icon: str | None = Field(None, max_length=50)
+    item_sort: str | None = Field(None, max_length=50)
+    sort_order: int | None = None
+    created_at: str | None = Field(None, max_length=30)
+    updated_at: str | None = Field(None, max_length=30)
+    deleted: int | None = Field(None, ge=0, le=1, alias="_deleted")
+
+
+class SyncItemState(BaseModel):
+    """Validated ``newDocumentState`` for the ``items`` RxDB collection.
+
+    Fields mirror the REST ``ItemCreate``/``ItemUpdate`` length constraints.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    id: str = Field(..., min_length=1, max_length=64)
+    list_id: str | None = Field(None, min_length=1, max_length=64)
+    text: str | None = Field(None, max_length=1000)
+    completed: int | None = Field(None, ge=0, le=1)
+    created_at: str | None = Field(None, max_length=30)
+    updated_at: str | None = Field(None, max_length=30)
+    completed_at: str | None = Field(None, max_length=30)
+    deleted: int | None = Field(None, ge=0, le=1, alias="_deleted")
+
+
 class SyncChange(BaseModel):
     """A single document change from an RxDB replication push.
 
