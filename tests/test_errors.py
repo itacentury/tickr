@@ -33,6 +33,30 @@ class TestReportError:
         resp = client.post("/api/v1/errors", json={"message": "no action"})
         assert resp.status_code == 422
 
+    def test_report_error_rejects_oversized_stack(self, client):
+        """Stack exceeding the 2000-char limit is rejected to prevent log flooding."""
+        resp = client.post(
+            "/api/v1/errors",
+            json={
+                "message": "boom",
+                "action": "click",
+                "stack": "x" * 2001,
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_report_error_accepts_max_stack(self, client):
+        """Stack at exactly the 2000-char limit is accepted."""
+        resp = client.post(
+            "/api/v1/errors",
+            json={
+                "message": "boom",
+                "action": "click",
+                "stack": "x" * 2000,
+            },
+        )
+        assert resp.status_code == 204
+
     def test_report_error_logs_at_warning_level(self, client, caplog):
         """Frontend error reports log at WARNING to avoid flooding ERROR pipelines."""
         with caplog.at_level(logging.WARNING, logger="backend.routes.errors"):

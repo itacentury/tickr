@@ -123,7 +123,7 @@ class FrontendErrorReport(BaseModel):
     """Request model for frontend error reports sent to the server."""
 
     message: str = Field(..., min_length=1, max_length=2000)
-    stack: str | None = Field(None, max_length=10000)
+    stack: str | None = Field(None, max_length=2000)
     action: str = Field(..., max_length=200)
     user_agent: str | None = Field(None, max_length=500)
     timestamp: str | None = Field(None, max_length=30)
