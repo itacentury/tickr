@@ -13,7 +13,7 @@ Configuration via environment variables (see ``backend.config``):
 
 import sqlite3
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from backend.config import BACKUP_DIR, BACKUP_RETAIN, DATABASE
@@ -39,7 +39,7 @@ def create_backup(db_path: str, backup_dir: str = "data/backups", retain: int = 
     backup_path: Path = Path(backup_dir)
     backup_path.mkdir(parents=True, exist_ok=True)
 
-    timestamp: str = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    timestamp: str = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
     dest_file: Path = backup_path / f"tickr_{timestamp}.db"
 
     src: sqlite3.Connection = sqlite3.connect(db_path)
