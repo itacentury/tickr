@@ -157,3 +157,14 @@ class TestSecurityHeaders:
         assert resp.headers["x-frame-options"] == "DENY"
         assert "referrer-policy" in resp.headers
         assert "permissions-policy" in resp.headers
+
+    def test_hsts_absent_on_http(self, client):
+        """HSTS must not be emitted over plain HTTP."""
+        resp = client.get("/api/v1/settings")
+        assert "strict-transport-security" not in resp.headers
+
+    def test_hsts_present_on_https(self):
+        """HSTS is emitted when the request arrives over HTTPS."""
+        https_client = TestClient(app, base_url="https://testserver", raise_server_exceptions=False)
+        resp = https_client.get("/api/v1/settings")
+        assert resp.headers["strict-transport-security"] == ("max-age=31536000; includeSubDomains")

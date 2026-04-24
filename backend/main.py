@@ -127,6 +127,12 @@ async def security_headers_middleware(request: Request, call_next: CallNext) -> 
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # HSTS only on HTTPS — sending it over plain HTTP is meaningless (browsers
+    # ignore it) and misleading. `request.url.scheme` reflects
+    # X-Forwarded-Proto when uvicorn runs with --proxy-headers. No `preload`:
+    # that is a near-irreversible deployer decision, not ours.
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
