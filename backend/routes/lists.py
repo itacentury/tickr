@@ -39,6 +39,7 @@ def get_lists(db: sqlite3.Connection = Depends(get_db)) -> list[dict]:
         "custom": "l.sort_order, l.created_at",
     }
     order_by: str = list_sort_sql.get(list_sort, list_sort_sql["alphabetical"])
+    assert order_by in list_sort_sql.values(), "order_by must come from list_sort_sql whitelist"
 
     cursor.execute(f"""
         SELECT l.*,

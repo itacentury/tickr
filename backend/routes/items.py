@@ -28,6 +28,7 @@ def get_items(
         raise AppError(ErrorCode.LIST_NOT_FOUND, "List not found", 404)
     sort_option: str = row["item_sort"] if row["item_sort"] else "alphabetical"
     order_by: str = SORT_SQL.get(sort_option, SORT_SQL["alphabetical"])
+    assert order_by in SORT_SQL.values(), "order_by must come from SORT_SQL whitelist"
 
     if include_completed:
         cursor.execute(
