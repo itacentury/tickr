@@ -8,7 +8,7 @@
 import { ICON_MAX, ID_MAX, NAME_MAX, TEXT_MAX } from "./constants.js";
 
 export const listSchema = {
-  version: 1,
+  version: 2,
   primaryKey: "id",
   type: "object",
   properties: {
@@ -25,7 +25,7 @@ export const listSchema = {
 };
 
 export const itemSchema = {
-  version: 1,
+  version: 2,
   primaryKey: "id",
   type: "object",
   properties: {

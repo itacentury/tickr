@@ -43,6 +43,10 @@ async function _createDatabase() {
       schema: listSchema,
       migrationStrategies: {
         1: (doc) => doc,
+        // v2 only added maxLength constraints to existing fields (icon, id);
+        // no data shape change. DB pre-check confirmed no documents exceed
+        // the new limits, so an identity migration is sufficient.
+        2: (doc) => doc,
       },
     },
     items: {
@@ -52,6 +56,9 @@ async function _createDatabase() {
           doc.completed = !!doc.completed;
           return doc;
         },
+        // v2 added maxLength constraints to listId/text and tightened id.
+        // See note above for why an identity migration is safe here.
+        2: (doc) => doc,
       },
     },
   });
