@@ -4,6 +4,15 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .constants import (
+    ICON_MAX,
+    ID_MAX,
+    NAME_MAX,
+    SORT_OPTION_MAX,
+    TEXT_MAX,
+    TIMESTAMP_MAX,
+)
+
 
 def _strip_str(cls, v: object) -> object:
     """Strip whitespace from strings; leave other types for Pydantic to reject."""
@@ -13,8 +22,8 @@ def _strip_str(cls, v: object) -> object:
 class ListCreate(BaseModel):
     """Request model for creating a new list."""
 
-    name: str = Field(..., min_length=1, max_length=200)
-    icon: str = Field("list", max_length=50)
+    name: str = Field(..., min_length=1, max_length=NAME_MAX)
+    icon: str = Field("list", max_length=ICON_MAX)
     undo: bool = False
 
     _strip_name = field_validator("name", mode="before")(_strip_str)
@@ -23,8 +32,8 @@ class ListCreate(BaseModel):
 class ListUpdate(BaseModel):
     """Request model for updating an existing list."""
 
-    name: str | None = Field(None, min_length=1, max_length=200)
-    icon: str | None = Field(None, max_length=50)
+    name: str | None = Field(None, min_length=1, max_length=NAME_MAX)
+    icon: str | None = Field(None, max_length=ICON_MAX)
     item_sort: str | None = None
 
     _strip_name = field_validator("name", mode="before")(_strip_str)
@@ -33,7 +42,7 @@ class ListUpdate(BaseModel):
 class ItemCreate(BaseModel):
     """Request model for creating a new item."""
 
-    text: str = Field(..., min_length=1, max_length=1000)
+    text: str = Field(..., min_length=1, max_length=TEXT_MAX)
     undo: bool = False
 
     _strip_text = field_validator("text", mode="before")(_strip_str)
@@ -42,7 +51,7 @@ class ItemCreate(BaseModel):
 class ItemUpdate(BaseModel):
     """Request model for updating an existing item."""
 
-    text: str | None = Field(None, min_length=1, max_length=1000)
+    text: str | None = Field(None, min_length=1, max_length=TEXT_MAX)
     completed: bool | None = None
     undo: bool = False
 
@@ -65,8 +74,8 @@ class HistoryEntry(BaseModel):
     """Request model for a single history entry during restore."""
 
     action: str = Field(..., max_length=50)
-    item_text: str | None = Field(None, max_length=1000)
-    timestamp: str | None = Field(None, max_length=30)
+    item_text: str | None = Field(None, max_length=TEXT_MAX)
+    timestamp: str | None = Field(None, max_length=TIMESTAMP_MAX)
 
 
 class SyncListState(BaseModel):
@@ -79,13 +88,13 @@ class SyncListState(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    id: str = Field(..., min_length=1, max_length=64)
-    name: str | None = Field(None, max_length=200)
-    icon: str | None = Field(None, max_length=50)
-    item_sort: str | None = Field(None, max_length=50)
+    id: str = Field(..., min_length=1, max_length=ID_MAX)
+    name: str | None = Field(None, max_length=NAME_MAX)
+    icon: str | None = Field(None, max_length=ICON_MAX)
+    item_sort: str | None = Field(None, max_length=SORT_OPTION_MAX)
     sort_order: int | None = None
-    created_at: str | None = Field(None, max_length=30)
-    updated_at: str | None = Field(None, max_length=30)
+    created_at: str | None = Field(None, max_length=TIMESTAMP_MAX)
+    updated_at: str | None = Field(None, max_length=TIMESTAMP_MAX)
     deleted: int | None = Field(None, ge=0, le=1, alias="_deleted")
 
 
@@ -97,13 +106,13 @@ class SyncItemState(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
-    id: str = Field(..., min_length=1, max_length=64)
-    list_id: str | None = Field(None, min_length=1, max_length=64)
-    text: str | None = Field(None, max_length=1000)
+    id: str = Field(..., min_length=1, max_length=ID_MAX)
+    list_id: str | None = Field(None, min_length=1, max_length=ID_MAX)
+    text: str | None = Field(None, max_length=TEXT_MAX)
     completed: int | None = Field(None, ge=0, le=1)
-    created_at: str | None = Field(None, max_length=30)
-    updated_at: str | None = Field(None, max_length=30)
-    completed_at: str | None = Field(None, max_length=30)
+    created_at: str | None = Field(None, max_length=TIMESTAMP_MAX)
+    updated_at: str | None = Field(None, max_length=TIMESTAMP_MAX)
+    completed_at: str | None = Field(None, max_length=TIMESTAMP_MAX)
     deleted: int | None = Field(None, ge=0, le=1, alias="_deleted")
 
 

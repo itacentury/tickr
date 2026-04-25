@@ -5,14 +5,16 @@
  * checkpoint-based replication sorting.
  */
 
+import { ICON_MAX, ID_MAX, NAME_MAX, TEXT_MAX } from "./constants.js";
+
 export const listSchema = {
   version: 1,
   primaryKey: "id",
   type: "object",
   properties: {
-    id: { type: "string", maxLength: 36 },
-    name: { type: "string", minLength: 1, maxLength: 200 },
-    icon: { type: "string" },
+    id: { type: "string", maxLength: ID_MAX },
+    name: { type: "string", minLength: 1, maxLength: NAME_MAX },
+    icon: { type: "string", maxLength: ICON_MAX },
     itemSort: { type: "string" },
     sortOrder: { type: "integer" },
     createdAt: { type: "string" },
@@ -27,9 +29,9 @@ export const itemSchema = {
   primaryKey: "id",
   type: "object",
   properties: {
-    id: { type: "string", maxLength: 36 },
-    listId: { type: "string" },
-    text: { type: "string", minLength: 1, maxLength: 500 },
+    id: { type: "string", maxLength: ID_MAX },
+    listId: { type: "string", maxLength: ID_MAX },
+    text: { type: "string", minLength: 1, maxLength: TEXT_MAX },
     completed: { type: "boolean", default: false },
     createdAt: { type: "string" },
     updatedAt: { type: "string" },

@@ -174,7 +174,7 @@ class TestSyncPush:
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
     def test_push_rejects_oversized_item_text(self, client, create_list):
-        """Item text beyond 1000 chars is rejected with 422 (mirrors REST limit)."""
+        """Item text beyond TEXT_MAX (500) chars is rejected with 422 (mirrors REST limit)."""
         lst = create_list()
         resp = client.post(
             "/api/v1/sync/items/push",
@@ -183,7 +183,7 @@ class TestSyncPush:
                     "newDocumentState": {
                         "id": _uuid(),
                         "list_id": lst["id"],
-                        "text": "A" * 1001,
+                        "text": "A" * 501,
                         "completed": 0,
                         "created_at": "2025-01-01T00:00:00",
                         "updated_at": "2025-01-01T00:00:00",

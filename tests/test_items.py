@@ -75,10 +75,16 @@ class TestCreateItem:
         assert resp.status_code == 422
 
     def test_create_item_validation_text_too_long(self, client, create_list):
-        """Text exceeding 1000 characters returns 422."""
+        """Text exceeding TEXT_MAX (500) characters returns 422."""
         lst = create_list()
-        resp = client.post(f"/api/v1/lists/{lst['id']}/items", json={"text": "x" * 1001})
+        resp = client.post(f"/api/v1/lists/{lst['id']}/items", json={"text": "x" * 501})
         assert resp.status_code == 422
+
+    def test_create_item_accepts_text_at_boundary(self, client, create_list):
+        """Text exactly at TEXT_MAX (500) characters is accepted."""
+        lst = create_list()
+        resp = client.post(f"/api/v1/lists/{lst['id']}/items", json={"text": "x" * 500})
+        assert resp.status_code == 200
 
     def test_create_item_rejects_empty_text(self, client, create_list):
         """Empty text returns 422 via min_length=1."""
