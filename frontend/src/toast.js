@@ -20,25 +20,50 @@ import {
 // Module-private toast state
 let toastTimeout = null;
 let toastUndoCallback = null;
+// Called when the undo window closes without an undo (timeout, dismiss, being
+// replaced by a newer toast, or page unload). Used to finalize a deferred
+// deletion. Cleared once run so it never fires twice.
+let toastCommitCallback = null;
 let toastRemainingTime = 5000;
+
+/**
+ * Run the pending commit callback exactly once, if any. Invoked whenever the
+ * undo window resolves in favor of keeping the action (i.e. not undone).
+ */
+function commitPending() {
+  const commit = toastCommitCallback;
+  toastCommitCallback = null;
+  if (commit) commit();
+}
 
 /**
  * Show an undo toast with the given message.
  *
  * @param {string} message - Text to display in the toast.
- * @param {Function} undoCallback - Called when the user clicks Undo.
+ * @param {Function|{onUndo?: Function, onCommit?: Function}} undoOrOptions -
+ *   Either a bare undo callback (legacy form) or an options object.
+ *   `onUndo` runs when the user clicks Undo; `onCommit` runs when the window
+ *   closes without an undo (used to finalize a deferred deletion).
  */
-export function showUndoToast(message, undoCallback) {
-  presentToast(message, undoCallback);
+export function showUndoToast(message, undoOrOptions) {
+  const { onUndo = null, onCommit = null } =
+    typeof undoOrOptions === "function"
+      ? { onUndo: undoOrOptions }
+      : (undoOrOptions ?? {});
+  presentToast(message, onUndo, onCommit);
 }
 
-/** Display or update the toast with a new message and callback. */
-function presentToast(message, undoCallback) {
+/** Display or update the toast with a new message and callbacks. */
+function presentToast(message, undoCallback, commitCallback) {
+  // A new toast replaces any pending one — finalize the outgoing deletion
+  // first so it is never left unresolved.
+  commitPending();
   if (toastTimeout) {
     clearTimeout(toastTimeout);
     toastTimeout = null;
   }
   toastUndoCallback = undoCallback;
+  toastCommitCallback = commitCallback;
   toastRemainingTime = 5000;
   const isVisible = undoToast.classList.contains("visible");
 
@@ -52,7 +77,10 @@ function presentToast(message, undoCallback) {
         toastProgress.style.transform = "scaleX(0)";
       });
     });
-    toastTimeout = setTimeout(() => hideUndoToast(), toastRemainingTime);
+    toastTimeout = setTimeout(() => {
+      commitPending();
+      hideUndoToast();
+    }, toastRemainingTime);
   }
 
   if (isVisible) {
@@ -69,13 +97,17 @@ function presentToast(message, undoCallback) {
   }
 }
 
-/** Dismiss the toast and clear any pending timeout. */
+/**
+ * Dismiss the toast and clear any pending timeout. Does not run the commit
+ * callback — callers that mean "keep the action" call commitPending() first.
+ */
 export function hideUndoToast() {
   if (toastTimeout) {
     clearTimeout(toastTimeout);
     toastTimeout = null;
   }
   toastUndoCallback = null;
+  toastCommitCallback = null;
   undoToast.classList.remove("visible");
 }
 
@@ -101,7 +133,10 @@ function resumeToast() {
       toastProgress.style.transform = "scaleX(0)";
     });
   });
-  toastTimeout = setTimeout(() => hideUndoToast(), 5000);
+  toastTimeout = setTimeout(() => {
+    commitPending();
+    hideUndoToast();
+  }, 5000);
 }
 
 // Error toast state
@@ -152,10 +187,21 @@ export function initToastListeners() {
   undoToast.addEventListener("mouseleave", resumeToast);
 
   toastUndo.addEventListener("click", async () => {
+    // Undo cancels the deferred action — never commit it.
+    toastCommitCallback = null;
     if (toastUndoCallback) await toastUndoCallback();
     hideUndoToast();
   });
 
-  toastClose.addEventListener("click", () => hideUndoToast());
+  // Dismissing the toast accepts the action (e.g. finalizes the deletion).
+  toastClose.addEventListener("click", () => {
+    commitPending();
+    hideUndoToast();
+  });
   errorToastClose.addEventListener("click", () => hideErrorToast());
+
+  // If the page is closed while an undo window is open, finalize the pending
+  // deletion (best-effort; the RxDB write may not complete during unload, in
+  // which case the document simply survives and reappears on next load).
+  window.addEventListener("beforeunload", commitPending);
 }

@@ -24,6 +24,11 @@ export const state = {
   // draft against this baseline (not against live state.categories), so a
   // category synced in while the modal is open is never clobbered.
   categoryDraftBase: null,
+  // IDs of lists/items that the user has deleted but whose undo window is
+  // still open. Their RxDB docs still exist (deletion is deferred until the
+  // undo toast expires), so subscriptions filter these out to hide them
+  // immediately while keeping the documents — and their history — intact.
+  pendingDeletes: { lists: new Set(), items: new Set() },
 };
 
 /** Active RxDB subscriptions that may need to be replaced on re-subscribe. */

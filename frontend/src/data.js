@@ -149,31 +149,52 @@ export function subscribeLists() {
   }
 
   const query = state.db.lists.find();
-  subscriptions.lists = query.$.subscribe((docs) => {
-    const sortedDocs = sortLists(docs.map((d) => d.toJSON()));
-    state.lists = sortedDocs;
-    navigationChanged$.next();
+  subscriptions.lists = query.$.subscribe(applyListsSnapshot);
+}
 
-    if (state.lists.length > 0 && !state.currentListId) {
-      selectList(getInitialListId());
-    }
+/**
+ * Recompute state.lists from a set of RxDB list docs, hiding any list whose
+ * deletion is still pending (undo window open), then re-render and reconcile
+ * the current selection. Shared by the live subscription and refreshLists().
+ *
+ * @param {Array} docs - RxDB list documents (or anything with toJSON()).
+ */
+function applyListsSnapshot(docs) {
+  const visible = docs
+    .map((d) => d.toJSON())
+    .filter((l) => !state.pendingDeletes.lists.has(l.id));
+  state.lists = sortLists(visible);
+  navigationChanged$.next();
 
-    if (
-      state.currentListId &&
-      !state.lists.find((l) => l.id === state.currentListId)
-    ) {
-      if (state.lists.length > 0) {
-        selectList(state.lists[0].id);
-      } else {
-        state.currentListId = null;
-        localStorage.removeItem("tickr_current_list");
-        state.items = [];
-        itemsChanged$.next();
-        dom.listTitle.textContent = "No Lists";
-        document.title = "Tickr";
-      }
+  if (state.lists.length > 0 && !state.currentListId) {
+    selectList(getInitialListId());
+  }
+
+  if (
+    state.currentListId &&
+    !state.lists.find((l) => l.id === state.currentListId)
+  ) {
+    if (state.lists.length > 0) {
+      selectList(state.lists[0].id);
+    } else {
+      state.currentListId = null;
+      localStorage.removeItem("tickr_current_list");
+      state.items = [];
+      itemsChanged$.next();
+      dom.listTitle.textContent = "No Lists";
+      document.title = "Tickr";
     }
-  });
+  }
+}
+
+/**
+ * Re-derive state.lists from the database without waiting for an RxDB write.
+ * Needed when only the pending-delete set changed (mark/unmark), which the
+ * reactive subscription does not observe.
+ */
+export async function refreshLists() {
+  const docs = await state.db.lists.find().exec();
+  applyListsSnapshot(docs);
 }
 
 /**
@@ -187,15 +208,39 @@ export function subscribeItems(listId) {
   }
 
   const query = state.db.items.find({ selector: { listId, completed: false } });
-  subscriptions.items = query.$.subscribe((docs) => {
-    const list = state.lists.find((l) => l.id === listId);
-    const sortOption = list?.itemSort || "alphabetical";
-    state.items = sortItems(
-      docs.map((d) => d.toJSON()),
-      sortOption,
-    );
-    itemsChanged$.next();
-  });
+  subscriptions.items = query.$.subscribe((docs) =>
+    applyItemsSnapshot(docs, listId),
+  );
+}
+
+/**
+ * Recompute state.items for a list from RxDB item docs, hiding any item whose
+ * deletion is still pending. Shared by the live subscription and
+ * refreshCurrentItems().
+ *
+ * @param {Array} docs - RxDB item documents for the list.
+ * @param {string} listId - The list the docs belong to.
+ */
+function applyItemsSnapshot(docs, listId) {
+  const list = state.lists.find((l) => l.id === listId);
+  const sortOption = list?.itemSort || "alphabetical";
+  const visible = docs
+    .map((d) => d.toJSON())
+    .filter((i) => !state.pendingDeletes.items.has(i.id));
+  state.items = sortItems(visible, sortOption);
+  itemsChanged$.next();
+}
+
+/**
+ * Re-derive state.items for the current list without waiting for an RxDB
+ * write. Needed when only the pending-delete set changed (mark/unmark item).
+ */
+export async function refreshCurrentItems() {
+  if (!state.currentListId) return;
+  const docs = await state.db.items
+    .find({ selector: { listId: state.currentListId, completed: false } })
+    .exec();
+  applyItemsSnapshot(docs, state.currentListId);
 }
 
 /**
@@ -230,15 +275,35 @@ export function subscribeItemCounts() {
     subscriptions.itemsCount.unsubscribe();
   }
 
-  subscriptions.itemsCount = state.db.items.find().$.subscribe((docs) => {
-    const counts = {};
-    for (const doc of docs) {
-      if (doc.completed) continue;
-      counts[doc.listId] = (counts[doc.listId] || 0) + 1;
-    }
-    state.itemCounts = counts;
-    navigationChanged$.next();
-  });
+  subscriptions.itemsCount = state.db.items
+    .find()
+    .$.subscribe(applyItemCountsSnapshot);
+}
+
+/**
+ * Recompute per-list open-item counts from RxDB item docs, skipping completed
+ * items and any item whose deletion is still pending. Shared by the live
+ * subscription and refreshItemCounts().
+ *
+ * @param {Array} docs - All RxDB item documents.
+ */
+function applyItemCountsSnapshot(docs) {
+  const counts = {};
+  for (const doc of docs) {
+    if (doc.completed || state.pendingDeletes.items.has(doc.id)) continue;
+    counts[doc.listId] = (counts[doc.listId] || 0) + 1;
+  }
+  state.itemCounts = counts;
+  navigationChanged$.next();
+}
+
+/**
+ * Re-derive sidebar item counts without waiting for an RxDB write. Needed when
+ * only the pending-delete set changed (mark/unmark).
+ */
+export async function refreshItemCounts() {
+  const docs = await state.db.items.find().exec();
+  applyItemCountsSnapshot(docs);
 }
 
 // ---- Navigation ----
@@ -344,13 +409,38 @@ export async function updateList(listId, name, icon, itemSort) {
 }
 
 /**
- * Delete a list by RxDB soft-delete.
+ * Begin deleting a list: hide it (and its items) from the UI and navigate
+ * away, but defer the actual RxDB removal until the undo window expires. The
+ * documents — and their history — stay intact, so an undo is a no-op revert.
  *
  * @param {string} listId - The list ID to delete.
+ * @returns {Promise<string[]>} The IDs of the list's items, needed by
+ *   commit/unmark to resolve the deferred deletion.
  */
-export async function deleteList(listId) {
-  const doc = await state.db.lists.findOne(listId).exec();
-  if (!doc) return;
+export async function markListPendingDelete(listId) {
+  const listItems = await state.db.items.find({ selector: { listId } }).exec();
+  const itemIds = listItems.map((d) => d.id);
+
+  state.pendingDeletes.lists.add(listId);
+  for (const id of itemIds) state.pendingDeletes.items.add(id);
+
+  // refreshLists() re-renders without the hidden list and, since it is the
+  // current list, navigates away (or clears to "No Lists") via its built-in
+  // selection-reconciliation logic.
+  await refreshLists();
+  await refreshItemCounts();
+
+  return itemIds;
+}
+
+/**
+ * Finalize a deferred list deletion: actually soft-delete the list and its
+ * items in RxDB (which then syncs). Called when the undo window expires.
+ *
+ * @param {string} listId - The list ID being deleted.
+ * @param {string[]} itemIds - The list's item IDs marked pending.
+ */
+export async function commitListDelete(listId, itemIds) {
   try {
     const listItems = await state.db.items
       .find({ selector: { listId } })
@@ -358,23 +448,32 @@ export async function deleteList(listId) {
     for (const item of listItems) {
       await item.remove();
     }
-
-    await doc.remove();
-
-    if (state.lists.length > 0) {
-      selectList(state.lists[0].id);
-    } else {
-      state.currentListId = null;
-      localStorage.removeItem("tickr_current_list");
-      state.items = [];
-      itemsChanged$.next();
-      dom.listTitle.textContent = "No Lists";
-      document.title = "Tickr";
-    }
+    const doc = await state.db.lists.findOne(listId).exec();
+    if (doc) await doc.remove();
   } catch (error) {
     reportError("delete list", error);
     showErrorToast("Failed to delete list");
+  } finally {
+    state.pendingDeletes.lists.delete(listId);
+    for (const id of itemIds) state.pendingDeletes.items.delete(id);
   }
+}
+
+/**
+ * Cancel a deferred list deletion (undo): clear the pending flags and restore
+ * the list to the UI. The documents were never removed, so this is a pure
+ * revert with the original IDs and history.
+ *
+ * @param {string} listId - The list ID to restore.
+ * @param {string[]} itemIds - The list's item IDs to un-hide.
+ */
+export async function unmarkListPendingDelete(listId, itemIds) {
+  state.pendingDeletes.lists.delete(listId);
+  for (const id of itemIds) state.pendingDeletes.items.delete(id);
+
+  await refreshLists();
+  await refreshItemCounts();
+  selectList(listId);
 }
 
 /**
@@ -431,19 +530,46 @@ export async function updateItem(itemId, data) {
 }
 
 /**
- * Delete an item by RxDB soft-delete.
+ * Begin deleting an item: hide it from the UI but defer the actual RxDB
+ * removal until the undo window expires. The document keeps its ID and all
+ * fields (completed, category, createdAt), so an undo restores it verbatim.
  *
  * @param {string} itemId - The item ID to delete.
  */
-export async function deleteItem(itemId) {
-  const doc = await state.db.items.findOne(itemId).exec();
-  if (!doc) return;
+export async function markItemPendingDelete(itemId) {
+  state.pendingDeletes.items.add(itemId);
+  await refreshCurrentItems();
+  await refreshItemCounts();
+}
+
+/**
+ * Finalize a deferred item deletion: soft-delete the item in RxDB (syncs).
+ * Called when the undo window expires.
+ *
+ * @param {string} itemId - The item ID being deleted.
+ */
+export async function commitItemDelete(itemId) {
   try {
-    await doc.remove();
+    const doc = await state.db.items.findOne(itemId).exec();
+    if (doc) await doc.remove();
   } catch (error) {
     reportError("delete item", error);
     showErrorToast("Failed to delete item");
+  } finally {
+    state.pendingDeletes.items.delete(itemId);
   }
+}
+
+/**
+ * Cancel a deferred item deletion (undo): clear the pending flag and restore
+ * the item to the UI. The document was never removed.
+ *
+ * @param {string} itemId - The item ID to restore.
+ */
+export async function unmarkItemPendingDelete(itemId) {
+  state.pendingDeletes.items.delete(itemId);
+  await refreshCurrentItems();
+  await refreshItemCounts();
 }
 
 // ---- Category draft (transactional staging) ----

@@ -13,13 +13,16 @@ import { populateIconPicker, applyIconSelection } from "./icons.js";
 import {
   createList,
   updateList,
-  deleteList,
+  markListPendingDelete,
+  commitListDelete,
+  unmarkListPendingDelete,
   createItem,
   updateItem,
-  deleteItem,
+  markItemPendingDelete,
+  commitItemDelete,
+  unmarkItemPendingDelete,
   updateSettings,
   selectList,
-  now,
   discardCategoryDraft,
   draftAddCategory,
   draftUpdateCategory,
@@ -37,9 +40,8 @@ import {
 } from "./render.js";
 import { COLOR_PALETTE } from "./db/constants.js";
 import { initDropdown, setDropdownValue, closeDropdown } from "./dropdown.js";
-import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
+import { showUndoToast, initToastListeners } from "./toast.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
-import { reportError } from "./error-reporting.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
 function closeAllModals() {
@@ -207,45 +209,14 @@ export function setupEventListeners() {
     const list = state.lists.find((l) => l.id === state.currentListId);
     if (!list) return;
     const listName = list.name;
-    const listIcon = list.icon || "list";
-    const listSort = list.itemSort || "alphabetical";
-    const listSortOrder = list.sortOrder || 0;
+    const listId = list.id;
 
-    const savedItems = await state.db.items
-      .find({ selector: { listId: state.currentListId } })
-      .exec();
-    const savedItemsData = savedItems.map((d) => d.toJSON());
-
-    await deleteList(state.currentListId);
-    showUndoToast(`"${listName}" deleted`, async () => {
-      try {
-        const timestamp = now();
-        const newListId = crypto.randomUUID();
-        await state.db.lists.insert({
-          id: newListId,
-          name: listName,
-          icon: listIcon,
-          itemSort: listSort,
-          sortOrder: listSortOrder,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        });
-        for (const item of savedItemsData) {
-          await state.db.items.insert({
-            id: crypto.randomUUID(),
-            listId: newListId,
-            text: item.text,
-            completed: item.completed,
-            createdAt: item.createdAt,
-            updatedAt: timestamp,
-            completedAt: item.completedAt || null,
-          });
-        }
-        selectList(newListId);
-      } catch (error) {
-        reportError("restore list", error);
-        showErrorToast("Failed to restore list");
-      }
+    // Deferred delete: hide the list now, finalize when the undo window
+    // expires. Undo is a pure revert, so the list keeps its ID and history.
+    const itemIds = await markListPendingDelete(listId);
+    showUndoToast(`"${listName}" deleted`, {
+      onUndo: () => unmarkListPendingDelete(listId, itemIds),
+      onCommit: () => commitListDelete(listId, itemIds),
     });
   });
 
@@ -357,13 +328,17 @@ export function setupEventListeners() {
     if (!state.editingItemId) return;
     const item = state.items.find((i) => i.id === state.editingItemId);
     const itemText = item ? item.text : "";
-    const itemListId = item ? item.listId : state.currentListId;
     const itemId = state.editingItemId;
     dom.editItemModal.classList.remove("open");
     state.editingItemId = null;
-    await deleteItem(itemId);
-    showUndoToast(`"${itemText}" deleted`, async () => {
-      await createItem(itemText, itemListId);
+
+    // Deferred delete: hide the item now, finalize when the undo window
+    // expires. Undo reverts in place, preserving completion, category and
+    // original timestamps.
+    await markItemPendingDelete(itemId);
+    showUndoToast(`"${itemText}" deleted`, {
+      onUndo: () => unmarkItemPendingDelete(itemId),
+      onCommit: () => commitItemDelete(itemId),
     });
   });
 

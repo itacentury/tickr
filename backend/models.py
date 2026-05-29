@@ -97,14 +97,6 @@ class ListReorder(BaseModel):
     list_ids: list[str]
 
 
-class HistoryEntry(BaseModel):
-    """Request model for a single history entry during restore."""
-
-    action: str = Field(..., max_length=50)
-    item_text: str | None = Field(None, max_length=TEXT_MAX)
-    timestamp: str | None = Field(None, max_length=TIMESTAMP_MAX)
-
-
 class SyncListState(BaseModel):
     """Validated ``newDocumentState`` for the ``lists`` RxDB collection.
 
