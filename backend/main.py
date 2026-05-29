@@ -118,7 +118,7 @@ async def security_headers_middleware(request: Request, call_next: CallNext) -> 
     response: Response = await call_next(request)
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "
+        "style-src 'self' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data:; "
         f"connect-src {CSP_CONNECT_SRC}"
@@ -127,6 +127,12 @@ async def security_headers_middleware(request: Request, call_next: CallNext) -> 
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    # HSTS only on HTTPS — sending it over plain HTTP is meaningless (browsers
+    # ignore it) and misleading. `request.url.scheme` reflects
+    # X-Forwarded-Proto when uvicorn runs with --proxy-headers. No `preload`:
+    # that is a near-irreversible deployer decision, not ours.
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
@@ -145,13 +151,9 @@ async def rate_limit_middleware(request: Request, call_next: CallNext) -> Respon
     now: float = time.time()
 
     with rate_limit_lock:
-        timestamps: list[float] = rate_limit_store[client_ip]
         cutoff: float = now - RATE_LIMIT_WINDOW
-        rate_limit_store[client_ip] = [t for t in timestamps if t > cutoff]
-        timestamps = rate_limit_store[client_ip]
-
-        if len(rate_limit_store) > RATE_LIMIT_MAX_IPS:
-            _evict_stale_entries(now)
+        timestamps: list[float] = [t for t in rate_limit_store[client_ip] if t > cutoff]
+        rate_limit_store[client_ip] = timestamps
 
         if len(timestamps) >= RATE_LIMIT_REQUESTS:
             retry_after: int = max(1, int(timestamps[0] - cutoff) + 1)
@@ -171,6 +173,11 @@ async def rate_limit_middleware(request: Request, call_next: CallNext) -> Respon
             )
 
         timestamps.append(now)
+
+        # Evict only after appending so the current client's entry is non-empty
+        # and won't be removed as "stale" by _evict_stale_entries.
+        if len(rate_limit_store) > RATE_LIMIT_MAX_IPS:
+            _evict_stale_entries(now)
 
     return await call_next(request)
 

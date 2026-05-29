@@ -56,7 +56,10 @@ export const editIconPickerToggle = document.getElementById(
 export const editIconOptionsContainer =
   document.getElementById("editIconOptions");
 export const editIconPreview = document.getElementById("editIconPreview");
-export const editListSort = document.getElementById("editListSort");
+// Custom dropdown: `editListSort` holds the value (hidden input); the
+// wrapper element is referenced separately for init/close.
+export const editListSort = document.getElementById("editListSortValue");
+export const editListSortDropdown = document.getElementById("editListSort");
 
 // Edit Item Modal
 export const editItemModal = document.getElementById("editItemModal");
@@ -64,6 +67,60 @@ export const editItemForm = document.getElementById("editItemForm");
 export const editItemText = document.getElementById("editItemText");
 export const cancelEditItem = document.getElementById("cancelEditItem");
 export const deleteEditItem = document.getElementById("deleteEditItem");
+// Custom dropdown: `editItemCategory` holds the value (hidden input); the
+// wrapper element is referenced separately for init/close.
+export const editItemCategory = document.getElementById(
+  "editItemCategoryValue",
+);
+export const editItemCategoryDropdown =
+  document.getElementById("editItemCategory");
+export const editItemCategoryNew = document.getElementById(
+  "editItemCategoryNew",
+);
+export const editItemCategoryQuickForm = document.getElementById(
+  "editItemCategoryQuickForm",
+);
+export const editItemCategoryQuickName = document.getElementById(
+  "editItemCategoryQuickName",
+);
+export const editItemCategoryQuickColor = document.getElementById(
+  "editItemCategoryQuickColor",
+);
+export const editItemCategoryQuickSwatches = document.getElementById(
+  "editItemCategoryQuickSwatches",
+);
+export const editItemCategoryQuickSave = document.getElementById(
+  "editItemCategoryQuickSave",
+);
+export const editItemCategoryQuickCancel = document.getElementById(
+  "editItemCategoryQuickCancel",
+);
+
+// Edit List Modal — Categories section
+export const editListCategoriesList = document.getElementById(
+  "editListCategoriesList",
+);
+export const editListCategoryAddBtn = document.getElementById(
+  "editListCategoryAddBtn",
+);
+export const editListCategoryForm = document.getElementById(
+  "editListCategoryForm",
+);
+export const editListCategoryName = document.getElementById(
+  "editListCategoryName",
+);
+export const editListCategoryColor = document.getElementById(
+  "editListCategoryColor",
+);
+export const editListCategorySwatches = document.getElementById(
+  "editListCategorySwatches",
+);
+export const editListCategorySave = document.getElementById(
+  "editListCategorySave",
+);
+export const editListCategoryCancel = document.getElementById(
+  "editListCategoryCancel",
+);
 
 // Undo Toast
 export const undoToast = document.getElementById("undoToast");
@@ -87,7 +144,11 @@ export const closeMetricsBtn = document.getElementById("closeMetrics");
 // Settings Modal
 export const settingsModal = document.getElementById("settingsModal");
 export const settingsBtn = document.getElementById("settingsBtn");
-export const listSortSetting = document.getElementById("listSortSetting");
+// Custom dropdown: `listSortSetting` holds the value (hidden input); the
+// wrapper element is referenced separately for init/close.
+export const listSortSetting = document.getElementById("listSortSettingValue");
+export const listSortSettingDropdown =
+  document.getElementById("listSortSetting");
 export const cancelSettings = document.getElementById("cancelSettings");
 export const saveSettings = document.getElementById("saveSettings");
 export const clearCacheBtn = document.getElementById("clearCacheBtn");

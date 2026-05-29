@@ -6,15 +6,16 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, ValidationError
 
 from ..config import SSE_HEARTBEAT_INTERVAL
 from ..database import get_db, now
 from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update, sync_broadcaster
 from ..logging_config import get_logger
-from ..models import SyncChange
+from ..models import SyncCategoryState, SyncChange, SyncItemState, SyncListState
 
 logger = get_logger(__name__)
 
@@ -33,6 +34,7 @@ class CollectionSpec:
     update_fields: tuple[str, ...]
     defaults: Callable[[], dict[str, Any]]
     broadcast_event: str
+    document_model: type[BaseModel]
     log_history: HistoryLogger | None = None
 
     @property
@@ -89,9 +91,23 @@ def _item_defaults() -> dict[str, Any]:
         "list_id": "",
         "text": "",
         "completed": 0,
+        "category_id": None,
         "created_at": timestamp,
         "updated_at": timestamp,
         "completed_at": None,
+        "_deleted": 0,
+    }
+
+
+def _category_defaults() -> dict[str, Any]:
+    """Defaults for a fresh ``categories`` document (timestamps computed per call)."""
+    timestamp: str = now()
+    return {
+        "list_id": "",
+        "name": "",
+        "color": "#64748b",
+        "created_at": timestamp,
+        "updated_at": timestamp,
         "_deleted": 0,
     }
 
@@ -175,6 +191,11 @@ def _log_item_history(
         action: str = "item_completed" if new_completed else "item_uncompleted"
         _insert_history(cursor, list_id, item_id, action, new_text)
 
+    old_category: str | None = current.get("category_id")
+    new_category: str | None = new_state.get("category_id")
+    if old_category != new_category:
+        _insert_history(cursor, list_id, item_id, "item_category_changed", new_category or "")
+
 
 COLLECTIONS: dict[str, CollectionSpec] = {
     "lists": CollectionSpec(
@@ -199,6 +220,7 @@ COLLECTIONS: dict[str, CollectionSpec] = {
         ),
         defaults=_list_defaults,
         broadcast_event="lists_changed",
+        document_model=SyncListState,
         log_history=_log_list_history,
     ),
     "items": CollectionSpec(
@@ -208,6 +230,7 @@ COLLECTIONS: dict[str, CollectionSpec] = {
             "list_id",
             "text",
             "completed",
+            "category_id",
             "created_at",
             "updated_at",
             "completed_at",
@@ -217,13 +240,37 @@ COLLECTIONS: dict[str, CollectionSpec] = {
             "list_id",
             "text",
             "completed",
+            "category_id",
             "updated_at",
             "completed_at",
             "_deleted",
         ),
         defaults=_item_defaults,
         broadcast_event="items_changed",
+        document_model=SyncItemState,
         log_history=_log_item_history,
+    ),
+    "categories": CollectionSpec(
+        table="categories",
+        insert_fields=(
+            "id",
+            "list_id",
+            "name",
+            "color",
+            "created_at",
+            "updated_at",
+            "_deleted",
+        ),
+        update_fields=(
+            "name",
+            "color",
+            "updated_at",
+            "_deleted",
+        ),
+        defaults=_category_defaults,
+        broadcast_event="categories_changed",
+        document_model=SyncCategoryState,
+        log_history=None,
     ),
 }
 
@@ -286,7 +333,7 @@ def sync_pull(
     collection: str,
     updated_at: str | None = None,
     id: str | None = None,
-    limit: int = 100,
+    limit: int = Query(default=100, ge=1, le=1000),
     db: sqlite3.Connection = Depends(get_db),
 ) -> dict[str, Any]:
     """Pull documents newer than the given checkpoint for RxDB replication."""
@@ -322,11 +369,18 @@ def sync_push(
 
     with db:
         for change in changes:
-            new_state: dict[str, Any] = change.new_document_state
+            raw_state: dict[str, Any] = change.new_document_state
             assumed: dict[str, Any] | None = change.assumed_master_state
 
-            if "id" not in new_state:
+            if "id" not in raw_state:
                 raise AppError(ErrorCode.VALIDATION_ERROR, "newDocumentState.id missing", 422)
+
+            try:
+                validated: BaseModel = spec.document_model.model_validate(raw_state)
+            except ValidationError as exc:
+                raise AppError(ErrorCode.VALIDATION_ERROR, str(exc), 422) from exc
+            new_state: dict[str, Any] = validated.model_dump(exclude_unset=True, by_alias=True)
+
             doc_id: str = new_state["id"]
 
             current: sqlite3.Row | None = _select_doc(cursor, spec, doc_id)

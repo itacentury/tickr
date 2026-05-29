@@ -54,9 +54,9 @@
 		"version": "2.0.0",
 		"tasks": [
 			{
-				"label": "Format: Python",
+				"label": "Format: All",
 				"type": "shell",
-				"command": "ruff check --fix . && ruff format .",
+				"command": "uv run ruff check --fix . && uv run ruff format . && cd frontend && npm run format",
 				"group": "build",
 				"presentation": {
 					"panel": "shared"
@@ -90,7 +90,7 @@
 			{
 				"label": "Test: Run All",
 				"type": "shell",
-				"command": "${workspaceFolder}/.venv/bin/python -m pytest tests/ -v",
+				"command": "uv run pytest tests/ -v",
 				"group": "build",
 				"presentation": {
 					"panel": "shared",
@@ -100,7 +100,7 @@
 			{
 				"label": "Run: Start Server",
 				"type": "shell",
-				"command": "${workspaceFolder}/.venv/bin/python -m uvicorn backend.main:app --reload --host=0.0.0.0 --port=8000",
+				"command": "uv run uvicorn backend.main:app --reload --host=0.0.0.0 --port=8000",
 				"group": "build",
 				"isBackground": true,
 				"presentation": {

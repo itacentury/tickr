@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "format": "prettier --write \"src/**/*.{js,css,html}\" \"public/**/*.js\""
   },
   "dependencies": {
     "rxdb": "^16.11.0",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "prettier": "^3.5.3",
     "vite": "^6.3.5"
   }
 }

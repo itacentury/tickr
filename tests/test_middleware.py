@@ -75,6 +75,25 @@ class TestRateLimit:
         assert resp.status_code == 200
         assert len(rate_limit_store) <= 3
 
+    def test_request_tracked_when_eviction_triggered(self, client, monkeypatch):
+        """Regression: the current client's request must be tracked even when its
+        filtered timestamps are empty and eviction runs in the same request."""
+        monkeypatch.setattr(main_module, "RATE_LIMIT_MAX_IPS", 3)
+        rate_limit_store.clear()
+
+        stale_time: float = time.time() - 120  # outside the window
+        # Pre-seed the current client with only stale timestamps so the filter
+        # leaves an empty list — this is the condition that used to trigger the bug.
+        rate_limit_store["testclient"] = [stale_time]
+        for i in range(4):
+            rate_limit_store[f"other-{i}"] = [stale_time]
+
+        resp = client.get("/api/v1/settings")
+        assert resp.status_code == 200
+        # The request must be tracked: testclient entry is present and has the new timestamp.
+        assert "testclient" in rate_limit_store
+        assert len(rate_limit_store["testclient"]) == 1
+
     def test_store_no_eviction_under_max(self, client, monkeypatch):
         """No eviction occurs when the store is under the max size."""
         monkeypatch.setattr(main_module, "RATE_LIMIT_MAX_IPS", 100)
@@ -138,3 +157,14 @@ class TestSecurityHeaders:
         assert resp.headers["x-frame-options"] == "DENY"
         assert "referrer-policy" in resp.headers
         assert "permissions-policy" in resp.headers
+
+    def test_hsts_absent_on_http(self, client):
+        """HSTS must not be emitted over plain HTTP."""
+        resp = client.get("/api/v1/settings")
+        assert "strict-transport-security" not in resp.headers
+
+    def test_hsts_present_on_https(self):
+        """HSTS is emitted when the request arrives over HTTPS."""
+        https_client = TestClient(app, base_url="https://testserver", raise_server_exceptions=False)
+        resp = https_client.get("/api/v1/settings")
+        assert resp.headers["strict-transport-security"] == ("max-age=31536000; includeSubDomains")

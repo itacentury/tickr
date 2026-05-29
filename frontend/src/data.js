@@ -10,7 +10,11 @@
 import { state, subscriptions } from "./state.js";
 import * as dom from "./dom.js";
 import { icons } from "./icons.js";
-import { navigationChanged$, itemsChanged$ } from "./bus.js";
+import {
+  navigationChanged$,
+  itemsChanged$,
+  categoriesChanged$,
+} from "./bus.js";
 import { showErrorToast } from "./toast.js";
 import { reportError } from "./error-reporting.js";
 
@@ -195,6 +199,29 @@ export function subscribeItems(listId) {
 }
 
 /**
+ * Subscribe to categories of a specific list.
+ *
+ * @param {string} listId - The list ID whose categories to track.
+ */
+export function subscribeCategories(listId) {
+  if (subscriptions.categories) {
+    subscriptions.categories.unsubscribe();
+  }
+
+  const query = state.db.categories.find({ selector: { listId } });
+  subscriptions.categories = query.$.subscribe((docs) => {
+    state.categories = docs
+      .map((d) => d.toJSON())
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+      );
+    categoriesChanged$.next();
+    // Items render shows category badges; refresh when category names/colors change.
+    itemsChanged$.next();
+  });
+}
+
+/**
  * Subscribe to all items globally to keep sidebar counts in sync.
  * Triggers a navigation re-render whenever any item changes.
  */
@@ -253,6 +280,7 @@ export function selectList(listId) {
   });
 
   subscribeItems(listId);
+  subscribeCategories(listId);
 }
 
 // ---- CRUD Operations ----
@@ -355,7 +383,7 @@ export async function deleteList(listId) {
  * @param {string} text - The item text.
  * @param {string} [listId] - The list to add to (defaults to current).
  */
-export async function createItem(text, listId) {
+export async function createItem(text, listId, categoryId = null) {
   const targetList = listId || state.currentListId;
   if (!targetList) return;
   try {
@@ -365,6 +393,7 @@ export async function createItem(text, listId) {
       listId: targetList,
       text,
       completed: false,
+      categoryId: categoryId || null,
       createdAt: timestamp,
       updatedAt: timestamp,
       completedAt: null,
@@ -391,6 +420,9 @@ export async function updateItem(itemId, data) {
       patch.completed = !!data.completed;
       patch.completedAt = data.completed ? now() : null;
     }
+    if (data.categoryId !== undefined) {
+      patch.categoryId = data.categoryId || null;
+    }
     await doc.patch(patch);
   } catch (error) {
     reportError("update item", error);
@@ -411,6 +443,181 @@ export async function deleteItem(itemId) {
   } catch (error) {
     reportError("delete item", error);
     showErrorToast("Failed to delete item");
+  }
+}
+
+// ---- Category draft (transactional staging) ----
+
+/** Sort a category draft array by name, matching subscribeCategories. */
+function sortCategoryDraft() {
+  state.categoryDraft.sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
+}
+
+/**
+ * Start a category editing session: snapshot the committed categories into an
+ * in-memory draft. All inline add/edit/delete actions mutate the draft until
+ * commitCategoryDraft persists them (or discardCategoryDraft throws them away).
+ */
+export function beginCategoryDraft() {
+  state.categoryDraft = state.categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    color: c.color,
+  }));
+  // Independent baseline copy — the commit diffs against this, not against the
+  // live (replication-mutated) state.categories.
+  state.categoryDraftBase = state.categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    color: c.color,
+  }));
+}
+
+/** Throw away the draft without touching the DB. */
+export function discardCategoryDraft() {
+  state.categoryDraft = null;
+  state.categoryDraftBase = null;
+}
+
+/**
+ * Add a new category to the draft with a temporary id. The real id is
+ * assigned by createCategory at commit time.
+ *
+ * @returns {Object} The created draft entry (with its temp id).
+ */
+export function draftAddCategory(name, color) {
+  const entry = { id: `tmp_${crypto.randomUUID()}`, name, color, _new: true };
+  state.categoryDraft.push(entry);
+  sortCategoryDraft();
+  return entry;
+}
+
+/** Mutate a draft entry's name/color in place. */
+export function draftUpdateCategory(id, { name, color }) {
+  const entry = state.categoryDraft.find((c) => c.id === id);
+  if (!entry) return;
+  if (name !== undefined) entry.name = name;
+  if (color !== undefined) entry.color = color;
+  sortCategoryDraft();
+}
+
+/** Remove a draft entry. Deletion of committed ones is resolved at commit. */
+export function draftDeleteCategory(id) {
+  state.categoryDraft = state.categoryDraft.filter((c) => c.id !== id);
+}
+
+/**
+ * Persist the draft against the baseline taken at beginCategoryDraft: delete
+ * categories the user removed, create new ones, and update changed ones.
+ * Diffing against the baseline (not live state.categories) means a category
+ * synced in while the modal was open is left untouched. Reuses the existing
+ * CRUD helpers (deleteCategory also clears the category from affected items).
+ *
+ * @param {string} listId - The list the categories belong to.
+ * @returns {Promise<Map<string,string>>} Map of temp id -> real id for new ones.
+ */
+export async function commitCategoryDraft(listId) {
+  const idMap = new Map();
+  const draft = state.categoryDraft;
+  if (!draft) return idMap;
+  const base = state.categoryDraftBase ?? [];
+
+  // Deletions: baseline categories the user removed from the draft.
+  const draftIds = new Set(draft.map((c) => c.id));
+  for (const original of base) {
+    if (!draftIds.has(original.id)) {
+      await deleteCategory(original.id);
+    }
+  }
+
+  for (const entry of draft) {
+    if (entry._new) {
+      const created = await createCategory(listId, entry.name, entry.color);
+      if (created) idMap.set(entry.id, created.id);
+    } else {
+      const orig = base.find((c) => c.id === entry.id);
+      if (orig && (orig.name !== entry.name || orig.color !== entry.color)) {
+        await updateCategory(entry.id, {
+          name: entry.name,
+          color: entry.color,
+        });
+      }
+    }
+  }
+
+  return idMap;
+}
+
+/**
+ * Create a new category in RxDB and return the resulting document.
+ *
+ * @param {string} listId - The list the category belongs to.
+ * @param {string} name - Category name.
+ * @param {string} color - Hex color string ("#rrggbb").
+ * @returns {Promise<Object|null>} The inserted document or null on failure.
+ */
+export async function createCategory(listId, name, color) {
+  try {
+    const timestamp = now();
+    const doc = await state.db.categories.insert({
+      id: crypto.randomUUID(),
+      listId,
+      name,
+      color,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    return doc.toJSON();
+  } catch (error) {
+    reportError("create category", error);
+    showErrorToast("Failed to create category");
+    return null;
+  }
+}
+
+/**
+ * Update a category's name and/or color.
+ *
+ * @param {string} categoryId - Category to update.
+ * @param {{name?: string, color?: string}} data - Patch fields.
+ */
+export async function updateCategory(categoryId, data) {
+  const doc = await state.db.categories.findOne(categoryId).exec();
+  if (!doc) return;
+  try {
+    const patch = { updatedAt: now() };
+    if (data.name !== undefined) patch.name = data.name;
+    if (data.color !== undefined) patch.color = data.color;
+    await doc.patch(patch);
+  } catch (error) {
+    reportError("update category", error);
+    showErrorToast("Failed to update category");
+  }
+}
+
+/**
+ * Soft-delete a category and clear it from all items in the same list.
+ * Performs item updates locally first, then removes the category - so a
+ * mid-flight crash leaves no items pointing at a phantom category.
+ *
+ * @param {string} categoryId - Category to delete.
+ */
+export async function deleteCategory(categoryId) {
+  const doc = await state.db.categories.findOne(categoryId).exec();
+  if (!doc) return;
+  try {
+    const affected = await state.db.items
+      .find({ selector: { categoryId } })
+      .exec();
+    for (const item of affected) {
+      await item.patch({ categoryId: null, updatedAt: now() });
+    }
+    await doc.remove();
+  } catch (error) {
+    reportError("delete category", error);
+    showErrorToast("Failed to delete category");
   }
 }
 

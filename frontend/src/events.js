@@ -20,12 +20,23 @@ import {
   updateSettings,
   selectList,
   now,
+  discardCategoryDraft,
+  draftAddCategory,
+  draftUpdateCategory,
+  draftDeleteCategory,
+  commitCategoryDraft,
 } from "./data.js";
 import {
   openEditListModal,
   openEditItemModal,
   fetchHistory,
+  renderColorPalette,
+  renderEditListCategories,
+  renderItemCategoryOptions,
+  resetCategoryForm,
 } from "./render.js";
+import { COLOR_PALETTE } from "./db/constants.js";
+import { initDropdown, setDropdownValue, closeDropdown } from "./dropdown.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
 import { reportError } from "./error-reporting.js";
@@ -39,8 +50,30 @@ function closeAllModals() {
   closeMetrics();
   dom.historyPanel.classList.remove("open");
   dom.overlay.classList.remove("visible");
+  closeDropdown(dom.editItemCategoryDropdown);
+  closeDropdown(dom.editListSortDropdown);
+  closeDropdown(dom.listSortSettingDropdown);
   dom.closeMobileMenu();
+  discardCategoryDraft();
   state.editingItemId = null;
+  state.editingCategoryId = null;
+  if (dom.editListCategoryForm)
+    dom.editListCategoryForm.classList.remove("expanded");
+  if (dom.editItemCategoryQuickForm)
+    dom.editItemCategoryQuickForm.classList.remove("expanded");
+}
+
+/**
+ * Pick the first palette color not yet used by any category in the current
+ * list, falling back to a random palette entry when all are taken.
+ */
+function pickInitialColor() {
+  const used = new Set(
+    (state.categoryDraft ?? state.categories).map((c) => c.color),
+  );
+  const free = COLOR_PALETTE.find((c) => !used.has(c));
+  if (free) return free;
+  return COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
 }
 
 /**
@@ -57,6 +90,15 @@ function makeBackdropDismiss(modal, onClose) {
 
 /** Attach all application event listeners. */
 export function setupEventListeners() {
+  // Custom dropdowns (replace native <select>)
+  // Selecting an existing category collapses the inline "+ New" form so the two
+  // category modes (pick existing / create new) are never active at once.
+  initDropdown(dom.editItemCategoryDropdown, () => {
+    resetCategoryForm(dom.editItemCategoryQuickForm);
+  });
+  initDropdown(dom.editListSortDropdown);
+  initDropdown(dom.listSortSettingDropdown);
+
   // Populate icon pickers
   populateIconPicker(dom.iconOptionsContainer);
   populateIconPicker(dom.editIconOptionsContainer);
@@ -159,6 +201,7 @@ export function setupEventListeners() {
 
   // Delete list (with undo)
   dom.deleteListBtn.addEventListener("click", async () => {
+    discardCategoryDraft();
     dom.editListModal.classList.remove("open");
     if (!state.currentListId || state.lists.length === 0) return;
     const list = state.lists.find((l) => l.id === state.currentListId);
@@ -265,6 +308,8 @@ export function setupEventListeners() {
     e.preventDefault();
     const name = dom.editListName.value.trim();
     if (name && state.currentListId) {
+      await commitCategoryDraft(state.currentListId);
+      discardCategoryDraft();
       await updateList(
         state.currentListId,
         name,
@@ -275,22 +320,34 @@ export function setupEventListeners() {
     }
   });
 
-  dom.cancelEditList.addEventListener("click", () =>
-    dom.editListModal.classList.remove("open"),
-  );
+  dom.cancelEditList.addEventListener("click", () => {
+    discardCategoryDraft();
+    dom.editListModal.classList.remove("open");
+  });
 
   // Edit item form
   dom.editItemForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = dom.editItemText.value.trim();
     if (text && state.editingItemId) {
-      await updateItem(state.editingItemId, { text });
+      const idMap = await commitCategoryDraft(state.currentListId);
+      discardCategoryDraft();
+      let categoryId = dom.editItemCategory.value || null;
+      if (categoryId && idMap.has(categoryId)) {
+        categoryId = idMap.get(categoryId);
+      } else if (categoryId?.startsWith("tmp_")) {
+        // Unmapped temp id means createCategory failed — don't store a
+        // dangling reference on the item.
+        categoryId = null;
+      }
+      await updateItem(state.editingItemId, { text, categoryId });
       dom.editItemModal.classList.remove("open");
       state.editingItemId = null;
     }
   });
 
   dom.cancelEditItem.addEventListener("click", () => {
+    discardCategoryDraft();
     dom.editItemModal.classList.remove("open");
     state.editingItemId = null;
   });
@@ -310,10 +367,107 @@ export function setupEventListeners() {
     });
   });
 
+  // ---- Categories: Quick-create from item modal ----
+  dom.editItemCategoryNew?.addEventListener("click", () => {
+    // Entering "create new" mode clears any existing dropdown selection so only
+    // one category mode is active at a time.
+    setDropdownValue(dom.editItemCategoryDropdown, "");
+    const initial = pickInitialColor();
+    dom.editItemCategoryQuickName.value = "";
+    dom.editItemCategoryQuickColor.value = initial;
+    renderColorPalette(dom.editItemCategoryQuickSwatches, initial);
+    dom.editItemCategoryQuickForm.classList.add("expanded");
+    setTimeout(() => dom.editItemCategoryQuickName.focus(), 0);
+  });
+
+  dom.editItemCategoryQuickCancel?.addEventListener("click", () => {
+    dom.editItemCategoryQuickForm.classList.remove("expanded");
+  });
+
+  dom.editItemCategoryQuickSwatches?.addEventListener("click", (e) => {
+    const swatch = e.target.closest(".color-swatch");
+    if (!swatch) return;
+    const color = swatch.dataset.color;
+    dom.editItemCategoryQuickColor.value = color;
+    renderColorPalette(dom.editItemCategoryQuickSwatches, color);
+  });
+
+  dom.editItemCategoryQuickSave?.addEventListener("click", () => {
+    const name = dom.editItemCategoryQuickName.value.trim();
+    const color = dom.editItemCategoryQuickColor.value;
+    if (!name) return;
+    // Stage the new category in the draft and select it. It is only written to
+    // the DB when the item modal is saved (commitCategoryDraft maps the temp
+    // id to a real one), and discarded if the item modal is cancelled.
+    const entry = draftAddCategory(name, color);
+    dom.editItemCategory.value = entry.id;
+    renderItemCategoryOptions();
+    dom.editItemCategoryQuickForm.classList.remove("expanded");
+  });
+
+  // ---- Categories: Manage from list modal ----
+  dom.editListCategoryAddBtn?.addEventListener("click", () => {
+    state.editingCategoryId = null;
+    const initial = pickInitialColor();
+    dom.editListCategoryName.value = "";
+    dom.editListCategoryColor.value = initial;
+    renderColorPalette(dom.editListCategorySwatches, initial);
+    dom.editListCategoryForm.classList.add("expanded");
+    setTimeout(() => dom.editListCategoryName.focus(), 0);
+  });
+
+  dom.editListCategoryCancel?.addEventListener("click", () => {
+    resetCategoryForm(dom.editListCategoryForm);
+  });
+
+  dom.editListCategorySwatches?.addEventListener("click", (e) => {
+    const swatch = e.target.closest(".color-swatch");
+    if (!swatch) return;
+    const color = swatch.dataset.color;
+    dom.editListCategoryColor.value = color;
+    renderColorPalette(dom.editListCategorySwatches, color);
+  });
+
+  dom.editListCategorySave?.addEventListener("click", () => {
+    const name = dom.editListCategoryName.value.trim();
+    const color = dom.editListCategoryColor.value;
+    if (!name) return;
+    if (state.editingCategoryId) {
+      draftUpdateCategory(state.editingCategoryId, { name, color });
+    } else {
+      draftAddCategory(name, color);
+    }
+    renderEditListCategories();
+    resetCategoryForm(dom.editListCategoryForm);
+  });
+
+  dom.editListCategoriesList?.addEventListener("click", (e) => {
+    const row = e.target.closest(".category-row");
+    if (!row) return;
+    const id = row.dataset.id;
+    if (e.target.closest(".category-edit")) {
+      const cat = state.categoryDraft?.find((c) => c.id === id);
+      if (!cat) return;
+      state.editingCategoryId = id;
+      dom.editListCategoryName.value = cat.name;
+      dom.editListCategoryColor.value = cat.color;
+      renderColorPalette(dom.editListCategorySwatches, cat.color);
+      dom.editListCategoryForm.classList.add("expanded");
+      setTimeout(() => dom.editListCategoryName.focus(), 0);
+    } else if (e.target.closest(".category-delete")) {
+      draftDeleteCategory(id);
+      renderEditListCategories();
+    }
+  });
+
   // Modal backdrop dismiss
   makeBackdropDismiss(dom.newListModal);
-  makeBackdropDismiss(dom.editListModal);
+  makeBackdropDismiss(dom.editListModal, () => {
+    discardCategoryDraft();
+    resetCategoryForm(dom.editListCategoryForm);
+  });
   makeBackdropDismiss(dom.editItemModal, () => {
+    discardCategoryDraft();
     state.editingItemId = null;
   });
 
@@ -329,7 +483,10 @@ export function setupEventListeners() {
 
   // Settings modal
   dom.settingsBtn.addEventListener("click", () => {
-    dom.listSortSetting.value = state.appSettings.list_sort || "alphabetical";
+    setDropdownValue(
+      dom.listSortSettingDropdown,
+      state.appSettings.list_sort || "alphabetical",
+    );
     dom.settingsModal.classList.add("open");
     dom.closeMobileMenu();
   });

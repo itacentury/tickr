@@ -13,6 +13,9 @@ RATE_LIMIT_MAX_IPS: int = int(os.getenv("TICKR_RATE_LIMIT_MAX_IPS", "10000"))
 MAX_SSE_CLIENTS: int = int(os.getenv("TICKR_MAX_SSE_CLIENTS", "10"))
 SSE_HEARTBEAT_INTERVAL: int = int(os.getenv("TICKR_SSE_HEARTBEAT_INTERVAL", "15"))
 
+BACKUP_DIR: str = os.getenv("TICKR_BACKUP_DIR", "data/backups")
+BACKUP_RETAIN: int = int(os.getenv("TICKR_BACKUP_RETAIN", "7"))
+
 CORS_ORIGINS: list[str] = [
     origin.strip()
     for origin in os.getenv("TICKR_CORS_ORIGINS", "http://localhost:8000").split(",")

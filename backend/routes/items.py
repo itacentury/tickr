@@ -28,6 +28,7 @@ def get_items(
         raise AppError(ErrorCode.LIST_NOT_FOUND, "List not found", 404)
     sort_option: str = row["item_sort"] if row["item_sort"] else "alphabetical"
     order_by: str = SORT_SQL.get(sort_option, SORT_SQL["alphabetical"])
+    assert order_by in SORT_SQL.values(), "order_by must come from SORT_SQL whitelist"
 
     if include_completed:
         cursor.execute(
@@ -58,8 +59,9 @@ def create_item(
     item_id: str = new_uuid()
 
     cursor.execute(
-        "INSERT INTO items (id, list_id, text, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-        (item_id, list_id, item_data.text, timestamp, timestamp),
+        "INSERT INTO items (id, list_id, text, category_id, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (item_id, list_id, item_data.text, item_data.category_id, timestamp, timestamp),
     )
 
     if not item_data.undo:
@@ -77,6 +79,7 @@ def create_item(
         "list_id": list_id,
         "text": item_data.text,
         "completed": False,
+        "category_id": item_data.category_id,
         "created_at": timestamp,
         "updated_at": timestamp,
         "completed_at": None,
@@ -111,6 +114,16 @@ def update_item(
             cursor.execute(
                 "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
                 (item["list_id"], item_id, "item_renamed", f"{item['text']} → {item_data.text}"),
+            )
+
+    if "category_id" in item_data.model_fields_set and item_data.category_id != item["category_id"]:
+        updates.append("category_id = ?")
+        values.append(item_data.category_id)
+
+        if not item_data.undo:
+            cursor.execute(
+                "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+                (item["list_id"], item_id, "item_category_changed", item_data.category_id or ""),
             )
 
     if item_data.completed is not None:

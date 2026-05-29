@@ -4,7 +4,7 @@ services:
     container_name: tickr
     restart: unless-stopped
     ports:
-      - 8000:8000/tcp
+      - 127.0.0.1:8000:8000/tcp
     # env_file:
     #   - .env
     # environment:

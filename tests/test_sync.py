@@ -51,6 +51,12 @@ class TestSyncPull:
         resp = client.get("/api/v1/sync/lists/pull?limit=2")
         assert len(resp.json()["documents"]) == 2
 
+    def test_pull_limit_rejects_out_of_range(self, client):
+        """Limit outside [1, 1000] is rejected with 422 before touching the DB."""
+        assert client.get("/api/v1/sync/lists/pull?limit=0").status_code == 422
+        assert client.get("/api/v1/sync/lists/pull?limit=9999999").status_code == 422
+        assert client.get("/api/v1/sync/lists/pull?limit=-5").status_code == 422
+
     def test_pull_invalid_collection(self, client):
         """Invalid collection name returns 400 INVALID_COLLECTION."""
         resp = client.get("/api/v1/sync/bogus/pull")
@@ -166,6 +172,123 @@ class TestSyncPush:
         )
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    def test_push_rejects_oversized_item_text(self, client, create_list):
+        """Item text beyond TEXT_MAX (500) chars is rejected with 422 (mirrors REST limit)."""
+        lst = create_list()
+        resp = client.post(
+            "/api/v1/sync/items/push",
+            json=[
+                {
+                    "newDocumentState": {
+                        "id": _uuid(),
+                        "list_id": lst["id"],
+                        "text": "A" * 501,
+                        "completed": 0,
+                        "created_at": "2025-01-01T00:00:00",
+                        "updated_at": "2025-01-01T00:00:00",
+                        "completed_at": None,
+                        "_deleted": 0,
+                    },
+                    "assumedMasterState": None,
+                }
+            ],
+        )
+        assert resp.status_code == 422
+        assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    def test_push_rejects_oversized_list_name(self, client):
+        """List name beyond 200 chars is rejected with 422."""
+        resp = client.post(
+            "/api/v1/sync/lists/push",
+            json=[
+                {
+                    "newDocumentState": {
+                        "id": _uuid(),
+                        "name": "N" * 201,
+                        "icon": "list",
+                        "item_sort": "alphabetical",
+                        "sort_order": 0,
+                        "created_at": "2025-01-01T00:00:00",
+                        "updated_at": "2025-01-01T00:00:00",
+                        "_deleted": 0,
+                    },
+                    "assumedMasterState": None,
+                }
+            ],
+        )
+        assert resp.status_code == 422
+        assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    def test_push_rejects_oversized_icon(self, client):
+        """Icon beyond 50 chars is rejected with 422."""
+        resp = client.post(
+            "/api/v1/sync/lists/push",
+            json=[
+                {
+                    "newDocumentState": {
+                        "id": _uuid(),
+                        "name": "Ok",
+                        "icon": "I" * 51,
+                        "_deleted": 0,
+                    },
+                    "assumedMasterState": None,
+                }
+            ],
+        )
+        assert resp.status_code == 422
+        assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    def test_push_ignores_unknown_fields(self, client, create_list):
+        """Unknown keys in newDocumentState are silently dropped (no regression)."""
+        lst = create_list()
+        resp = client.post(
+            "/api/v1/sync/items/push",
+            json=[
+                {
+                    "newDocumentState": {
+                        "id": _uuid(),
+                        "list_id": lst["id"],
+                        "text": "Known fields only",
+                        "completed": 0,
+                        "created_at": "2025-01-01T00:00:00",
+                        "updated_at": "2025-01-01T00:00:00",
+                        "completed_at": None,
+                        "_deleted": 0,
+                        "unknown_attacker_field": "A" * 5000,
+                    },
+                    "assumedMasterState": None,
+                }
+            ],
+        )
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_push_partial_insert_uses_defaults(self, client, create_list):
+        """Sparse newDocumentState still inserts successfully via collection defaults."""
+        lst = create_list()
+        item_id = _uuid()
+        resp = client.post(
+            "/api/v1/sync/items/push",
+            json=[
+                {
+                    "newDocumentState": {
+                        "id": item_id,
+                        "list_id": lst["id"],
+                        "text": "Sparse",
+                    },
+                    "assumedMasterState": None,
+                }
+            ],
+        )
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+        docs = client.get("/api/v1/sync/items/pull").json()["documents"]
+        inserted = next(d for d in docs if d["id"] == item_id)
+        assert inserted["text"] == "Sparse"
+        assert inserted["created_at"] is not None
+        assert inserted["updated_at"] is not None
 
 
 def _push_item(client, *, new_state, assumed=None):
