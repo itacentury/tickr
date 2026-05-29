@@ -88,6 +88,16 @@
 				"problemMatcher": []
 			},
 			{
+				"label": "Lint: All",
+				"type": "shell",
+				"command": "uv run ruff check . && uv run mypy backend",
+				"group": "build",
+				"presentation": {
+					"panel": "shared",
+					"clear": true
+				}
+			},
+			{
 				"label": "Test: Run All",
 				"type": "shell",
 				"command": "uv run pytest tests/ -v",
