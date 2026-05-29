@@ -104,7 +104,7 @@ def update_item(
 
     timestamp: str = now()
     updates: list[str] = ["updated_at = ?"]
-    values: list[str | int | bool] = [timestamp]
+    values: list[str | int | bool | None] = [timestamp]
 
     if item_data.text is not None and item_data.text != item["text"]:
         updates.append("text = ?")
