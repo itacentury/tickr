@@ -42,13 +42,13 @@ Requires Python 3.13+ and Node.js 22+.
 
 ```bash
 # Backend
-pip install .
+uv sync
 
 # Frontend
 cd frontend && npm install && npm run build && cd ..
 
 # Run
-python main.py
+uv run main.py
 ```
 
 Open [http://localhost:8000](http://localhost:8000)
@@ -83,15 +83,15 @@ Interactive docs available at `/docs` (Swagger UI) and `/redoc`.
 ## Development
 
 ```bash
-# Install dev tools
-pip install ruff mypy
+# Install dev dependencies
+uv sync --dev
 
 # Lint and format
-ruff check --fix .
-ruff format .
+uv run ruff check --fix .
+uv run ruff format .
 
 # Type check
-mypy main.py
+uv run mypy main.py
 
 # Frontend dev server (with API proxy to FastAPI)
 cd frontend && npm run dev
