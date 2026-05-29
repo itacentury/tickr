@@ -56,7 +56,7 @@
 			{
 				"label": "Format: Python",
 				"type": "shell",
-				"command": "ruff check --fix . && ruff format .",
+				"command": "uv run ruff check --fix . && uv run ruff format .",
 				"group": "build",
 				"presentation": {
 					"panel": "shared"
