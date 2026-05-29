@@ -331,6 +331,10 @@ export function setupEventListeners() {
       let categoryId = dom.editItemCategory.value || null;
       if (categoryId && idMap.has(categoryId)) {
         categoryId = idMap.get(categoryId);
+      } else if (categoryId?.startsWith("tmp_")) {
+        // Unmapped temp id means createCategory failed — don't store a
+        // dangling reference on the item.
+        categoryId = null;
       }
       await updateItem(state.editingItemId, { text, categoryId });
       dom.editItemModal.classList.remove("open");

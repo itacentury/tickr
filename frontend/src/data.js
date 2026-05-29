@@ -442,11 +442,6 @@ export async function deleteItem(itemId) {
   }
 }
 
-/**
- * Reorder lists by updating sortOrder on each list.
- *
- * @param {string[]} listIds - Ordered list of list IDs.
- */
 // ---- Category draft (transactional staging) ----
 
 /** Sort a category draft array by name, matching subscribeCategories. */
@@ -467,11 +462,19 @@ export function beginCategoryDraft() {
     name: c.name,
     color: c.color,
   }));
+  // Independent baseline copy — the commit diffs against this, not against the
+  // live (replication-mutated) state.categories.
+  state.categoryDraftBase = state.categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    color: c.color,
+  }));
 }
 
 /** Throw away the draft without touching the DB. */
 export function discardCategoryDraft() {
   state.categoryDraft = null;
+  state.categoryDraftBase = null;
 }
 
 /**
@@ -502,9 +505,11 @@ export function draftDeleteCategory(id) {
 }
 
 /**
- * Persist the draft against the DB: delete categories no longer present,
- * create new ones, and update changed ones. Reuses the existing CRUD helpers
- * (deleteCategory also clears the category from affected items).
+ * Persist the draft against the baseline taken at beginCategoryDraft: delete
+ * categories the user removed, create new ones, and update changed ones.
+ * Diffing against the baseline (not live state.categories) means a category
+ * synced in while the modal was open is left untouched. Reuses the existing
+ * CRUD helpers (deleteCategory also clears the category from affected items).
  *
  * @param {string} listId - The list the categories belong to.
  * @returns {Promise<Map<string,string>>} Map of temp id -> real id for new ones.
@@ -513,11 +518,13 @@ export async function commitCategoryDraft(listId) {
   const idMap = new Map();
   const draft = state.categoryDraft;
   if (!draft) return idMap;
+  const base = state.categoryDraftBase ?? [];
 
-  const draftRealIds = new Set(draft.filter((c) => !c._new).map((c) => c.id));
-  for (const committed of state.categories) {
-    if (!draftRealIds.has(committed.id)) {
-      await deleteCategory(committed.id);
+  // Deletions: baseline categories the user removed from the draft.
+  const draftIds = new Set(draft.map((c) => c.id));
+  for (const original of base) {
+    if (!draftIds.has(original.id)) {
+      await deleteCategory(original.id);
     }
   }
 
@@ -526,7 +533,7 @@ export async function commitCategoryDraft(listId) {
       const created = await createCategory(listId, entry.name, entry.color);
       if (created) idMap.set(entry.id, created.id);
     } else {
-      const orig = state.categories.find((c) => c.id === entry.id);
+      const orig = base.find((c) => c.id === entry.id);
       if (orig && (orig.name !== entry.name || orig.color !== entry.color)) {
         await updateCategory(entry.id, {
           name: entry.name,
@@ -610,6 +617,11 @@ export async function deleteCategory(categoryId) {
   }
 }
 
+/**
+ * Reorder lists by updating sortOrder on each list.
+ *
+ * @param {string[]} listIds - Ordered list of list IDs.
+ */
 export async function reorderLists(listIds) {
   try {
     for (let i = 0; i < listIds.length; i++) {
