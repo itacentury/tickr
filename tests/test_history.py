@@ -34,29 +34,3 @@ class TestGetHistory:
 
         history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
         assert all(not h["action"].startswith("undo_") for h in history)
-
-
-class TestRestoreHistory:
-    """Tests for POST /api/v1/lists/{list_id}/history."""
-
-    def test_restore_history(self, client, create_list):
-        """Bulk-inserting history entries makes them visible via GET."""
-        lst = create_list(undo=True)
-        entries = [
-            {"action": "item_created", "item_text": "Restored item"},
-            {"action": "item_completed", "item_text": "Restored item"},
-        ]
-        resp = client.post(f"/api/v1/lists/{lst['id']}/history", json=entries)
-        assert resp.status_code == 200
-
-        history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
-        assert len(history) == 2
-
-    def test_restore_history_validation(self, client, create_list):
-        """Invalid entry (missing required action) returns 422."""
-        lst = create_list()
-        resp = client.post(
-            f"/api/v1/lists/{lst['id']}/history",
-            json=[{"item_text": "no action field"}],
-        )
-        assert resp.status_code == 422

@@ -162,7 +162,6 @@ def delete_list(
             "UPDATE lists SET _deleted = 1, updated_at = ? WHERE id = ?",
             (timestamp, list_id),
         )
-        cursor.execute("DELETE FROM history WHERE list_id = ?", (list_id,))
 
     bg.add_task(broadcast_update, "lists_changed")
     bg.add_task(broadcast_sync, "lists")
