@@ -447,6 +447,98 @@ export async function deleteItem(itemId) {
  *
  * @param {string[]} listIds - Ordered list of list IDs.
  */
+// ---- Category draft (transactional staging) ----
+
+/** Sort a category draft array by name, matching subscribeCategories. */
+function sortCategoryDraft() {
+  state.categoryDraft.sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+  );
+}
+
+/**
+ * Start a category editing session: snapshot the committed categories into an
+ * in-memory draft. All inline add/edit/delete actions mutate the draft until
+ * commitCategoryDraft persists them (or discardCategoryDraft throws them away).
+ */
+export function beginCategoryDraft() {
+  state.categoryDraft = state.categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    color: c.color,
+  }));
+}
+
+/** Throw away the draft without touching the DB. */
+export function discardCategoryDraft() {
+  state.categoryDraft = null;
+}
+
+/**
+ * Add a new category to the draft with a temporary id. The real id is
+ * assigned by createCategory at commit time.
+ *
+ * @returns {Object} The created draft entry (with its temp id).
+ */
+export function draftAddCategory(name, color) {
+  const entry = { id: `tmp_${crypto.randomUUID()}`, name, color, _new: true };
+  state.categoryDraft.push(entry);
+  sortCategoryDraft();
+  return entry;
+}
+
+/** Mutate a draft entry's name/color in place. */
+export function draftUpdateCategory(id, { name, color }) {
+  const entry = state.categoryDraft.find((c) => c.id === id);
+  if (!entry) return;
+  if (name !== undefined) entry.name = name;
+  if (color !== undefined) entry.color = color;
+  sortCategoryDraft();
+}
+
+/** Remove a draft entry. Deletion of committed ones is resolved at commit. */
+export function draftDeleteCategory(id) {
+  state.categoryDraft = state.categoryDraft.filter((c) => c.id !== id);
+}
+
+/**
+ * Persist the draft against the DB: delete categories no longer present,
+ * create new ones, and update changed ones. Reuses the existing CRUD helpers
+ * (deleteCategory also clears the category from affected items).
+ *
+ * @param {string} listId - The list the categories belong to.
+ * @returns {Promise<Map<string,string>>} Map of temp id -> real id for new ones.
+ */
+export async function commitCategoryDraft(listId) {
+  const idMap = new Map();
+  const draft = state.categoryDraft;
+  if (!draft) return idMap;
+
+  const draftRealIds = new Set(draft.filter((c) => !c._new).map((c) => c.id));
+  for (const committed of state.categories) {
+    if (!draftRealIds.has(committed.id)) {
+      await deleteCategory(committed.id);
+    }
+  }
+
+  for (const entry of draft) {
+    if (entry._new) {
+      const created = await createCategory(listId, entry.name, entry.color);
+      if (created) idMap.set(entry.id, created.id);
+    } else {
+      const orig = state.categories.find((c) => c.id === entry.id);
+      if (orig && (orig.name !== entry.name || orig.color !== entry.color)) {
+        await updateCategory(entry.id, {
+          name: entry.name,
+          color: entry.color,
+        });
+      }
+    }
+  }
+
+  return idMap;
+}
+
 /**
  * Create a new category in RxDB and return the resulting document.
  *

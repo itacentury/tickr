@@ -19,10 +19,12 @@ import {
   deleteItem,
   updateSettings,
   selectList,
-  createCategory,
-  updateCategory,
-  deleteCategory,
   now,
+  discardCategoryDraft,
+  draftAddCategory,
+  draftUpdateCategory,
+  draftDeleteCategory,
+  commitCategoryDraft,
 } from "./data.js";
 import {
   openEditListModal,
@@ -52,6 +54,7 @@ function closeAllModals() {
   closeDropdown(dom.editListSortDropdown);
   closeDropdown(dom.listSortSettingDropdown);
   dom.closeMobileMenu();
+  discardCategoryDraft();
   state.editingItemId = null;
   state.editingCategoryId = null;
   if (dom.editListCategoryForm)
@@ -65,7 +68,9 @@ function closeAllModals() {
  * list, falling back to a random palette entry when all are taken.
  */
 function pickInitialColor() {
-  const used = new Set(state.categories.map((c) => c.color));
+  const used = new Set(
+    (state.categoryDraft ?? state.categories).map((c) => c.color),
+  );
   const free = COLOR_PALETTE.find((c) => !used.has(c));
   if (free) return free;
   return COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
@@ -192,6 +197,7 @@ export function setupEventListeners() {
 
   // Delete list (with undo)
   dom.deleteListBtn.addEventListener("click", async () => {
+    discardCategoryDraft();
     dom.editListModal.classList.remove("open");
     if (!state.currentListId || state.lists.length === 0) return;
     const list = state.lists.find((l) => l.id === state.currentListId);
@@ -298,6 +304,8 @@ export function setupEventListeners() {
     e.preventDefault();
     const name = dom.editListName.value.trim();
     if (name && state.currentListId) {
+      await commitCategoryDraft(state.currentListId);
+      discardCategoryDraft();
       await updateList(
         state.currentListId,
         name,
@@ -308,16 +316,22 @@ export function setupEventListeners() {
     }
   });
 
-  dom.cancelEditList.addEventListener("click", () =>
-    dom.editListModal.classList.remove("open"),
-  );
+  dom.cancelEditList.addEventListener("click", () => {
+    discardCategoryDraft();
+    dom.editListModal.classList.remove("open");
+  });
 
   // Edit item form
   dom.editItemForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = dom.editItemText.value.trim();
     if (text && state.editingItemId) {
-      const categoryId = dom.editItemCategory.value || null;
+      const idMap = await commitCategoryDraft(state.currentListId);
+      discardCategoryDraft();
+      let categoryId = dom.editItemCategory.value || null;
+      if (categoryId && idMap.has(categoryId)) {
+        categoryId = idMap.get(categoryId);
+      }
       await updateItem(state.editingItemId, { text, categoryId });
       dom.editItemModal.classList.remove("open");
       state.editingItemId = null;
@@ -325,6 +339,7 @@ export function setupEventListeners() {
   });
 
   dom.cancelEditItem.addEventListener("click", () => {
+    discardCategoryDraft();
     dom.editItemModal.classList.remove("open");
     state.editingItemId = null;
   });
@@ -366,27 +381,16 @@ export function setupEventListeners() {
     renderColorPalette(dom.editItemCategoryQuickSwatches, color);
   });
 
-  dom.editItemCategoryQuickSave?.addEventListener("click", async () => {
+  dom.editItemCategoryQuickSave?.addEventListener("click", () => {
     const name = dom.editItemCategoryQuickName.value.trim();
     const color = dom.editItemCategoryQuickColor.value;
-    if (!name || !state.currentListId) return;
-    const created = await createCategory(state.currentListId, name, color);
-    if (created) {
-      // Wait for the subscription to populate state.categories before selecting.
-      // RxDB subscription is reactive, so categoriesChanged$ will refresh the
-      // dropdown — we just need to set the value once it's there.
-      const trySelect = () => {
-        if (state.categories.some((c) => c.id === created.id)) {
-          dom.editItemCategory.value = created.id;
-          // Rebuild the menu (now containing the new category) and sync
-          // the toggle label + dot to the new selection.
-          renderItemCategoryOptions();
-        } else {
-          setTimeout(trySelect, 30);
-        }
-      };
-      trySelect();
-    }
+    if (!name) return;
+    // Stage the new category in the draft and select it. It is only written to
+    // the DB when the item modal is saved (commitCategoryDraft maps the temp
+    // id to a real one), and discarded if the item modal is cancelled.
+    const entry = draftAddCategory(name, color);
+    dom.editItemCategory.value = entry.id;
+    renderItemCategoryOptions();
     dom.editItemCategoryQuickForm.classList.remove("expanded");
   });
 
@@ -413,24 +417,25 @@ export function setupEventListeners() {
     renderColorPalette(dom.editListCategorySwatches, color);
   });
 
-  dom.editListCategorySave?.addEventListener("click", async () => {
+  dom.editListCategorySave?.addEventListener("click", () => {
     const name = dom.editListCategoryName.value.trim();
     const color = dom.editListCategoryColor.value;
     if (!name) return;
     if (state.editingCategoryId) {
-      await updateCategory(state.editingCategoryId, { name, color });
-    } else if (state.currentListId) {
-      await createCategory(state.currentListId, name, color);
+      draftUpdateCategory(state.editingCategoryId, { name, color });
+    } else {
+      draftAddCategory(name, color);
     }
+    renderEditListCategories();
     resetCategoryForm(dom.editListCategoryForm);
   });
 
-  dom.editListCategoriesList?.addEventListener("click", async (e) => {
+  dom.editListCategoriesList?.addEventListener("click", (e) => {
     const row = e.target.closest(".category-row");
     if (!row) return;
     const id = row.dataset.id;
     if (e.target.closest(".category-edit")) {
-      const cat = state.categories.find((c) => c.id === id);
+      const cat = state.categoryDraft?.find((c) => c.id === id);
       if (!cat) return;
       state.editingCategoryId = id;
       dom.editListCategoryName.value = cat.name;
@@ -439,16 +444,19 @@ export function setupEventListeners() {
       dom.editListCategoryForm.classList.add("expanded");
       setTimeout(() => dom.editListCategoryName.focus(), 0);
     } else if (e.target.closest(".category-delete")) {
-      await deleteCategory(id);
+      draftDeleteCategory(id);
+      renderEditListCategories();
     }
   });
 
   // Modal backdrop dismiss
   makeBackdropDismiss(dom.newListModal);
   makeBackdropDismiss(dom.editListModal, () => {
+    discardCategoryDraft();
     resetCategoryForm(dom.editListCategoryForm);
   });
   makeBackdropDismiss(dom.editItemModal, () => {
+    discardCategoryDraft();
     state.editingItemId = null;
   });
 

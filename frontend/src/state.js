@@ -17,6 +17,9 @@ export const state = {
   editSelectedIcon: "list",
   appSettings: { list_sort: "alphabetical" },
   itemCounts: {},
+  // In-memory working copy of categories while a category-managing modal is
+  // open. null = no draft active (normal operation reads state.categories).
+  categoryDraft: null,
 };
 
 /** Active RxDB subscriptions that may need to be replaced on re-subscribe. */

@@ -10,7 +10,7 @@ import { state } from "./state.js";
 import * as dom from "./dom.js";
 import { icons } from "./icons.js";
 import { applyIconSelection } from "./icons.js";
-import { reorderLists } from "./data.js";
+import { reorderLists, beginCategoryDraft } from "./data.js";
 import {
   navigationChanged$,
   itemsChanged$,
@@ -30,6 +30,14 @@ export function initRenderSubscriptions() {
     renderEditListCategories();
     renderItemCategoryOptions();
   });
+}
+
+/**
+ * The category set to render from: the draft when a category-managing modal
+ * is open, otherwise the committed categories.
+ */
+function activeCategories() {
+  return state.categoryDraft ?? state.categories;
 }
 
 /** Escape HTML entities to prevent XSS in rendered content. */
@@ -346,6 +354,7 @@ export function openEditListModal() {
     dom.editIconPreview,
     state.editSelectedIcon,
   );
+  beginCategoryDraft();
   renderEditListCategories();
   resetCategoryForm(dom.editListCategoryForm);
   dom.editListModal.classList.add("open");
@@ -357,12 +366,13 @@ export function openEditListModal() {
 /** Render the categories list inside the edit-list modal. */
 export function renderEditListCategories() {
   if (!dom.editListCategoriesList) return;
-  if (state.categories.length === 0) {
+  const cats = activeCategories();
+  if (cats.length === 0) {
     dom.editListCategoriesList.innerHTML =
       '<li class="categories-empty">No categories yet</li>';
     return;
   }
-  dom.editListCategoriesList.innerHTML = state.categories
+  dom.editListCategoriesList.innerHTML = cats
     .map((cat) => {
       const color = sanitizeHexColor(cat.color);
       return `<li class="category-row" data-id="${cat.id}">
@@ -391,8 +401,9 @@ export function renderItemCategoryOptions() {
   if (!wrapper) return;
   const menu = wrapper.querySelector(".dropdown-menu");
   const current = dom.editItemCategory.value;
+  const cats = activeCategories();
   const entries = [{ id: "", name: "(no category)", color: null }].concat(
-    state.categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+    cats.map((c) => ({ id: c.id, name: c.name, color: c.color })),
   );
   menu.innerHTML = entries
     .map((e) => {
@@ -404,7 +415,7 @@ export function renderItemCategoryOptions() {
     })
     .join("");
   // Restore selection if it still exists, else fall back to "(no category)".
-  const keep = state.categories.some((c) => c.id === current) ? current : "";
+  const keep = cats.some((c) => c.id === current) ? current : "";
   setDropdownValue(wrapper, keep);
 }
 
@@ -442,6 +453,7 @@ export function openEditItemModal(itemId, text) {
   dom.editItemText.value = text;
   const item = state.items.find((i) => i.id === itemId);
   dom.editItemCategory.value = item?.categoryId || "";
+  beginCategoryDraft();
   renderItemCategoryOptions();
   resetCategoryForm(dom.editItemCategoryQuickForm);
   dom.editItemModal.classList.add("open");
