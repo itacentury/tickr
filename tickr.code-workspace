@@ -54,9 +54,9 @@
 		"version": "2.0.0",
 		"tasks": [
 			{
-				"label": "Format: Python",
+				"label": "Format: All",
 				"type": "shell",
-				"command": "uv run ruff check --fix . && uv run ruff format .",
+				"command": "uv run ruff check --fix . && uv run ruff format . && cd frontend && npm run format",
 				"group": "build",
 				"presentation": {
 					"panel": "shared"
