@@ -74,7 +74,9 @@ export const editItemCategory = document.getElementById(
 );
 export const editItemCategoryDropdown =
   document.getElementById("editItemCategory");
-export const editItemCategoryNew = document.getElementById("editItemCategoryNew");
+export const editItemCategoryNew = document.getElementById(
+  "editItemCategoryNew",
+);
 export const editItemCategoryQuickForm = document.getElementById(
   "editItemCategoryQuickForm",
 );

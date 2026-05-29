@@ -313,7 +313,10 @@ function renderHistory(history) {
           };
           const itemText = entry.item_text || "";
           let displayText = itemText;
-          if (entry.action === "item_renamed" && itemText.includes(" \u2192 ")) {
+          if (
+            entry.action === "item_renamed" &&
+            itemText.includes(" \u2192 ")
+          ) {
             displayText = itemText.split(" \u2192 ")[1];
           } else if (entry.action === "item_category_changed") {
             const cat = state.categories.find((c) => c.id === itemText);

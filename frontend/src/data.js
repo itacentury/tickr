@@ -10,7 +10,11 @@
 import { state, subscriptions } from "./state.js";
 import * as dom from "./dom.js";
 import { icons } from "./icons.js";
-import { navigationChanged$, itemsChanged$, categoriesChanged$ } from "./bus.js";
+import {
+  navigationChanged$,
+  itemsChanged$,
+  categoriesChanged$,
+} from "./bus.js";
 import { showErrorToast } from "./toast.js";
 import { reportError } from "./error-reporting.js";
 
