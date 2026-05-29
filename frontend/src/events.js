@@ -19,13 +19,21 @@ import {
   deleteItem,
   updateSettings,
   selectList,
+  createCategory,
+  updateCategory,
+  deleteCategory,
   now,
 } from "./data.js";
 import {
   openEditListModal,
   openEditItemModal,
   fetchHistory,
+  renderColorPalette,
+  renderEditListCategories,
+  renderItemCategoryOptions,
+  resetCategoryForm,
 } from "./render.js";
+import { COLOR_PALETTE } from "./db/constants.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
 import { reportError } from "./error-reporting.js";
@@ -41,6 +49,22 @@ function closeAllModals() {
   dom.overlay.classList.remove("visible");
   dom.closeMobileMenu();
   state.editingItemId = null;
+  state.editingCategoryId = null;
+  if (dom.editListCategoryForm)
+    dom.editListCategoryForm.classList.remove("expanded");
+  if (dom.editItemCategoryQuickForm)
+    dom.editItemCategoryQuickForm.classList.remove("expanded");
+}
+
+/**
+ * Pick the first palette color not yet used by any category in the current
+ * list, falling back to a random palette entry when all are taken.
+ */
+function pickInitialColor() {
+  const used = new Set(state.categories.map((c) => c.color));
+  const free = COLOR_PALETTE.find((c) => !used.has(c));
+  if (free) return free;
+  return COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
 }
 
 /**
@@ -284,7 +308,8 @@ export function setupEventListeners() {
     e.preventDefault();
     const text = dom.editItemText.value.trim();
     if (text && state.editingItemId) {
-      await updateItem(state.editingItemId, { text });
+      const categoryId = dom.editItemCategory.value || null;
+      await updateItem(state.editingItemId, { text, categoryId });
       dom.editItemModal.classList.remove("open");
       state.editingItemId = null;
     }
@@ -310,9 +335,107 @@ export function setupEventListeners() {
     });
   });
 
+  // ---- Categories: Quick-create from item modal ----
+  dom.editItemCategoryNew?.addEventListener("click", () => {
+    const initial = pickInitialColor();
+    dom.editItemCategoryQuickName.value = "";
+    dom.editItemCategoryQuickColor.value = initial;
+    renderColorPalette(dom.editItemCategoryQuickSwatches, initial);
+    dom.editItemCategoryQuickForm.classList.add("expanded");
+    setTimeout(() => dom.editItemCategoryQuickName.focus(), 0);
+  });
+
+  dom.editItemCategoryQuickCancel?.addEventListener("click", () => {
+    dom.editItemCategoryQuickForm.classList.remove("expanded");
+  });
+
+  dom.editItemCategoryQuickSwatches?.addEventListener("click", (e) => {
+    const swatch = e.target.closest(".color-swatch");
+    if (!swatch) return;
+    const color = swatch.dataset.color;
+    dom.editItemCategoryQuickColor.value = color;
+    renderColorPalette(dom.editItemCategoryQuickSwatches, color);
+  });
+
+  dom.editItemCategoryQuickSave?.addEventListener("click", async () => {
+    const name = dom.editItemCategoryQuickName.value.trim();
+    const color = dom.editItemCategoryQuickColor.value;
+    if (!name || !state.currentListId) return;
+    const created = await createCategory(state.currentListId, name, color);
+    if (created) {
+      // Wait for the subscription to populate state.categories before selecting.
+      // RxDB subscription is reactive, so categoriesChanged$ will refresh the
+      // dropdown — we just need to set the value once it's there.
+      const trySelect = () => {
+        if (state.categories.some((c) => c.id === created.id)) {
+          dom.editItemCategory.value = created.id;
+        } else {
+          setTimeout(trySelect, 30);
+        }
+      };
+      trySelect();
+    }
+    dom.editItemCategoryQuickForm.classList.remove("expanded");
+  });
+
+  // ---- Categories: Manage from list modal ----
+  dom.editListCategoryAddBtn?.addEventListener("click", () => {
+    state.editingCategoryId = null;
+    const initial = pickInitialColor();
+    dom.editListCategoryName.value = "";
+    dom.editListCategoryColor.value = initial;
+    renderColorPalette(dom.editListCategorySwatches, initial);
+    dom.editListCategoryForm.classList.add("expanded");
+    setTimeout(() => dom.editListCategoryName.focus(), 0);
+  });
+
+  dom.editListCategoryCancel?.addEventListener("click", () => {
+    resetCategoryForm(dom.editListCategoryForm);
+  });
+
+  dom.editListCategorySwatches?.addEventListener("click", (e) => {
+    const swatch = e.target.closest(".color-swatch");
+    if (!swatch) return;
+    const color = swatch.dataset.color;
+    dom.editListCategoryColor.value = color;
+    renderColorPalette(dom.editListCategorySwatches, color);
+  });
+
+  dom.editListCategorySave?.addEventListener("click", async () => {
+    const name = dom.editListCategoryName.value.trim();
+    const color = dom.editListCategoryColor.value;
+    if (!name) return;
+    if (state.editingCategoryId) {
+      await updateCategory(state.editingCategoryId, { name, color });
+    } else if (state.currentListId) {
+      await createCategory(state.currentListId, name, color);
+    }
+    resetCategoryForm(dom.editListCategoryForm);
+  });
+
+  dom.editListCategoriesList?.addEventListener("click", async (e) => {
+    const row = e.target.closest(".category-row");
+    if (!row) return;
+    const id = row.dataset.id;
+    if (e.target.closest(".category-edit")) {
+      const cat = state.categories.find((c) => c.id === id);
+      if (!cat) return;
+      state.editingCategoryId = id;
+      dom.editListCategoryName.value = cat.name;
+      dom.editListCategoryColor.value = cat.color;
+      renderColorPalette(dom.editListCategorySwatches, cat.color);
+      dom.editListCategoryForm.classList.add("expanded");
+      setTimeout(() => dom.editListCategoryName.focus(), 0);
+    } else if (e.target.closest(".category-delete")) {
+      await deleteCategory(id);
+    }
+  });
+
   // Modal backdrop dismiss
   makeBackdropDismiss(dom.newListModal);
-  makeBackdropDismiss(dom.editListModal);
+  makeBackdropDismiss(dom.editListModal, () => {
+    resetCategoryForm(dom.editListCategoryForm);
+  });
   makeBackdropDismiss(dom.editItemModal, () => {
     state.editingItemId = null;
   });

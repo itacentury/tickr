@@ -64,6 +64,52 @@ export const editItemForm = document.getElementById("editItemForm");
 export const editItemText = document.getElementById("editItemText");
 export const cancelEditItem = document.getElementById("cancelEditItem");
 export const deleteEditItem = document.getElementById("deleteEditItem");
+export const editItemCategory = document.getElementById("editItemCategory");
+export const editItemCategoryNew = document.getElementById("editItemCategoryNew");
+export const editItemCategoryQuickForm = document.getElementById(
+  "editItemCategoryQuickForm",
+);
+export const editItemCategoryQuickName = document.getElementById(
+  "editItemCategoryQuickName",
+);
+export const editItemCategoryQuickColor = document.getElementById(
+  "editItemCategoryQuickColor",
+);
+export const editItemCategoryQuickSwatches = document.getElementById(
+  "editItemCategoryQuickSwatches",
+);
+export const editItemCategoryQuickSave = document.getElementById(
+  "editItemCategoryQuickSave",
+);
+export const editItemCategoryQuickCancel = document.getElementById(
+  "editItemCategoryQuickCancel",
+);
+
+// Edit List Modal — Categories section
+export const editListCategoriesList = document.getElementById(
+  "editListCategoriesList",
+);
+export const editListCategoryAddBtn = document.getElementById(
+  "editListCategoryAddBtn",
+);
+export const editListCategoryForm = document.getElementById(
+  "editListCategoryForm",
+);
+export const editListCategoryName = document.getElementById(
+  "editListCategoryName",
+);
+export const editListCategoryColor = document.getElementById(
+  "editListCategoryColor",
+);
+export const editListCategorySwatches = document.getElementById(
+  "editListCategorySwatches",
+);
+export const editListCategorySave = document.getElementById(
+  "editListCategorySave",
+);
+export const editListCategoryCancel = document.getElementById(
+  "editListCategoryCancel",
+);
 
 // Undo Toast
 export const undoToast = document.getElementById("undoToast");

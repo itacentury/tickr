@@ -124,6 +124,7 @@ function serverItemToClient(doc) {
     listId: doc.list_id,
     text: doc.text,
     completed: !!doc.completed,
+    categoryId: doc.category_id || null,
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
     completedAt: doc.completed_at || null,
@@ -140,9 +141,40 @@ function clientItemToServer(doc) {
     list_id: doc.listId,
     text: doc.text,
     completed: doc.completed ? 1 : 0,
+    category_id: doc.categoryId || null,
     created_at: doc.createdAt,
     updated_at: doc.updatedAt,
     completed_at: doc.completedAt || null,
+    _deleted: doc._deleted || false,
+  };
+}
+
+/**
+ * Convert a server-side category document to RxDB format.
+ */
+function serverCategoryToClient(doc) {
+  return {
+    id: doc.id,
+    listId: doc.list_id,
+    name: doc.name,
+    color: doc.color,
+    createdAt: doc.created_at,
+    updatedAt: doc.updated_at,
+    _deleted: !!doc._deleted,
+  };
+}
+
+/**
+ * Convert a client-side category document to server format.
+ */
+function clientCategoryToServer(doc) {
+  return {
+    id: doc.id,
+    list_id: doc.listId,
+    name: doc.name,
+    color: doc.color,
+    created_at: doc.createdAt,
+    updated_at: doc.updatedAt,
     _deleted: doc._deleted || false,
   };
 }
@@ -238,9 +270,23 @@ export function setupReplication(db) {
     autoStart: true,
   });
 
+  const categoriesReplication = replicateRxCollection({
+    collection: db.categories,
+    replicationIdentifier: "tickr-categories-sync",
+    live: true,
+    retryTime: 5000,
+    pull: createPullHandler("categories", serverCategoryToClient),
+    push: createPushHandler(
+      "categories",
+      clientCategoryToServer,
+      serverCategoryToClient,
+    ),
+    autoStart: true,
+  });
+
   window.addEventListener("beforeunload", cleanupSSE);
 
-  const result = { listsReplication, itemsReplication };
+  const result = { listsReplication, itemsReplication, categoriesReplication };
   Object.defineProperty(result, "cleanup", {
     value: cleanupSSE,
     enumerable: false,

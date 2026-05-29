@@ -10,8 +10,10 @@ export const state = {
   lists: [],
   currentListId: null,
   items: [],
+  categories: [],
   selectedIcon: "list",
   editingItemId: null,
+  editingCategoryId: null,
   editSelectedIcon: "list",
   appSettings: { list_sort: "alphabetical" },
   itemCounts: {},
@@ -22,4 +24,5 @@ export const subscriptions = {
   lists: null,
   items: null,
   itemsCount: null,
+  categories: null,
 };

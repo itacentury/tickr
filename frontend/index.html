@@ -340,6 +340,54 @@
               <option value="created_asc">Oldest first</option>
             </select>
           </div>
+          <div class="setting-group categories-group">
+            <div class="categories-header">
+              <label>Categories</label>
+              <button
+                type="button"
+                class="btn-mini"
+                id="editListCategoryAddBtn"
+                title="Add category"
+              >
+                + Add
+              </button>
+            </div>
+            <ul class="categories-list" id="editListCategoriesList"></ul>
+            <div class="category-form" id="editListCategoryForm">
+              <input
+                type="text"
+                id="editListCategoryName"
+                placeholder="Category name"
+                maxlength="200"
+                autocomplete="off"
+              />
+              <div class="color-picker" id="editListCategorySwatches">
+                <input
+                  type="color"
+                  id="editListCategoryColor"
+                  class="color-picker-custom"
+                  value="#3b82f6"
+                  title="Custom color"
+                />
+              </div>
+              <div class="category-form-actions">
+                <button
+                  type="button"
+                  class="btn-cancel"
+                  id="editListCategoryCancel"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="btn-create"
+                  id="editListCategorySave"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
           <div class="modal-actions-split">
             <button
               type="button"
@@ -381,6 +429,59 @@
             autocomplete="off"
             required
           />
+          <div class="setting-group">
+            <label for="editItemCategory">Category</label>
+            <div class="category-row-inline">
+              <select id="editItemCategory" class="setting-select">
+                <option value="">(no category)</option>
+              </select>
+              <button
+                type="button"
+                class="btn-mini"
+                id="editItemCategoryNew"
+                title="New category"
+              >
+                + New
+              </button>
+            </div>
+            <div class="category-form" id="editItemCategoryQuickForm">
+              <input
+                type="text"
+                id="editItemCategoryQuickName"
+                placeholder="Category name"
+                maxlength="200"
+                autocomplete="off"
+              />
+              <div
+                class="color-picker"
+                id="editItemCategoryQuickSwatches"
+              >
+                <input
+                  type="color"
+                  id="editItemCategoryQuickColor"
+                  class="color-picker-custom"
+                  value="#3b82f6"
+                  title="Custom color"
+                />
+              </div>
+              <div class="category-form-actions">
+                <button
+                  type="button"
+                  class="btn-cancel"
+                  id="editItemCategoryQuickCancel"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="btn-create"
+                  id="editItemCategoryQuickSave"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
           <div class="modal-actions-split">
             <button
               type="button"

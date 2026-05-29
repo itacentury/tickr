@@ -15,7 +15,7 @@ from ..database import get_db, now
 from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update, sync_broadcaster
 from ..logging_config import get_logger
-from ..models import SyncChange, SyncItemState, SyncListState
+from ..models import SyncCategoryState, SyncChange, SyncItemState, SyncListState
 
 logger = get_logger(__name__)
 
@@ -91,9 +91,23 @@ def _item_defaults() -> dict[str, Any]:
         "list_id": "",
         "text": "",
         "completed": 0,
+        "category_id": None,
         "created_at": timestamp,
         "updated_at": timestamp,
         "completed_at": None,
+        "_deleted": 0,
+    }
+
+
+def _category_defaults() -> dict[str, Any]:
+    """Defaults for a fresh ``categories`` document (timestamps computed per call)."""
+    timestamp: str = now()
+    return {
+        "list_id": "",
+        "name": "",
+        "color": "#64748b",
+        "created_at": timestamp,
+        "updated_at": timestamp,
         "_deleted": 0,
     }
 
@@ -177,6 +191,11 @@ def _log_item_history(
         action: str = "item_completed" if new_completed else "item_uncompleted"
         _insert_history(cursor, list_id, item_id, action, new_text)
 
+    old_category: str | None = current.get("category_id")
+    new_category: str | None = new_state.get("category_id")
+    if old_category != new_category:
+        _insert_history(cursor, list_id, item_id, "item_category_changed", new_category or "")
+
 
 COLLECTIONS: dict[str, CollectionSpec] = {
     "lists": CollectionSpec(
@@ -211,6 +230,7 @@ COLLECTIONS: dict[str, CollectionSpec] = {
             "list_id",
             "text",
             "completed",
+            "category_id",
             "created_at",
             "updated_at",
             "completed_at",
@@ -220,6 +240,7 @@ COLLECTIONS: dict[str, CollectionSpec] = {
             "list_id",
             "text",
             "completed",
+            "category_id",
             "updated_at",
             "completed_at",
             "_deleted",
@@ -228,6 +249,28 @@ COLLECTIONS: dict[str, CollectionSpec] = {
         broadcast_event="items_changed",
         document_model=SyncItemState,
         log_history=_log_item_history,
+    ),
+    "categories": CollectionSpec(
+        table="categories",
+        insert_fields=(
+            "id",
+            "list_id",
+            "name",
+            "color",
+            "created_at",
+            "updated_at",
+            "_deleted",
+        ),
+        update_fields=(
+            "name",
+            "color",
+            "updated_at",
+            "_deleted",
+        ),
+        defaults=_category_defaults,
+        broadcast_event="categories_changed",
+        document_model=SyncCategoryState,
+        log_history=None,
     ),
 }
 

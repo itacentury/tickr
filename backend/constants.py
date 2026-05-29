@@ -11,3 +11,4 @@ TEXT_MAX: int = 500
 ID_MAX: int = 36
 SORT_OPTION_MAX: int = 50
 TIMESTAMP_MAX: int = 30
+COLOR_HEX_MAX: int = 7  # "#rrggbb"

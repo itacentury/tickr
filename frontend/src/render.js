@@ -11,7 +11,12 @@ import * as dom from "./dom.js";
 import { icons } from "./icons.js";
 import { applyIconSelection } from "./icons.js";
 import { reorderLists } from "./data.js";
-import { navigationChanged$, itemsChanged$ } from "./bus.js";
+import {
+  navigationChanged$,
+  itemsChanged$,
+  categoriesChanged$,
+} from "./bus.js";
+import { COLOR_PALETTE } from "./db/constants.js";
 
 /**
  * Wire the view layer to the event bus.
@@ -20,6 +25,10 @@ import { navigationChanged$, itemsChanged$ } from "./bus.js";
 export function initRenderSubscriptions() {
   navigationChanged$.subscribe(() => renderNavigation());
   itemsChanged$.subscribe(() => renderItems());
+  categoriesChanged$.subscribe(() => {
+    renderEditListCategories();
+    renderItemCategoryOptions();
+  });
 }
 
 /** Escape HTML entities to prevent XSS in rendered content. */
@@ -169,6 +178,7 @@ export function renderItems() {
             </label>
             <div class="item-content">
                 <span class="item-text">${escapeHtml(item.text)}</span>
+                ${renderCategoryBadge(item.categoryId)}
             </div>
         </li>
     `,
@@ -179,6 +189,27 @@ export function renderItems() {
   for (const li of dom.itemsList.children) {
     li.style.setProperty("--i", li.dataset.index);
   }
+}
+
+// ---- Category badge ----
+
+/**
+ * Render a category badge for an item, or empty string if uncategorized.
+ *
+ * @param {string|null} categoryId
+ * @returns {string} HTML snippet
+ */
+function renderCategoryBadge(categoryId) {
+  if (!categoryId) return "";
+  const cat = state.categories.find((c) => c.id === categoryId);
+  if (!cat) return "";
+  const safeColor = sanitizeHexColor(cat.color);
+  return `<span class="item-category-badge" style="--cat-color:${safeColor}">${escapeHtml(cat.name)}</span>`;
+}
+
+/** Strip anything that isn't a 6-digit hex color so it can't break out of the style attr. */
+function sanitizeHexColor(value) {
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#64748b";
 }
 
 // ---- History ----
@@ -214,6 +245,7 @@ function renderHistory(history) {
     item_uncompleted: { text: "Reopened", class: "uncompleted" },
     item_deleted: { text: "Deleted", class: "deleted" },
     item_renamed: { text: "Renamed", class: "renamed" },
+    item_category_changed: { text: "Category changed", class: "renamed" },
     list_created: { text: "List created", class: "list" },
     list_renamed: { text: "List renamed", class: "list" },
     list_icon_changed: { text: "Icon changed", class: "list" },
@@ -271,10 +303,13 @@ function renderHistory(history) {
             class: "",
           };
           const itemText = entry.item_text || "";
-          const displayText =
-            entry.action === "item_renamed" && itemText.includes(" \u2192 ")
-              ? itemText.split(" \u2192 ")[1]
-              : itemText;
+          let displayText = itemText;
+          if (entry.action === "item_renamed" && itemText.includes(" \u2192 ")) {
+            displayText = itemText.split(" \u2192 ")[1];
+          } else if (entry.action === "item_category_changed") {
+            const cat = state.categories.find((c) => c.id === itemText);
+            displayText = cat ? cat.name : itemText ? "\u2014" : "(none)";
+          }
           const shortId = entry.item_id ? entry.item_id.slice(0, 6) : "";
           const idBadge = shortId
             ? `<span class="history-id" title="${escapeHtml(entry.item_id)}">${escapeHtml(shortId)}</span>`
@@ -310,10 +345,82 @@ export function openEditListModal() {
     dom.editIconPreview,
     state.editSelectedIcon,
   );
+  renderEditListCategories();
+  resetCategoryForm(dom.editListCategoryForm);
   dom.editListModal.classList.add("open");
   if (window.matchMedia("(hover: hover)").matches) {
     setTimeout(() => dom.editListName.focus(), 100);
   }
+}
+
+/** Render the categories list inside the edit-list modal. */
+export function renderEditListCategories() {
+  if (!dom.editListCategoriesList) return;
+  if (state.categories.length === 0) {
+    dom.editListCategoriesList.innerHTML =
+      '<li class="categories-empty">No categories yet</li>';
+    return;
+  }
+  dom.editListCategoriesList.innerHTML = state.categories
+    .map((cat) => {
+      const color = sanitizeHexColor(cat.color);
+      return `<li class="category-row" data-id="${cat.id}">
+        <span class="category-dot" style="--cat-color:${color}"></span>
+        <span class="category-name">${escapeHtml(cat.name)}</span>
+        <button type="button" class="btn-icon-mini category-edit" title="Edit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+        </button>
+        <button type="button" class="btn-icon-mini category-delete" title="Delete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+          </svg>
+        </button>
+      </li>`;
+    })
+    .join("");
+}
+
+/** Render the category dropdown inside the edit-item modal. */
+export function renderItemCategoryOptions() {
+  if (!dom.editItemCategory) return;
+  const current = dom.editItemCategory.value;
+  const opts = ['<option value="">(no category)</option>'].concat(
+    state.categories.map(
+      (c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`,
+    ),
+  );
+  dom.editItemCategory.innerHTML = opts.join("");
+  // Restore selection if possible
+  if (current && state.categories.some((c) => c.id === current)) {
+    dom.editItemCategory.value = current;
+  }
+}
+
+/**
+ * Build the palette swatches inside a container element.
+ *
+ * @param {HTMLElement} container - The .color-picker element to populate.
+ * @param {string} selected - Currently selected hex.
+ */
+export function renderColorPalette(container, selected) {
+  if (!container) return;
+  container.querySelectorAll(".color-swatch").forEach((el) => el.remove());
+  const html = COLOR_PALETTE.map(
+    (c) =>
+      `<button type="button" class="color-swatch${c === selected ? " selected" : ""}" data-color="${c}" style="--cat-color:${c}" aria-label="${c}"></button>`,
+  ).join("");
+  container.insertAdjacentHTML("afterbegin", html);
+}
+
+/** Reset a category-form region to a clean collapsed state. */
+export function resetCategoryForm(formEl) {
+  if (!formEl) return;
+  formEl.classList.remove("expanded");
+  state.editingCategoryId = null;
 }
 
 /**
@@ -325,6 +432,12 @@ export function openEditListModal() {
 export function openEditItemModal(itemId, text) {
   state.editingItemId = itemId;
   dom.editItemText.value = text;
+  renderItemCategoryOptions();
+  const item = state.items.find((i) => i.id === itemId);
+  if (dom.editItemCategory) {
+    dom.editItemCategory.value = item?.categoryId || "";
+  }
+  resetCategoryForm(dom.editItemCategoryQuickForm);
   dom.editItemModal.classList.add("open");
   if (window.matchMedia("(hover: hover)").matches) {
     setTimeout(() => {

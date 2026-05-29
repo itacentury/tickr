@@ -13,3 +13,6 @@ export const navigationChanged$ = new Subject();
 
 /** Fires when state.items changed. */
 export const itemsChanged$ = new Subject();
+
+/** Fires when state.categories changed. */
+export const categoriesChanged$ = new Subject();

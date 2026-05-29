@@ -12,6 +12,7 @@ import "./styles/sidebar.css";
 import "./styles/header.css";
 import "./styles/form.css";
 import "./styles/items.css";
+import "./styles/categories.css";
 import "./styles/empty-state.css";
 import "./styles/history.css";
 import "./styles/modal.css";

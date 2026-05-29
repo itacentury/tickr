@@ -1,5 +1,6 @@
 """API route modules collected into a single list for easy inclusion."""
 
+from .categories import router as categories_router
 from .errors import router as errors_router
 from .history import router as history_router
 from .items import router as items_router
@@ -15,6 +16,7 @@ all_routers = [
     errors_router,
     lists_router,
     items_router,
+    categories_router,
     settings_router,
     history_router,
     sync_router,

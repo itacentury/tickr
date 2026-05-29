@@ -30,9 +30,21 @@ CREATE TABLE IF NOT EXISTS items (
     list_id TEXT NOT NULL,
     text TEXT NOT NULL,
     completed INTEGER DEFAULT 0,
+    category_id TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     completed_at TEXT,
+    _deleted INTEGER DEFAULT 0,
+    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+    id TEXT PRIMARY KEY,
+    list_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
     _deleted INTEGER DEFAULT 0,
     FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
 );
@@ -55,6 +67,8 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE INDEX IF NOT EXISTS idx_items_list_id ON items(list_id, _deleted);
 CREATE INDEX IF NOT EXISTS idx_items_updated ON items(updated_at, id);
 CREATE INDEX IF NOT EXISTS idx_lists_updated ON lists(updated_at, id);
+CREATE INDEX IF NOT EXISTS idx_categories_list_id ON categories(list_id, _deleted);
+CREATE INDEX IF NOT EXISTS idx_categories_updated ON categories(updated_at, id);
 """
 
 
@@ -312,6 +326,23 @@ def _ensure_columns(conn: sqlite3.Connection) -> None:
         cursor.execute("UPDATE items SET updated_at = ? WHERE updated_at IS NULL", (timestamp,))
     if "_deleted" not in item_cols:
         cursor.execute("ALTER TABLE items ADD COLUMN _deleted INTEGER DEFAULT 0")
+    if "category_id" not in item_cols:
+        cursor.execute("ALTER TABLE items ADD COLUMN category_id TEXT")
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'categories'")
+    if cursor.fetchone() is None:
+        cursor.execute("""
+            CREATE TABLE categories (
+                id TEXT PRIMARY KEY,
+                list_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                color TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                _deleted INTEGER DEFAULT 0,
+                FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
+            )
+        """)
 
     conn.commit()
 
@@ -336,4 +367,10 @@ def _ensure_indexes(conn: sqlite3.Connection) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_items_list_id ON items(list_id, _deleted)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_items_updated ON items(updated_at, id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_lists_updated ON lists(updated_at, id)")
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_categories_list_id ON categories(list_id, _deleted)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_categories_updated ON categories(updated_at, id)"
+    )
     conn.commit()

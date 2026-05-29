@@ -10,7 +10,7 @@
 import { state, subscriptions } from "./state.js";
 import * as dom from "./dom.js";
 import { icons } from "./icons.js";
-import { navigationChanged$, itemsChanged$ } from "./bus.js";
+import { navigationChanged$, itemsChanged$, categoriesChanged$ } from "./bus.js";
 import { showErrorToast } from "./toast.js";
 import { reportError } from "./error-reporting.js";
 
@@ -195,6 +195,29 @@ export function subscribeItems(listId) {
 }
 
 /**
+ * Subscribe to categories of a specific list.
+ *
+ * @param {string} listId - The list ID whose categories to track.
+ */
+export function subscribeCategories(listId) {
+  if (subscriptions.categories) {
+    subscriptions.categories.unsubscribe();
+  }
+
+  const query = state.db.categories.find({ selector: { listId } });
+  subscriptions.categories = query.$.subscribe((docs) => {
+    state.categories = docs
+      .map((d) => d.toJSON())
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+      );
+    categoriesChanged$.next();
+    // Items render shows category badges; refresh when category names/colors change.
+    itemsChanged$.next();
+  });
+}
+
+/**
  * Subscribe to all items globally to keep sidebar counts in sync.
  * Triggers a navigation re-render whenever any item changes.
  */
@@ -253,6 +276,7 @@ export function selectList(listId) {
   });
 
   subscribeItems(listId);
+  subscribeCategories(listId);
 }
 
 // ---- CRUD Operations ----
@@ -355,7 +379,7 @@ export async function deleteList(listId) {
  * @param {string} text - The item text.
  * @param {string} [listId] - The list to add to (defaults to current).
  */
-export async function createItem(text, listId) {
+export async function createItem(text, listId, categoryId = null) {
   const targetList = listId || state.currentListId;
   if (!targetList) return;
   try {
@@ -365,6 +389,7 @@ export async function createItem(text, listId) {
       listId: targetList,
       text,
       completed: false,
+      categoryId: categoryId || null,
       createdAt: timestamp,
       updatedAt: timestamp,
       completedAt: null,
@@ -390,6 +415,9 @@ export async function updateItem(itemId, data) {
     if (data.completed !== undefined) {
       patch.completed = !!data.completed;
       patch.completedAt = data.completed ? now() : null;
+    }
+    if (data.categoryId !== undefined) {
+      patch.categoryId = data.categoryId || null;
     }
     await doc.patch(patch);
   } catch (error) {
@@ -419,6 +447,77 @@ export async function deleteItem(itemId) {
  *
  * @param {string[]} listIds - Ordered list of list IDs.
  */
+/**
+ * Create a new category in RxDB and return the resulting document.
+ *
+ * @param {string} listId - The list the category belongs to.
+ * @param {string} name - Category name.
+ * @param {string} color - Hex color string ("#rrggbb").
+ * @returns {Promise<Object|null>} The inserted document or null on failure.
+ */
+export async function createCategory(listId, name, color) {
+  try {
+    const timestamp = now();
+    const doc = await state.db.categories.insert({
+      id: crypto.randomUUID(),
+      listId,
+      name,
+      color,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    return doc.toJSON();
+  } catch (error) {
+    reportError("create category", error);
+    showErrorToast("Failed to create category");
+    return null;
+  }
+}
+
+/**
+ * Update a category's name and/or color.
+ *
+ * @param {string} categoryId - Category to update.
+ * @param {{name?: string, color?: string}} data - Patch fields.
+ */
+export async function updateCategory(categoryId, data) {
+  const doc = await state.db.categories.findOne(categoryId).exec();
+  if (!doc) return;
+  try {
+    const patch = { updatedAt: now() };
+    if (data.name !== undefined) patch.name = data.name;
+    if (data.color !== undefined) patch.color = data.color;
+    await doc.patch(patch);
+  } catch (error) {
+    reportError("update category", error);
+    showErrorToast("Failed to update category");
+  }
+}
+
+/**
+ * Soft-delete a category and clear it from all items in the same list.
+ * Performs item updates locally first, then removes the category - so a
+ * mid-flight crash leaves no items pointing at a phantom category.
+ *
+ * @param {string} categoryId - Category to delete.
+ */
+export async function deleteCategory(categoryId) {
+  const doc = await state.db.categories.findOne(categoryId).exec();
+  if (!doc) return;
+  try {
+    const affected = await state.db.items
+      .find({ selector: { categoryId } })
+      .exec();
+    for (const item of affected) {
+      await item.patch({ categoryId: null, updatedAt: now() });
+    }
+    await doc.remove();
+  } catch (error) {
+    reportError("delete category", error);
+    showErrorToast("Failed to delete category");
+  }
+}
+
 export async function reorderLists(listIds) {
   try {
     for (let i = 0; i < listIds.length; i++) {

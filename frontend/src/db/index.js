@@ -12,7 +12,7 @@ import {
 import { getRxStorageDexie } from "rxdb/plugins/storage-dexie";
 import { RxDBLeaderElectionPlugin } from "rxdb/plugins/leader-election";
 import { RxDBMigrationSchemaPlugin } from "rxdb/plugins/migration-schema";
-import { listSchema, itemSchema } from "./schemas.js";
+import { listSchema, itemSchema, categorySchema } from "./schemas.js";
 import { reportError } from "../error-reporting.js";
 
 addRxPlugin(RxDBLeaderElectionPlugin);
@@ -99,7 +99,17 @@ async function _openDatabase() {
         // v2 added maxLength constraints to listId/text and tightened id.
         // See note above for why an identity migration is safe here.
         2: (doc) => doc,
+        // v3 introduced the optional categoryId field. Pre-existing docs
+        // get an explicit null so RxDB queries `selector: { categoryId: null }`
+        // behave deterministically.
+        3: (doc) => {
+          if (doc.categoryId === undefined) doc.categoryId = null;
+          return doc;
+        },
       },
+    },
+    categories: {
+      schema: categorySchema,
     },
   });
 
