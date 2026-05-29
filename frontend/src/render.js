@@ -17,6 +17,7 @@ import {
   categoriesChanged$,
 } from "./bus.js";
 import { COLOR_PALETTE } from "./db/constants.js";
+import { setDropdownValue } from "./dropdown.js";
 
 /**
  * Wire the view layer to the event bus.
@@ -338,7 +339,7 @@ export function openEditListModal() {
   if (!list) return;
   dom.editListName.value = list.name;
   state.editSelectedIcon = list.icon || "list";
-  dom.editListSort.value = list.itemSort || "alphabetical";
+  setDropdownValue(dom.editListSortDropdown, list.itemSort || "alphabetical");
   applyIconSelection(
     dom.editIconOptionsContainer,
     dom.editIconPickerToggle,
@@ -384,20 +385,27 @@ export function renderEditListCategories() {
     .join("");
 }
 
-/** Render the category dropdown inside the edit-item modal. */
+/** Render the category dropdown menu inside the edit-item modal. */
 export function renderItemCategoryOptions() {
-  if (!dom.editItemCategory) return;
+  const wrapper = dom.editItemCategoryDropdown;
+  if (!wrapper) return;
+  const menu = wrapper.querySelector(".dropdown-menu");
   const current = dom.editItemCategory.value;
-  const opts = ['<option value="">(no category)</option>'].concat(
-    state.categories.map(
-      (c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`,
-    ),
+  const entries = [{ id: "", name: "(no category)", color: null }].concat(
+    state.categories.map((c) => ({ id: c.id, name: c.name, color: c.color })),
   );
-  dom.editItemCategory.innerHTML = opts.join("");
-  // Restore selection if possible
-  if (current && state.categories.some((c) => c.id === current)) {
-    dom.editItemCategory.value = current;
-  }
+  menu.innerHTML = entries
+    .map((e) => {
+      const dot =
+        e.color === null
+          ? '<span class="dropdown-dot dropdown-dot--empty"></span>'
+          : `<span class="dropdown-dot" style="--cat-color:${e.color}"></span>`;
+      return `<li class="dropdown-item" role="option" data-value="${e.id}">${dot}<span class="dropdown-item-label">${escapeHtml(e.name)}</span></li>`;
+    })
+    .join("");
+  // Restore selection if it still exists, else fall back to "(no category)".
+  const keep = state.categories.some((c) => c.id === current) ? current : "";
+  setDropdownValue(wrapper, keep);
 }
 
 /**
@@ -432,11 +440,9 @@ export function resetCategoryForm(formEl) {
 export function openEditItemModal(itemId, text) {
   state.editingItemId = itemId;
   dom.editItemText.value = text;
-  renderItemCategoryOptions();
   const item = state.items.find((i) => i.id === itemId);
-  if (dom.editItemCategory) {
-    dom.editItemCategory.value = item?.categoryId || "";
-  }
+  dom.editItemCategory.value = item?.categoryId || "";
+  renderItemCategoryOptions();
   resetCategoryForm(dom.editItemCategoryQuickForm);
   dom.editItemModal.classList.add("open");
   if (window.matchMedia("(hover: hover)").matches) {

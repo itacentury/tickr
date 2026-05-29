@@ -34,6 +34,7 @@ import {
   resetCategoryForm,
 } from "./render.js";
 import { COLOR_PALETTE } from "./db/constants.js";
+import { initDropdown, setDropdownValue, closeDropdown } from "./dropdown.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
 import { reportError } from "./error-reporting.js";
@@ -47,6 +48,9 @@ function closeAllModals() {
   closeMetrics();
   dom.historyPanel.classList.remove("open");
   dom.overlay.classList.remove("visible");
+  closeDropdown(dom.editItemCategoryDropdown);
+  closeDropdown(dom.editListSortDropdown);
+  closeDropdown(dom.listSortSettingDropdown);
   dom.closeMobileMenu();
   state.editingItemId = null;
   state.editingCategoryId = null;
@@ -81,6 +85,11 @@ function makeBackdropDismiss(modal, onClose) {
 
 /** Attach all application event listeners. */
 export function setupEventListeners() {
+  // Custom dropdowns (replace native <select>)
+  initDropdown(dom.editItemCategoryDropdown);
+  initDropdown(dom.editListSortDropdown);
+  initDropdown(dom.listSortSettingDropdown);
+
   // Populate icon pickers
   populateIconPicker(dom.iconOptionsContainer);
   populateIconPicker(dom.editIconOptionsContainer);
@@ -369,6 +378,9 @@ export function setupEventListeners() {
       const trySelect = () => {
         if (state.categories.some((c) => c.id === created.id)) {
           dom.editItemCategory.value = created.id;
+          // Rebuild the menu (now containing the new category) and sync
+          // the toggle label + dot to the new selection.
+          renderItemCategoryOptions();
         } else {
           setTimeout(trySelect, 30);
         }
@@ -452,7 +464,10 @@ export function setupEventListeners() {
 
   // Settings modal
   dom.settingsBtn.addEventListener("click", () => {
-    dom.listSortSetting.value = state.appSettings.list_sort || "alphabetical";
+    setDropdownValue(
+      dom.listSortSettingDropdown,
+      state.appSettings.list_sort || "alphabetical",
+    );
     dom.settingsModal.classList.add("open");
     dom.closeMobileMenu();
   });

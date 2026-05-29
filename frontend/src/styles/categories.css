@@ -231,7 +231,7 @@
   align-items: center;
 }
 
-.category-row-inline .setting-select {
+.category-row-inline .dropdown {
   flex: 1;
 }
 

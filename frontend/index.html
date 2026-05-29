@@ -332,13 +332,47 @@
             </div>
           </div>
           <div class="setting-group">
-            <label for="editListSort">Sorting</label>
-            <select id="editListSort" class="setting-select">
-              <option value="alphabetical">Alphabetical (A-Z)</option>
-              <option value="alphabetical_desc">Alphabetical (Z-A)</option>
-              <option value="created_desc">Newest first</option>
-              <option value="created_asc">Oldest first</option>
-            </select>
+            <label id="editListSortLabel">Sorting</label>
+            <div class="dropdown" id="editListSort">
+              <button
+                type="button"
+                class="dropdown-toggle"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+                aria-labelledby="editListSortLabel"
+              >
+                <span class="dropdown-value"></span>
+                <svg
+                  class="dropdown-chevron"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              <ul class="dropdown-menu" role="listbox" tabindex="-1" hidden>
+                <li class="dropdown-item" role="option" data-value="alphabetical">
+                  <span class="dropdown-item-label">Alphabetical (A-Z)</span>
+                </li>
+                <li
+                  class="dropdown-item"
+                  role="option"
+                  data-value="alphabetical_desc"
+                >
+                  <span class="dropdown-item-label">Alphabetical (Z-A)</span>
+                </li>
+                <li class="dropdown-item" role="option" data-value="created_desc">
+                  <span class="dropdown-item-label">Newest first</span>
+                </li>
+                <li class="dropdown-item" role="option" data-value="created_asc">
+                  <span class="dropdown-item-label">Oldest first</span>
+                </li>
+              </ul>
+              <input type="hidden" id="editListSortValue" value="alphabetical" />
+            </div>
           </div>
           <div class="setting-group categories-group">
             <div class="categories-header">
@@ -430,11 +464,33 @@
             required
           />
           <div class="setting-group">
-            <label for="editItemCategory">Category</label>
+            <label id="editItemCategoryLabel">Category</label>
             <div class="category-row-inline">
-              <select id="editItemCategory" class="setting-select">
-                <option value="">(no category)</option>
-              </select>
+              <div class="dropdown" id="editItemCategory">
+                <button
+                  type="button"
+                  class="dropdown-toggle"
+                  aria-haspopup="listbox"
+                  aria-expanded="false"
+                  aria-labelledby="editItemCategoryLabel"
+                >
+                  <span class="dropdown-value"></span>
+                  <svg
+                    class="dropdown-chevron"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+                <ul class="dropdown-menu" role="listbox" tabindex="-1" hidden>
+                  <!-- Populated by renderItemCategoryOptions() -->
+                </ul>
+                <input type="hidden" id="editItemCategoryValue" value="" />
+              </div>
               <button
                 type="button"
                 class="btn-mini"
@@ -516,14 +572,50 @@
       <div class="modal-content">
         <h2>Settings</h2>
         <div class="setting-group">
-          <label for="listSortSetting">List sorting</label>
-          <select id="listSortSetting" class="setting-select">
-            <option value="alphabetical">Alphabetical (A-Z)</option>
-            <option value="alphabetical_desc">Alphabetical (Z-A)</option>
-            <option value="created_desc">Newest first</option>
-            <option value="created_asc">Oldest first</option>
-            <option value="custom">Custom</option>
-          </select>
+          <label id="listSortSettingLabel">List sorting</label>
+          <div class="dropdown" id="listSortSetting">
+            <button
+              type="button"
+              class="dropdown-toggle"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-labelledby="listSortSettingLabel"
+            >
+              <span class="dropdown-value"></span>
+              <svg
+                class="dropdown-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <ul class="dropdown-menu" role="listbox" tabindex="-1" hidden>
+              <li class="dropdown-item" role="option" data-value="alphabetical">
+                <span class="dropdown-item-label">Alphabetical (A-Z)</span>
+              </li>
+              <li
+                class="dropdown-item"
+                role="option"
+                data-value="alphabetical_desc"
+              >
+                <span class="dropdown-item-label">Alphabetical (Z-A)</span>
+              </li>
+              <li class="dropdown-item" role="option" data-value="created_desc">
+                <span class="dropdown-item-label">Newest first</span>
+              </li>
+              <li class="dropdown-item" role="option" data-value="created_asc">
+                <span class="dropdown-item-label">Oldest first</span>
+              </li>
+              <li class="dropdown-item" role="option" data-value="custom">
+                <span class="dropdown-item-label">Custom</span>
+              </li>
+            </ul>
+            <input type="hidden" id="listSortSettingValue" value="alphabetical" />
+          </div>
           <p class="setting-hint" id="listSortHint">
             With "Custom" you can reorder lists via drag & drop in the sidebar.
           </p>
