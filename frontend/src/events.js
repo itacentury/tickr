@@ -91,7 +91,11 @@ function makeBackdropDismiss(modal, onClose) {
 /** Attach all application event listeners. */
 export function setupEventListeners() {
   // Custom dropdowns (replace native <select>)
-  initDropdown(dom.editItemCategoryDropdown);
+  // Selecting an existing category collapses the inline "+ New" form so the two
+  // category modes (pick existing / create new) are never active at once.
+  initDropdown(dom.editItemCategoryDropdown, () => {
+    resetCategoryForm(dom.editItemCategoryQuickForm);
+  });
   initDropdown(dom.editListSortDropdown);
   initDropdown(dom.listSortSettingDropdown);
 
@@ -365,6 +369,9 @@ export function setupEventListeners() {
 
   // ---- Categories: Quick-create from item modal ----
   dom.editItemCategoryNew?.addEventListener("click", () => {
+    // Entering "create new" mode clears any existing dropdown selection so only
+    // one category mode is active at a time.
+    setDropdownValue(dom.editItemCategoryDropdown, "");
     const initial = pickInitialColor();
     dom.editItemCategoryQuickName.value = "";
     dom.editItemCategoryQuickColor.value = initial;
