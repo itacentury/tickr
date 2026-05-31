@@ -198,6 +198,7 @@ export function renderItems() {
   for (const li of dom.itemsList.children) {
     li.style.setProperty("--i", li.dataset.index);
   }
+  applyCatColors(dom.itemsList);
 }
 
 // ---- Category badge ----
@@ -213,12 +214,25 @@ function renderCategoryBadge(categoryId) {
   const cat = state.categories.find((c) => c.id === categoryId);
   if (!cat) return "";
   const safeColor = sanitizeHexColor(cat.color);
-  return `<span class="item-category-badge" style="--cat-color:${safeColor}">${escapeHtml(cat.name)}</span>`;
+  return `<span class="item-category-badge" data-color="${safeColor}">${escapeHtml(cat.name)}</span>`;
 }
 
 /** Strip anything that isn't a 6-digit hex color so it can't break out of the style attr. */
 function sanitizeHexColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#64748b";
+}
+
+/**
+ * CSP-safe color application: set --cat-color via CSSOM from each element's
+ * data-color attribute. The CSP forbids inline style attributes, so colors are
+ * carried in data-color and applied here after the HTML is inserted.
+ *
+ * @param {HTMLElement} root - Container to search within.
+ */
+function applyCatColors(root) {
+  for (const el of root.querySelectorAll("[data-color]")) {
+    el.style.setProperty("--cat-color", el.dataset.color);
+  }
 }
 
 // ---- History ----
@@ -379,7 +393,7 @@ export function renderEditListCategories() {
     .map((cat) => {
       const color = sanitizeHexColor(cat.color);
       return `<li class="category-row" data-id="${cat.id}">
-        <span class="category-dot" style="--cat-color:${color}"></span>
+        <span class="category-dot" data-color="${color}"></span>
         <span class="category-name">${escapeHtml(cat.name)}</span>
         <button type="button" class="btn-icon-mini category-edit" title="Edit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -396,6 +410,7 @@ export function renderEditListCategories() {
       </li>`;
     })
     .join("");
+  applyCatColors(dom.editListCategoriesList);
 }
 
 /** Render the category dropdown menu inside the edit-item modal. */
@@ -413,10 +428,11 @@ export function renderItemCategoryOptions() {
       const dot =
         e.color === null
           ? '<span class="dropdown-dot dropdown-dot--empty"></span>'
-          : `<span class="dropdown-dot" style="--cat-color:${e.color}"></span>`;
+          : `<span class="dropdown-dot" data-color="${sanitizeHexColor(e.color)}"></span>`;
       return `<li class="dropdown-item" role="option" data-value="${e.id}">${dot}<span class="dropdown-item-label">${escapeHtml(e.name)}</span></li>`;
     })
     .join("");
+  applyCatColors(menu);
   // Restore selection if it still exists, else fall back to "(no category)".
   const keep = cats.some((c) => c.id === current) ? current : "";
   setDropdownValue(wrapper, keep);
@@ -433,9 +449,10 @@ export function renderColorPalette(container, selected) {
   container.querySelectorAll(".color-swatch").forEach((el) => el.remove());
   const html = COLOR_PALETTE.map(
     (c) =>
-      `<button type="button" class="color-swatch${c === selected ? " selected" : ""}" data-color="${c}" style="--cat-color:${c}" aria-label="${c}"></button>`,
+      `<button type="button" class="color-swatch${c === selected ? " selected" : ""}" data-color="${c}" aria-label="${c}"></button>`,
   ).join("");
   container.insertAdjacentHTML("afterbegin", html);
+  applyCatColors(container);
 }
 
 /** Reset a category-form region to a clean collapsed state. */
