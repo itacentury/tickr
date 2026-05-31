@@ -484,13 +484,23 @@
       <div class="modal-content">
         <h2>Edit Item</h2>
         <form id="editItemForm">
-          <input
-            type="text"
-            id="editItemText"
-            placeholder="Item text"
-            autocomplete="off"
-            required
-          />
+          <div class="category-autocomplete-field">
+            <input
+              type="text"
+              id="editItemText"
+              placeholder="Item text"
+              autocomplete="off"
+              aria-autocomplete="list"
+              aria-controls="editItemCategoryAutocomplete"
+              required
+            />
+            <ul
+              class="category-autocomplete"
+              id="editItemCategoryAutocomplete"
+              role="listbox"
+              hidden
+            ></ul>
+          </div>
           <div class="setting-group">
             <label id="editItemCategoryLabel">Category</label>
             <div class="category-row-inline">

@@ -61,6 +61,11 @@
   height: 20px;
 }
 
+/* Positioning anchor for an autocomplete popup (e.g. the edit-item field) */
+.category-autocomplete-field {
+  position: relative;
+}
+
 /* Category autocomplete popup anchored to the add-item input */
 .category-autocomplete {
   position: absolute;

@@ -42,11 +42,7 @@ import { COLOR_PALETTE } from "./db/constants.js";
 import { initDropdown, setDropdownValue, closeDropdown } from "./dropdown.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 import { parseCategoryTag } from "./category-tag.js";
-import {
-  setupAddItemCategoryAutocomplete,
-  acceptActiveSuggestion,
-  hideCategoryAutocomplete,
-} from "./add-item-autocomplete.js";
+import { createCategoryAutocomplete } from "./add-item-autocomplete.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
@@ -202,9 +198,18 @@ export function setupEventListeners() {
     dom.editIconOptionsContainer.classList.toggle("expanded");
   });
 
-  // Add item — supports trailing `#Name` / `#"Name with spaces"` tag to
-  // assign a category inline.
-  setupAddItemCategoryAutocomplete();
+  // Add item & edit item — both support a trailing `#Name` / `#"Name with
+  // spaces"` tag to assign a category inline. Each input gets its own
+  // autocomplete instance with independent popup state.
+  const addItemAutocomplete = createCategoryAutocomplete(
+    dom.addItemInput,
+    dom.addItemCategoryAutocomplete,
+  );
+  const editItemAutocomplete = createCategoryAutocomplete(
+    dom.editItemText,
+    dom.editItemCategoryAutocomplete,
+    (cat) => setDropdownValue(dom.editItemCategoryDropdown, cat.id),
+  );
 
   dom.addItemForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -212,7 +217,7 @@ export function setupEventListeners() {
 
     // An open autocomplete with a focused suggestion is "commit" intent,
     // not "submit" intent. Insert the tag and stay in the form.
-    if (acceptActiveSuggestion()) return;
+    if (addItemAutocomplete.accept()) return;
 
     const raw = dom.addItemInput.value;
     const { cleanText, categoryName } = parseCategoryTag(raw);
@@ -235,7 +240,7 @@ export function setupEventListeners() {
 
     await createItem(cleanText, undefined, categoryId);
     dom.addItemInput.value = "";
-    hideCategoryAutocomplete();
+    addItemAutocomplete.hide();
   });
 
   // History
@@ -350,25 +355,49 @@ export function setupEventListeners() {
     dom.editListModal.classList.remove("open");
   });
 
-  // Edit item form
+  // Edit item form — also supports a trailing `#Name` tag in the name field,
+  // which takes precedence over the dropdown selection.
   dom.editItemForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const text = dom.editItemText.value.trim();
-    if (text && state.editingItemId) {
-      const idMap = await commitCategoryDraft(state.currentListId);
-      discardCategoryDraft();
-      let categoryId = dom.editItemCategory.value || null;
-      if (categoryId && idMap.has(categoryId)) {
-        categoryId = idMap.get(categoryId);
-      } else if (categoryId?.startsWith("tmp_")) {
-        // Unmapped temp id means createCategory failed — don't store a
-        // dangling reference on the item.
-        categoryId = null;
-      }
-      await updateItem(state.editingItemId, { text, categoryId });
-      dom.editItemModal.classList.remove("open");
-      state.editingItemId = null;
+
+    // A focused suggestion is "commit" intent, not "submit" intent.
+    if (editItemAutocomplete.accept()) return;
+
+    const { cleanText, categoryName } = parseCategoryTag(
+      dom.editItemText.value,
+    );
+    if (!cleanText || !state.editingItemId) return;
+
+    const idMap = await commitCategoryDraft(state.currentListId);
+    discardCategoryDraft();
+    let categoryId = dom.editItemCategory.value || null;
+    if (categoryId && idMap.has(categoryId)) {
+      categoryId = idMap.get(categoryId);
+    } else if (categoryId?.startsWith("tmp_")) {
+      // Unmapped temp id means createCategory failed — don't store a
+      // dangling reference on the item.
+      categoryId = null;
     }
+
+    // A typed tag overrides the dropdown selection.
+    if (categoryName !== null) {
+      const match = state.categories.find(
+        (c) =>
+          c.name.localeCompare(categoryName, undefined, {
+            sensitivity: "base",
+          }) === 0,
+      );
+      if (!match) {
+        showErrorToast(`Category "${categoryName}" not found`);
+        return;
+      }
+      categoryId = match.id;
+    }
+
+    await updateItem(state.editingItemId, { text: cleanText, categoryId });
+    dom.editItemModal.classList.remove("open");
+    state.editingItemId = null;
+    editItemAutocomplete.hide();
   });
 
   dom.cancelEditItem.addEventListener("click", () => {

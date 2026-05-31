@@ -69,6 +69,9 @@ export const editListSortDropdown = document.getElementById("editListSort");
 export const editItemModal = document.getElementById("editItemModal");
 export const editItemForm = document.getElementById("editItemForm");
 export const editItemText = document.getElementById("editItemText");
+export const editItemCategoryAutocomplete = document.getElementById(
+  "editItemCategoryAutocomplete",
+);
 export const cancelEditItem = document.getElementById("cancelEditItem");
 export const editItemSave = document.getElementById("editItemSave");
 export const deleteEditItem = document.getElementById("deleteEditItem");
