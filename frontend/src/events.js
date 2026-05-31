@@ -407,6 +407,19 @@ export function setupEventListeners() {
     dom.editItemCategoryQuickForm.classList.remove("expanded");
   });
 
+  // Enter inside the quick-create input would otherwise bubble to the
+  // enclosing editItemForm and submit the whole modal. Trigger the local
+  // "Done" button instead. The .expanded guard prevents a repeat Enter from
+  // re-submitting the still-focused (but visually collapsed) input.
+  dom.editItemCategoryQuickName?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    if (!dom.editItemCategoryQuickForm.classList.contains("expanded")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dom.editItemCategoryQuickSave.click();
+    dom.editItemSave?.focus();
+  });
+
   // ---- Categories: Manage from list modal ----
   dom.editListCategoryAddBtn?.addEventListener("click", () => {
     state.editingCategoryId = null;
@@ -441,6 +454,19 @@ export function setupEventListeners() {
     }
     renderEditListCategories();
     resetCategoryForm(dom.editListCategoryForm);
+  });
+
+  // Enter inside the category-name input would otherwise bubble to the
+  // enclosing editListForm and submit the whole modal. Trigger the local
+  // "Done" button instead. The .expanded guard prevents a repeat Enter from
+  // re-submitting the still-focused (but visually collapsed) input.
+  dom.editListCategoryName?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    if (!dom.editListCategoryForm.classList.contains("expanded")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dom.editListCategorySave.click();
+    dom.editListSave?.focus();
   });
 
   dom.editListCategoriesList?.addEventListener("click", (e) => {
