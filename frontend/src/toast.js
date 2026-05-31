@@ -17,6 +17,23 @@ import {
   errorToastProgress,
 } from "./dom.js";
 
+/**
+ * Run the shrink-to-zero progress animation on `el` over `ms` milliseconds.
+ * Resets to full width with transitions disabled, then re-enables the
+ * transition on the next frame so the browser animates the collapse.
+ */
+function animateProgress(el, ms) {
+  el.style.opacity = "1";
+  el.style.transition = "none";
+  el.style.transform = "scaleX(1)";
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      el.style.transition = `transform ${ms}ms linear`;
+      el.style.transform = "scaleX(0)";
+    });
+  });
+}
+
 // Module-private toast state
 let toastTimeout = null;
 let toastUndoCallback = null;
@@ -68,15 +85,7 @@ function presentToast(message, undoCallback, commitCallback) {
   const isVisible = undoToast.classList.contains("visible");
 
   function startCountdown() {
-    toastProgress.style.opacity = "1";
-    toastProgress.style.transition = "none";
-    toastProgress.style.transform = "scaleX(1)";
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        toastProgress.style.transition = `transform ${toastRemainingTime}ms linear`;
-        toastProgress.style.transform = "scaleX(0)";
-      });
-    });
+    animateProgress(toastProgress, toastRemainingTime);
     toastTimeout = setTimeout(() => {
       commitPending();
       hideUndoToast();
@@ -124,15 +133,7 @@ function pauseToast() {
 function resumeToast() {
   if (!undoToast.classList.contains("visible")) return;
   toastRemainingTime = 5000;
-  toastProgress.style.opacity = "1";
-  toastProgress.style.transition = "none";
-  toastProgress.style.transform = "scaleX(1)";
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      toastProgress.style.transition = "transform 5s linear";
-      toastProgress.style.transform = "scaleX(0)";
-    });
-  });
+  animateProgress(toastProgress, 5000);
   toastTimeout = setTimeout(() => {
     commitPending();
     hideUndoToast();
@@ -157,15 +158,24 @@ export function showErrorToast(message) {
   errorToastMessage.textContent = message;
   errorToast.classList.add("visible");
 
-  errorToastProgress.style.transition = "none";
-  errorToastProgress.style.transform = "scaleX(1)";
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      errorToastProgress.style.transition = "transform 4000ms linear";
-      errorToastProgress.style.transform = "scaleX(0)";
-    });
-  });
+  animateProgress(errorToastProgress, 4000);
 
+  errorToastTimeout = setTimeout(() => hideErrorToast(), 4000);
+}
+
+/** Pause the error-toast countdown (e.g. on hover). */
+function pauseErrorToast() {
+  if (errorToastTimeout) {
+    clearTimeout(errorToastTimeout);
+    errorToastTimeout = null;
+  }
+  errorToastProgress.style.opacity = "0";
+}
+
+/** Resume the error-toast countdown after a pause. */
+function resumeErrorToast() {
+  if (!errorToast.classList.contains("visible")) return;
+  animateProgress(errorToastProgress, 4000);
   errorToastTimeout = setTimeout(() => hideErrorToast(), 4000);
 }
 
@@ -185,6 +195,9 @@ export function hideErrorToast() {
 export function initToastListeners() {
   undoToast.addEventListener("mouseenter", pauseToast);
   undoToast.addEventListener("mouseleave", resumeToast);
+
+  errorToast.addEventListener("mouseenter", pauseErrorToast);
+  errorToast.addEventListener("mouseleave", resumeErrorToast);
 
   toastUndo.addEventListener("click", async () => {
     // Undo cancels the deferred action — never commit it.

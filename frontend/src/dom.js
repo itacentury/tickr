@@ -22,6 +22,9 @@ export const listTitleIcon = document.getElementById("listTitleIcon");
 // Items
 export const addItemForm = document.getElementById("addItemForm");
 export const addItemInput = document.getElementById("addItemInput");
+export const addItemCategoryAutocomplete = document.getElementById(
+  "addItemCategoryAutocomplete",
+);
 export const itemsList = document.getElementById("itemsList");
 export const emptyState = document.getElementById("emptyState");
 
@@ -50,6 +53,7 @@ export const editListModal = document.getElementById("editListModal");
 export const editListForm = document.getElementById("editListForm");
 export const editListName = document.getElementById("editListName");
 export const cancelEditList = document.getElementById("cancelEditList");
+export const editListSave = document.getElementById("editListSave");
 export const editIconPickerToggle = document.getElementById(
   "editIconPickerToggle",
 );
@@ -66,6 +70,7 @@ export const editItemModal = document.getElementById("editItemModal");
 export const editItemForm = document.getElementById("editItemForm");
 export const editItemText = document.getElementById("editItemText");
 export const cancelEditItem = document.getElementById("cancelEditItem");
+export const editItemSave = document.getElementById("editItemSave");
 export const deleteEditItem = document.getElementById("deleteEditItem");
 // Custom dropdown: `editItemCategory` holds the value (hidden input); the
 // wrapper element is referenced separately for init/close.

@@ -40,7 +40,13 @@ import {
 } from "./render.js";
 import { COLOR_PALETTE } from "./db/constants.js";
 import { initDropdown, setDropdownValue, closeDropdown } from "./dropdown.js";
-import { showUndoToast, initToastListeners } from "./toast.js";
+import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
+import { parseCategoryTag } from "./category-tag.js";
+import {
+  setupAddItemCategoryAutocomplete,
+  acceptActiveSuggestion,
+  hideCategoryAutocomplete,
+} from "./add-item-autocomplete.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
@@ -87,6 +93,28 @@ function makeBackdropDismiss(modal, onClose) {
     if (e.target !== modal) return;
     modal.classList.remove("open");
     onClose?.();
+  });
+}
+
+/**
+ * Wire Enter inside an expandable quick-create input to its local "Done"
+ * button instead of letting the keypress bubble up and submit the enclosing
+ * modal form. The `.expanded` guard prevents a repeat Enter from re-submitting
+ * the still-focused (but visually collapsed) input.
+ *
+ * @param {HTMLElement} input - The quick-create text input.
+ * @param {HTMLElement} form - The expandable wrapper carrying `.expanded`.
+ * @param {HTMLElement} saveBtn - The local "Done" button to trigger.
+ * @param {HTMLElement} [modalSaveBtn] - Element to focus after committing.
+ */
+function wireQuickFormEnter(input, form, saveBtn, modalSaveBtn) {
+  input?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    if (!form.classList.contains("expanded")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    saveBtn.click();
+    modalSaveBtn?.focus();
   });
 }
 
@@ -174,14 +202,40 @@ export function setupEventListeners() {
     dom.editIconOptionsContainer.classList.toggle("expanded");
   });
 
-  // Add item
+  // Add item — supports trailing `#Name` / `#"Name with spaces"` tag to
+  // assign a category inline.
+  setupAddItemCategoryAutocomplete();
+
   dom.addItemForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const text = dom.addItemInput.value.trim();
-    if (text && state.currentListId) {
-      await createItem(text);
-      dom.addItemInput.value = "";
+    if (!state.currentListId) return;
+
+    // An open autocomplete with a focused suggestion is "commit" intent,
+    // not "submit" intent. Insert the tag and stay in the form.
+    if (acceptActiveSuggestion()) return;
+
+    const raw = dom.addItemInput.value;
+    const { cleanText, categoryName } = parseCategoryTag(raw);
+    if (!cleanText) return;
+
+    let categoryId = null;
+    if (categoryName !== null) {
+      const match = state.categories.find(
+        (c) =>
+          c.name.localeCompare(categoryName, undefined, {
+            sensitivity: "base",
+          }) === 0,
+      );
+      if (!match) {
+        showErrorToast(`Category "${categoryName}" not found`);
+        return;
+      }
+      categoryId = match.id;
     }
+
+    await createItem(cleanText, undefined, categoryId);
+    dom.addItemInput.value = "";
+    hideCategoryAutocomplete();
   });
 
   // History
@@ -380,6 +434,13 @@ export function setupEventListeners() {
     dom.editItemCategoryQuickForm.classList.remove("expanded");
   });
 
+  wireQuickFormEnter(
+    dom.editItemCategoryQuickName,
+    dom.editItemCategoryQuickForm,
+    dom.editItemCategoryQuickSave,
+    dom.editItemSave,
+  );
+
   // ---- Categories: Manage from list modal ----
   dom.editListCategoryAddBtn?.addEventListener("click", () => {
     state.editingCategoryId = null;
@@ -415,6 +476,13 @@ export function setupEventListeners() {
     renderEditListCategories();
     resetCategoryForm(dom.editListCategoryForm);
   });
+
+  wireQuickFormEnter(
+    dom.editListCategoryName,
+    dom.editListCategoryForm,
+    dom.editListCategorySave,
+    dom.editListSave,
+  );
 
   dom.editListCategoriesList?.addEventListener("click", (e) => {
     const row = e.target.closest(".category-row");

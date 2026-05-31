@@ -6,6 +6,12 @@
   background: var(--bg-primary);
 }
 
+.add-item-field {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
 .add-item-input {
   flex: 1;
   padding: 14px 18px;
@@ -53,4 +59,47 @@
 .add-item-btn svg {
   width: 20px;
   height: 20px;
+}
+
+/* Category autocomplete popup anchored to the add-item input */
+.category-autocomplete {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.4));
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.category-autocomplete[hidden] {
+  display: none;
+}
+
+.category-autocomplete-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.category-autocomplete-item:hover,
+.category-autocomplete-item.active {
+  background: var(--bg-hover);
+}
+
+.category-autocomplete-empty {
+  padding: 10px 12px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
