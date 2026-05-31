@@ -22,6 +22,9 @@ export const listTitleIcon = document.getElementById("listTitleIcon");
 // Items
 export const addItemForm = document.getElementById("addItemForm");
 export const addItemInput = document.getElementById("addItemInput");
+export const addItemCategoryAutocomplete = document.getElementById(
+  "addItemCategoryAutocomplete",
+);
 export const itemsList = document.getElementById("itemsList");
 export const emptyState = document.getElementById("emptyState");
 

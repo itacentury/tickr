@@ -169,6 +169,30 @@ export function showErrorToast(message) {
   errorToastTimeout = setTimeout(() => hideErrorToast(), 4000);
 }
 
+/** Pause the error-toast countdown (e.g. on hover). */
+function pauseErrorToast() {
+  if (errorToastTimeout) {
+    clearTimeout(errorToastTimeout);
+    errorToastTimeout = null;
+  }
+  errorToastProgress.style.opacity = "0";
+}
+
+/** Resume the error-toast countdown after a pause. */
+function resumeErrorToast() {
+  if (!errorToast.classList.contains("visible")) return;
+  errorToastProgress.style.opacity = "1";
+  errorToastProgress.style.transition = "none";
+  errorToastProgress.style.transform = "scaleX(1)";
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      errorToastProgress.style.transition = "transform 4000ms linear";
+      errorToastProgress.style.transform = "scaleX(0)";
+    });
+  });
+  errorToastTimeout = setTimeout(() => hideErrorToast(), 4000);
+}
+
 /** Dismiss the error toast and clear any pending timeout. */
 export function hideErrorToast() {
   if (errorToastTimeout) {
@@ -185,6 +209,9 @@ export function hideErrorToast() {
 export function initToastListeners() {
   undoToast.addEventListener("mouseenter", pauseToast);
   undoToast.addEventListener("mouseleave", resumeToast);
+
+  errorToast.addEventListener("mouseenter", pauseErrorToast);
+  errorToast.addEventListener("mouseleave", resumeErrorToast);
 
   toastUndo.addEventListener("click", async () => {
     // Undo cancels the deferred action — never commit it.
