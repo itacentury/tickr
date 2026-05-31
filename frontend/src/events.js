@@ -41,7 +41,12 @@ import {
 import { COLOR_PALETTE } from "./db/constants.js";
 import { initDropdown, setDropdownValue, closeDropdown } from "./dropdown.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
-import { parseCategoryTag, detectTrigger, formatTag } from "./category-tag.js";
+import { parseCategoryTag } from "./category-tag.js";
+import {
+  setupAddItemCategoryAutocomplete,
+  acceptActiveSuggestion,
+  hideCategoryAutocomplete,
+} from "./add-item-autocomplete.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
@@ -88,6 +93,28 @@ function makeBackdropDismiss(modal, onClose) {
     if (e.target !== modal) return;
     modal.classList.remove("open");
     onClose?.();
+  });
+}
+
+/**
+ * Wire Enter inside an expandable quick-create input to its local "Done"
+ * button instead of letting the keypress bubble up and submit the enclosing
+ * modal form. The `.expanded` guard prevents a repeat Enter from re-submitting
+ * the still-focused (but visually collapsed) input.
+ *
+ * @param {HTMLElement} input - The quick-create text input.
+ * @param {HTMLElement} form - The expandable wrapper carrying `.expanded`.
+ * @param {HTMLElement} saveBtn - The local "Done" button to trigger.
+ * @param {HTMLElement} [modalSaveBtn] - Element to focus after committing.
+ */
+function wireQuickFormEnter(input, form, saveBtn, modalSaveBtn) {
+  input?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    if (!form.classList.contains("expanded")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    saveBtn.click();
+    modalSaveBtn?.focus();
   });
 }
 
@@ -407,18 +434,12 @@ export function setupEventListeners() {
     dom.editItemCategoryQuickForm.classList.remove("expanded");
   });
 
-  // Enter inside the quick-create input would otherwise bubble to the
-  // enclosing editItemForm and submit the whole modal. Trigger the local
-  // "Done" button instead. The .expanded guard prevents a repeat Enter from
-  // re-submitting the still-focused (but visually collapsed) input.
-  dom.editItemCategoryQuickName?.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
-    if (!dom.editItemCategoryQuickForm.classList.contains("expanded")) return;
-    e.preventDefault();
-    e.stopPropagation();
-    dom.editItemCategoryQuickSave.click();
-    dom.editItemSave?.focus();
-  });
+  wireQuickFormEnter(
+    dom.editItemCategoryQuickName,
+    dom.editItemCategoryQuickForm,
+    dom.editItemCategoryQuickSave,
+    dom.editItemSave,
+  );
 
   // ---- Categories: Manage from list modal ----
   dom.editListCategoryAddBtn?.addEventListener("click", () => {
@@ -456,18 +477,12 @@ export function setupEventListeners() {
     resetCategoryForm(dom.editListCategoryForm);
   });
 
-  // Enter inside the category-name input would otherwise bubble to the
-  // enclosing editListForm and submit the whole modal. Trigger the local
-  // "Done" button instead. The .expanded guard prevents a repeat Enter from
-  // re-submitting the still-focused (but visually collapsed) input.
-  dom.editListCategoryName?.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
-    if (!dom.editListCategoryForm.classList.contains("expanded")) return;
-    e.preventDefault();
-    e.stopPropagation();
-    dom.editListCategorySave.click();
-    dom.editListSave?.focus();
-  });
+  wireQuickFormEnter(
+    dom.editListCategoryName,
+    dom.editListCategoryForm,
+    dom.editListCategorySave,
+    dom.editListSave,
+  );
 
   dom.editListCategoriesList?.addEventListener("click", (e) => {
     const row = e.target.closest(".category-row");
@@ -655,175 +670,4 @@ export function setupEventListeners() {
     window.visualViewport.addEventListener("resize", updateVisualViewport);
     window.visualViewport.addEventListener("scroll", updateVisualViewport);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Add-item category autocomplete
-// ---------------------------------------------------------------------------
-
-// Suggestion list currently rendered in the popup (subset of state.categories).
-let acSuggestions = [];
-// Index of the highlighted suggestion, or -1 when nothing is highlighted.
-let acActiveIndex = -1;
-// Start index of the `#` in addItemInput.value that opened the popup. Used
-// when replacing the in-progress token with the selected category name.
-let acTriggerStart = -1;
-
-function hideCategoryAutocomplete() {
-  const menu = dom.addItemCategoryAutocomplete;
-  menu.hidden = true;
-  menu.replaceChildren();
-  acSuggestions = [];
-  acActiveIndex = -1;
-  acTriggerStart = -1;
-  dom.addItemInput.removeAttribute("aria-activedescendant");
-}
-
-function buildSuggestionItem(category, index) {
-  const li = document.createElement("li");
-  li.className = "category-autocomplete-item";
-  li.setAttribute("role", "option");
-  li.dataset.index = String(index);
-  li.id = `ac-opt-${index}`;
-
-  const dot = document.createElement("span");
-  dot.className = "dropdown-dot";
-  if (category.color) dot.style.setProperty("--cat-color", category.color);
-
-  const label = document.createElement("span");
-  label.className = "dropdown-item-label";
-  label.textContent = category.name;
-
-  li.append(dot, label);
-  return li;
-}
-
-function renderCategoryAutocomplete(prefix) {
-  const menu = dom.addItemCategoryAutocomplete;
-  const lower = prefix.toLowerCase();
-  acSuggestions = state.categories.filter((c) =>
-    c.name.toLowerCase().startsWith(lower),
-  );
-
-  menu.replaceChildren();
-
-  if (acSuggestions.length === 0) {
-    // Empty state: show a hint instead of silently doing nothing, so the
-    // user realises why no category will be assigned. Keep the popup open
-    // because they are still mid-typing a tag.
-    const empty = document.createElement("li");
-    empty.className = "category-autocomplete-empty";
-    empty.textContent = "No matching category";
-    menu.append(empty);
-    acActiveIndex = -1;
-    menu.hidden = false;
-    return;
-  }
-
-  acSuggestions.forEach((c, i) => menu.append(buildSuggestionItem(c, i)));
-  acActiveIndex = 0;
-  updateActiveSuggestion();
-  menu.hidden = false;
-}
-
-function updateActiveSuggestion() {
-  const menu = dom.addItemCategoryAutocomplete;
-  menu.querySelectorAll(".category-autocomplete-item").forEach((el, i) => {
-    el.classList.toggle("active", i === acActiveIndex);
-  });
-  if (acActiveIndex >= 0) {
-    dom.addItemInput.setAttribute(
-      "aria-activedescendant",
-      `ac-opt-${acActiveIndex}`,
-    );
-  } else {
-    dom.addItemInput.removeAttribute("aria-activedescendant");
-  }
-}
-
-/**
- * Commit the highlighted suggestion (if any) by rewriting the in-progress
- * `#prefix` token with `formatTag(name)` and closing the popup.
- *
- * @returns {boolean} true if a suggestion was accepted, false otherwise.
- */
-function acceptActiveSuggestion() {
-  if (
-    dom.addItemCategoryAutocomplete.hidden ||
-    acActiveIndex < 0 ||
-    acTriggerStart < 0
-  ) {
-    return false;
-  }
-  const cat = acSuggestions[acActiveIndex];
-  if (!cat) return false;
-  const before = dom.addItemInput.value.slice(0, acTriggerStart);
-  dom.addItemInput.value = `${before}${formatTag(cat.name)} `;
-  dom.addItemInput.selectionStart = dom.addItemInput.selectionEnd =
-    dom.addItemInput.value.length;
-  hideCategoryAutocomplete();
-  return true;
-}
-
-function setupAddItemCategoryAutocomplete() {
-  const input = dom.addItemInput;
-  const menu = dom.addItemCategoryAutocomplete;
-
-  input.addEventListener("input", () => {
-    // Trigger detection uses the substring up to the caret so the popup also
-    // works when the user edits mid-text. Falls back to full value if the
-    // selection API is unavailable.
-    const caret = input.selectionStart ?? input.value.length;
-    const upToCaret = input.value.slice(0, caret);
-    const trigger = detectTrigger(upToCaret);
-    if (!trigger) {
-      hideCategoryAutocomplete();
-      return;
-    }
-    acTriggerStart = trigger.start;
-    renderCategoryAutocomplete(trigger.prefix);
-  });
-
-  input.addEventListener("keydown", (e) => {
-    if (menu.hidden) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (acSuggestions.length > 0) {
-        acActiveIndex = (acActiveIndex + 1) % acSuggestions.length;
-        updateActiveSuggestion();
-      }
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (acSuggestions.length > 0) {
-        acActiveIndex =
-          (acActiveIndex - 1 + acSuggestions.length) % acSuggestions.length;
-        updateActiveSuggestion();
-      }
-    } else if (e.key === "Tab") {
-      if (acceptActiveSuggestion()) e.preventDefault();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      hideCategoryAutocomplete();
-    }
-    // Enter is handled by the form's submit listener, which calls
-    // acceptActiveSuggestion() before falling through to item creation.
-  });
-
-  menu.addEventListener("mousedown", (e) => {
-    // mousedown (not click) so the input's blur doesn't close the popup
-    // before the selection registers.
-    const li = e.target.closest(".category-autocomplete-item");
-    if (!li) return;
-    e.preventDefault();
-    acActiveIndex = Number(li.dataset.index);
-    acceptActiveSuggestion();
-    input.focus();
-  });
-
-  input.addEventListener("blur", () => {
-    // Slight delay so a mousedown on the menu can run first.
-    setTimeout(() => {
-      if (document.activeElement !== input) hideCategoryAutocomplete();
-    }, 100);
-  });
 }
