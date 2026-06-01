@@ -81,6 +81,11 @@ export function setDropdownValue(wrapper, value) {
   if (match) {
     input.value = match.dataset.value;
     valueEl.innerHTML = match.innerHTML;
+    // CSP-safe: --cat-color is not carried by innerHTML, so re-apply it from
+    // data-color via CSSOM (mirrors applyCatColors in render.js).
+    for (const el of valueEl.querySelectorAll("[data-color]")) {
+      el.style.setProperty("--cat-color", el.dataset.color);
+    }
   } else {
     input.value = "";
     valueEl.textContent = "";
