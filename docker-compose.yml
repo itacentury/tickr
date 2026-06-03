@@ -12,5 +12,13 @@ services:
     #   - TICKR_RATE_LIMIT_REQUESTS=100
     #   - TICKR_MAX_SSE_CLIENTS=10
     #   - TICKR_CORS_ORIGINS=https://app.example.com,https://admin.example.com
+    #   # --- Authentication (single password) ---
+    #   - TICKR_AUTH_ENABLED=true
+    #   # Generate the hash once (see README) and keep secrets out of version
+    #   # control, e.g. via the env_file above:
+    #   - TICKR_PASSWORD_HASH=${TICKR_PASSWORD_HASH}
+    #   - TICKR_SESSION_SECRET=${TICKR_SESSION_SECRET}
+    #   # Behind HTTPS keep this true; for local plain-HTTP testing set it false:
+    #   - TICKR_COOKIE_SECURE=true
     volumes:
       - ./data:/app/data

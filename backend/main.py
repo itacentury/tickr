@@ -35,6 +35,8 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from . import config
+from .auth import auth_config_warnings, is_authenticated
 from .config import (
     CORS_ORIGINS,
     CSP_CONNECT_SRC,
@@ -43,7 +45,7 @@ from .config import (
     RATE_LIMIT_WINDOW,
 )
 from .database import init_db
-from .errors import ErrorCode, register_error_handlers
+from .errors import ErrorCode, _error_body, register_error_handlers
 from .events import bind_loop, initiate_shutdown
 from .logging_config import configure_logging, get_logger
 from .metrics import collector
@@ -60,6 +62,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("app_startup_begin")
     init_db()
     bind_loop(asyncio.get_running_loop())
+    if config.AUTH_ENABLED:
+        for warning in auth_config_warnings():
+            logger.warning("auth_config_warning", detail=warning)
+        logger.info("auth_enabled")
     logger.info("app_startup_complete")
     yield
     logger.info("app_shutdown_begin")
@@ -110,6 +116,46 @@ def _evict_stale_entries(now: float) -> None:
     to_remove: int = len(rate_limit_store) - RATE_LIMIT_MAX_IPS
     for ip, _ in by_staleness[:to_remove]:
         del rate_limit_store[ip]
+
+
+# Routes reachable without a session. The app shell, PWA assets and the auth
+# endpoints themselves must stay public — otherwise there is no UI to show the
+# login, and the service worker would cache a 401 for "/".
+_PUBLIC_EXACT_PATHS: frozenset[str] = frozenset(
+    {
+        "/",
+        "/manifest.json",
+        "/sw.js",
+        "/api/v1/health",
+        "/api/v1/auth/login",
+        "/api/v1/auth/logout",
+        "/api/v1/auth/me",
+    }
+)
+_PUBLIC_PREFIXES: tuple[str, ...] = ("/assets/", "/static/", "/icons/")
+
+
+def _is_public(path: str) -> bool:
+    """Return whether a request path is reachable without authentication."""
+    if path in _PUBLIC_EXACT_PATHS:
+        return True
+    return any(path.startswith(prefix) for prefix in _PUBLIC_PREFIXES)
+
+
+# Declared first so it becomes the *innermost* middleware: rate limiting and
+# access logging wrap it, so login attempts are rate-limited and 401s are logged
+# and still receive security headers on the way out.
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next: CallNext) -> Response:
+    """Require a valid session cookie for protected (data/API) routes."""
+    if not config.AUTH_ENABLED or _is_public(request.url.path):
+        return await call_next(request)
+    if is_authenticated(request):
+        return await call_next(request)
+    return JSONResponse(
+        status_code=401,
+        content=_error_body(ErrorCode.UNAUTHORIZED, "Authentication required", 401),
+    )
 
 
 @app.middleware("http")

@@ -7,11 +7,25 @@
 
 import { replicateRxCollection } from "rxdb/plugins/replication";
 import { Subject } from "rxjs";
+import { authExpired$ } from "../bus.js";
 
 /** Shared SSE connection state for all collections. */
 let sharedEventSource = null;
 let reconnectTimeout = null;
+/** Set once a 401 is seen, to stop the SSE reconnect storm. */
+let sessionExpired = false;
 const collectionSubjects = {};
+
+/**
+ * Handle a 401 from any sync request: stop SSE, halt reconnects, and notify
+ * the app to show the login gate.
+ */
+function handleAuthExpired() {
+  if (sessionExpired) return;
+  sessionExpired = true;
+  cleanupSSE();
+  authExpired$.next();
+}
 
 /**
  * Open a single SSE connection and route messages to per-collection subjects.
@@ -43,6 +57,7 @@ function connectSharedStream() {
   eventSource.addEventListener("error", () => {
     eventSource.close();
     sharedEventSource = null;
+    if (sessionExpired) return;
     clearTimeout(reconnectTimeout);
     reconnectTimeout = setTimeout(() => connectSharedStream(), 3000);
   });
@@ -197,6 +212,10 @@ function createPullHandler(collection, toClient) {
       const response = await fetch(
         `/api/v1/sync/${collection}/pull?${params.toString()}`,
       );
+      if (response.status === 401) {
+        handleAuthExpired();
+        throw new Error(`Pull unauthorized for ${collection}`);
+      }
       if (!response.ok) {
         throw new Error(`Pull failed for ${collection}: ${response.status}`);
       }
@@ -233,6 +252,10 @@ function createPushHandler(collection, toServer, toClient) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (response.status === 401) {
+        handleAuthExpired();
+        throw new Error(`Push unauthorized for ${collection}`);
+      }
       if (!response.ok) {
         throw new Error(`Push failed for ${collection}: ${response.status}`);
       }

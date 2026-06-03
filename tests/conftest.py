@@ -5,6 +5,7 @@ import sqlite3
 import pytest
 from fastapi.testclient import TestClient
 
+from backend import config
 from backend.database import get_db, init_db
 from backend.main import app, rate_limit_store
 
@@ -47,6 +48,38 @@ def clear_rate_limits():
 def client():
     """Provide a TestClient that returns HTTP error responses instead of raising."""
     return TestClient(app, raise_server_exceptions=False)
+
+
+# The suite runs with AUTH_ENABLED=false by default (see backend.config), so the
+# existing tests need no changes. The fixtures below opt specific tests into the
+# authenticated paths by monkeypatching the live config module — both the
+# middleware (main.py) and auth helpers (auth.py) read config attributes lazily.
+TEST_PASSWORD = "test-password"
+
+
+@pytest.fixture()
+def auth_enabled(monkeypatch):
+    """Turn on auth with a known plaintext password and an insecure cookie.
+
+    Returns the configured password so tests can log in.
+    """
+    monkeypatch.setattr(config, "AUTH_ENABLED", True)
+    monkeypatch.setattr(config, "SESSION_SECRET", "test-secret")
+    monkeypatch.setattr(config, "PASSWORD_HASH", "")
+    monkeypatch.setattr(config, "PASSWORD_PLAINTEXT", TEST_PASSWORD)
+    monkeypatch.setattr(config, "COOKIE_SECURE", False)
+    return TEST_PASSWORD
+
+
+@pytest.fixture()
+def authed_client(auth_enabled):
+    """A TestClient with auth enabled and a valid session cookie."""
+    test_client = TestClient(app, raise_server_exceptions=False)
+    resp = test_client.post(
+        "/api/v1/auth/login", json={"password": auth_enabled, "remember": False}
+    )
+    assert resp.status_code == 200
+    return test_client
 
 
 @pytest.fixture()

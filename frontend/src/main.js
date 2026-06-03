@@ -22,11 +22,43 @@ import "./styles/metrics.css";
 import "./styles/animations.css";
 import "./styles/utilities.css";
 import "./styles/responsive.css";
+import "./styles/auth.css";
 import { reportError } from "./error-reporting.js";
 import { initApp } from "./app.js";
+import { getAuthStatus, renderLoginView } from "./auth.js";
+import { authExpired$ } from "./bus.js";
+import { accountSettingGroup } from "./dom.js";
 
-initApp().catch((err) => {
-  reportError("initialize app", err);
+/** Start the app, reporting any init failure. */
+function startApp() {
+  initApp().catch((err) => {
+    reportError("initialize app", err);
+  });
+}
+
+// Auth gate: only initialize the app (and thus replication) once authenticated.
+// The logout control is revealed only when the password gate is actually on.
+getAuthStatus()
+  .then(({ authed, enabled }) => {
+    const reveal = () => {
+      if (enabled && accountSettingGroup) accountSettingGroup.hidden = false;
+    };
+    if (authed) {
+      startApp();
+      reveal();
+    } else {
+      renderLoginView(() => {
+        startApp();
+        reveal();
+      });
+    }
+  })
+  .catch((err) => reportError("check auth", err));
+
+// Session expired/revoked mid-session: drop back to the login view. A reload
+// is the simplest way to fully reset app + replication state after re-login.
+authExpired$.subscribe(() => {
+  renderLoginView(() => window.location.reload());
 });
 
 // Register Service Worker

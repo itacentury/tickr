@@ -61,20 +61,82 @@ All settings can be overridden via `TICKR_*` environment variables. Copy the exa
 cp .env.example .env
 ```
 
+> **Note:** The app does not auto-load `.env` — it only reads `TICKR_*` from the
+> process environment. Either pass the variables directly, or load the file into
+> your shell before starting the server:
+>
+> **PowerShell**
+>
+> ```powershell
+> Get-Content .env | ForEach-Object {
+>   if ($_ -match '^\s*([^#][^=]*)=(.*)$') {
+>     Set-Item "env:$($matches[1].Trim())" $matches[2].Trim()
+>   }
+> }
+> uv run uvicorn backend.main:app --reload --port 8000
+> ```
+>
+> **Bash**
+>
+> ```bash
+> set -a; source .env; set +a
+> uv run uvicorn backend.main:app --reload --port 8000
+> ```
+>
+> Both loaders skip comment and blank lines. In Docker the variables come from
+> the container environment / `env_file` instead (see
+> [`docker-compose.yml`](docker-compose.yml)).
+
 See [`.env.example`](.env.example) for the full list with defaults.
 
-| Variable                       | Default         | Description                       |
-| ------------------------------ | --------------- | --------------------------------- |
-| `TICKR_DATABASE`               | `data/tickr.db` | SQLite database path              |
-| `TICKR_RATE_LIMIT_REQUESTS`    | `100`           | Max requests per window per IP    |
-| `TICKR_RATE_LIMIT_WINDOW`      | `60`            | Rate limit window in seconds      |
-| `TICKR_RATE_LIMIT_MAX_IPS`     | `10000`         | Max tracked IPs in rate limiter   |
-| `TICKR_MAX_SSE_CLIENTS`        | `10`            | Max concurrent SSE connections    |
-| `TICKR_SSE_HEARTBEAT_INTERVAL` | `15`            | SSE heartbeat interval in seconds |
-| `TICKR_BACKUP_DIR`             | `data/backups`  | Backup output directory           |
-| `TICKR_BACKUP_RETAIN`          | `7`             | Number of backups to keep         |
+| Variable                       | Default         | Description                        |
+| ------------------------------ | --------------- | ---------------------------------- |
+| `TICKR_DATABASE`               | `data/tickr.db` | SQLite database path               |
+| `TICKR_RATE_LIMIT_REQUESTS`    | `100`           | Max requests per window per IP     |
+| `TICKR_RATE_LIMIT_WINDOW`      | `60`            | Rate limit window in seconds       |
+| `TICKR_RATE_LIMIT_MAX_IPS`     | `10000`         | Max tracked IPs in rate limiter    |
+| `TICKR_MAX_SSE_CLIENTS`        | `10`            | Max concurrent SSE connections     |
+| `TICKR_SSE_HEARTBEAT_INTERVAL` | `15`            | SSE heartbeat interval in seconds  |
+| `TICKR_BACKUP_DIR`             | `data/backups`  | Backup output directory            |
+| `TICKR_BACKUP_RETAIN`          | `7`             | Number of backups to keep          |
+| `TICKR_AUTH_ENABLED`           | `false`         | Enable the single-password login   |
+| `TICKR_PASSWORD_HASH`          | _(empty)_       | argon2 hash of the password        |
+| `TICKR_PASSWORD`               | _(empty)_       | Dev-only plaintext password        |
+| `TICKR_SESSION_SECRET`         | _(empty)_       | Secret for signing session cookies |
+| `TICKR_SESSION_DAYS`           | `30`            | "Stay signed in" duration (days)   |
+| `TICKR_COOKIE_SECURE`          | `true`          | `Secure` flag on the cookie        |
+| `TICKR_COOKIE_SAMESITE`        | `lax`           | `SameSite` flag on the cookie      |
 
 See [`docker-compose.yml`](docker-compose.yml) for a ready-to-use Docker Compose setup with commented-out environment overrides.
+
+### Authentication
+
+Tickr ships with an optional single-password login (disabled by default). The
+app shell, PWA assets and `/api/v1/health` stay public so the login screen can
+load offline-first; all data and sync routes require a session.
+
+Enable it by setting `TICKR_AUTH_ENABLED=true` and providing a password and a
+session secret:
+
+```bash
+# Generate a session secret
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Generate an argon2 password hash (preferred over plaintext)
+uv run python -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('your-password'))"
+```
+
+Then set `TICKR_PASSWORD_HASH` and `TICKR_SESSION_SECRET` (keep both out of
+version control — use `.env` or Docker secrets). For quick local testing you may
+instead set `TICKR_PASSWORD` in plaintext; this logs a startup warning.
+
+- **Stay signed in:** the login form has a checkbox. Checked → the cookie lives
+  ~30 days (`TICKR_SESSION_DAYS`); unchecked → it expires when the browser closes.
+- **HTTPS:** keep `TICKR_COOKIE_SECURE=true` behind TLS. For local plain-HTTP
+  testing set it to `false`. Behind a reverse proxy, forward `X-Forwarded-Proto`
+  and run uvicorn with `--proxy-headers` so `Secure` cookies work reliably.
+- **Known limits:** single user only; sessions are stateless signed cookies and
+  cannot be revoked server-side — logout just clears the browser cookie.
 
 ## API
 
