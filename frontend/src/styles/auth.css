@@ -54,6 +54,42 @@
   border-color: var(--accent);
 }
 
+.auth-password {
+  position: relative;
+  display: flex;
+}
+
+.auth-password .auth-input {
+  padding-right: 44px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.auth-password-toggle:hover,
+.auth-password-toggle:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
+.auth-password-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
 .auth-remember {
   display: flex;
   align-items: center;

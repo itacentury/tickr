@@ -69,12 +69,40 @@ export function renderLoginView(onSuccess) {
   subtitle.className = "auth-subtitle";
   subtitle.textContent = "Enter your password to continue";
 
+  const passwordWrap = document.createElement("div");
+  passwordWrap.className = "auth-password";
+
   const passwordInput = document.createElement("input");
   passwordInput.type = "password";
   passwordInput.className = "auth-input";
   passwordInput.placeholder = "Password";
   passwordInput.autocomplete = "current-password";
   passwordInput.required = true;
+
+  const EYE_OPEN =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="2" y1="2" x2="22" y2="22"/></svg>';
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "auth-password-toggle";
+  toggle.setAttribute("aria-label", "Passwort anzeigen");
+  toggle.innerHTML = EYE_OPEN;
+
+  toggle.addEventListener("click", () => {
+    const show = passwordInput.type === "password";
+    passwordInput.type = show ? "text" : "password";
+    toggle.innerHTML = show ? EYE_OFF : EYE_OPEN;
+    toggle.setAttribute(
+      "aria-label",
+      show ? "Passwort verbergen" : "Passwort anzeigen",
+    );
+    passwordInput.focus();
+  });
+
+  passwordWrap.appendChild(passwordInput);
+  passwordWrap.appendChild(toggle);
 
   const rememberLabel = document.createElement("label");
   rememberLabel.className = "auth-remember";
@@ -96,7 +124,7 @@ export function renderLoginView(onSuccess) {
 
   card.appendChild(title);
   card.appendChild(subtitle);
-  card.appendChild(passwordInput);
+  card.appendChild(passwordWrap);
   card.appendChild(rememberLabel);
   card.appendChild(error);
   card.appendChild(submit);
