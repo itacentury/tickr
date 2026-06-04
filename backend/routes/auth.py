@@ -4,7 +4,7 @@ These routes are exempt from the auth middleware (see ``_PUBLIC_EXACT_PATHS``
 in ``main.py``) and perform their own cookie checks where needed.
 """
 
-from typing import Literal, cast
+from typing import Literal, TypedDict, cast
 
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
@@ -28,6 +28,28 @@ class LoginRequest(BaseModel):
     remember: bool = False
 
 
+class _CookieAttrs(TypedDict):
+    httponly: bool
+    secure: bool
+    samesite: Literal["lax", "strict", "none"]
+    path: str
+
+
+def _cookie_attrs() -> _CookieAttrs:
+    """Cookie attributes shared by the set and delete paths.
+
+    Keeping a single source of truth ensures the logout ``delete_cookie`` call
+    matches the attributes used when the cookie was set, so browsers reliably
+    clear it.
+    """
+    return {
+        "httponly": True,
+        "secure": config.COOKIE_SECURE,
+        "samesite": cast(Literal["lax", "strict", "none"], config.COOKIE_SAMESITE),
+        "path": "/",
+    }
+
+
 def _set_session_cookie(response: Response, *, remember: bool) -> None:
     """Attach a signed session cookie to the response.
 
@@ -38,10 +60,7 @@ def _set_session_cookie(response: Response, *, remember: bool) -> None:
         key=SESSION_COOKIE_NAME,
         value=create_session_token(),
         max_age=config.SESSION_DAYS_DEFAULT * 86400 if remember else None,
-        httponly=True,
-        secure=config.COOKIE_SECURE,
-        samesite=cast(Literal["lax", "strict", "none"], config.COOKIE_SAMESITE),
-        path="/",
+        **_cookie_attrs(),
     )
 
 
@@ -57,7 +76,7 @@ def login(body: LoginRequest, response: Response) -> dict[str, bool]:
 @router.post("/logout")
 def logout(response: Response) -> dict[str, bool]:
     """Clear the session cookie. Always succeeds."""
-    response.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
+    response.delete_cookie(key=SESSION_COOKIE_NAME, **_cookie_attrs())
     return {"authed": False}
 
 

@@ -25,9 +25,7 @@ def test_login_wrong_password_returns_401(auth_enabled):
 
 def test_login_remember_sets_max_age(auth_enabled):
     client = TestClient(app, raise_server_exceptions=False)
-    resp = client.post(
-        "/api/v1/auth/login", json={"password": TEST_PASSWORD, "remember": True}
-    )
+    resp = client.post("/api/v1/auth/login", json={"password": TEST_PASSWORD, "remember": True})
     assert resp.status_code == 200
     set_cookie = resp.headers["set-cookie"]
     assert "Max-Age=2592000" in set_cookie  # 30 days
@@ -35,9 +33,7 @@ def test_login_remember_sets_max_age(auth_enabled):
 
 def test_login_without_remember_has_no_max_age(auth_enabled):
     client = TestClient(app, raise_server_exceptions=False)
-    resp = client.post(
-        "/api/v1/auth/login", json={"password": TEST_PASSWORD, "remember": False}
-    )
+    resp = client.post("/api/v1/auth/login", json={"password": TEST_PASSWORD, "remember": False})
     assert resp.status_code == 200
     assert "Max-Age" not in resp.headers["set-cookie"]
 

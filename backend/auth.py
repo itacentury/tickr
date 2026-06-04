@@ -20,7 +20,7 @@ import secrets
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Request
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 from . import config
 from .logging_config import get_logger
@@ -73,7 +73,8 @@ def verify_session_token(token: str, max_age_seconds: int) -> bool:
     try:
         _serializer().loads(token, max_age=max_age_seconds)
         return True
-    except (SignatureExpired, BadSignature):
+    except BadSignature:
+        # Covers SignatureExpired (a BadSignature subclass) too.
         return False
 
 
