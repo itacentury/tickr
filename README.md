@@ -48,7 +48,7 @@ uv sync
 cd frontend && npm install && npm run build && cd ..
 
 # Run
-uv run main.py
+uv run uvicorn backend.main:app --port 8000
 ```
 
 Open [http://localhost:8000](http://localhost:8000)
@@ -61,9 +61,17 @@ All settings can be overridden via `TICKR_*` environment variables. Copy the exa
 cp .env.example .env
 ```
 
-> **Note:** The app does not auto-load `.env` — it only reads `TICKR_*` from the
-> process environment. Either pass the variables directly, or load the file into
-> your shell before starting the server:
+> **Note:** The app itself does not call `load_dotenv` — it reads `TICKR_*` from
+> the process environment. With the dev dependencies installed (`uv sync --dev`,
+> which brings in `python-dotenv`), the simplest option is to let uvicorn load
+> the file via `--env-file`:
+>
+> ```bash
+> uv run uvicorn backend.main:app --reload --port 8000 --env-file .env
+> ```
+>
+> Without the dev dependencies (`--env-file` unavailable), pass the variables
+> directly or load the file into your shell before starting the server:
 >
 > **PowerShell**
 >
@@ -89,23 +97,26 @@ cp .env.example .env
 
 See [`.env.example`](.env.example) for the full list with defaults.
 
-| Variable                       | Default         | Description                        |
-| ------------------------------ | --------------- | ---------------------------------- |
-| `TICKR_DATABASE`               | `data/tickr.db` | SQLite database path               |
-| `TICKR_RATE_LIMIT_REQUESTS`    | `100`           | Max requests per window per IP     |
-| `TICKR_RATE_LIMIT_WINDOW`      | `60`            | Rate limit window in seconds       |
-| `TICKR_RATE_LIMIT_MAX_IPS`     | `10000`         | Max tracked IPs in rate limiter    |
-| `TICKR_MAX_SSE_CLIENTS`        | `10`            | Max concurrent SSE connections     |
-| `TICKR_SSE_HEARTBEAT_INTERVAL` | `15`            | SSE heartbeat interval in seconds  |
-| `TICKR_BACKUP_DIR`             | `data/backups`  | Backup output directory            |
-| `TICKR_BACKUP_RETAIN`          | `7`             | Number of backups to keep          |
-| `TICKR_AUTH_ENABLED`           | `false`         | Enable the single-password login   |
-| `TICKR_PASSWORD_HASH`          | _(empty)_       | argon2 hash of the password        |
-| `TICKR_PASSWORD`               | _(empty)_       | Dev-only plaintext password        |
-| `TICKR_SESSION_SECRET`         | _(empty)_       | Secret for signing session cookies |
-| `TICKR_SESSION_DAYS`           | `30`            | "Stay signed in" duration (days)   |
-| `TICKR_COOKIE_SECURE`          | `true`          | `Secure` flag on the cookie        |
-| `TICKR_COOKIE_SAMESITE`        | `lax`           | `SameSite` flag on the cookie      |
+| Variable                       | Default                 | Description                                                     |
+| ------------------------------ | ----------------------- | --------------------------------------------------------------- |
+| `TICKR_DATABASE`               | `data/tickr.db`         | SQLite database path                                            |
+| `TICKR_LOG_LEVEL`              | `INFO`                  | Logging level (`DEBUG`, `INFO`, …)                              |
+| `TICKR_RATE_LIMIT_REQUESTS`    | `100`                   | Max requests per window per IP                                  |
+| `TICKR_RATE_LIMIT_WINDOW`      | `60`                    | Rate limit window in seconds                                    |
+| `TICKR_RATE_LIMIT_MAX_IPS`     | `10000`                 | Max tracked IPs in rate limiter                                 |
+| `TICKR_MAX_SSE_CLIENTS`        | `10`                    | Max concurrent SSE connections                                  |
+| `TICKR_SSE_HEARTBEAT_INTERVAL` | `15`                    | SSE heartbeat interval in seconds                               |
+| `TICKR_BACKUP_DIR`             | `data/backups`          | Backup output directory                                         |
+| `TICKR_BACKUP_RETAIN`          | `7`                     | Number of backups to keep                                       |
+| `TICKR_CORS_ORIGINS`           | `http://localhost:8000` | Comma-separated allowed origins (also drives CSP `connect-src`) |
+| `TICKR_TRUSTED_PROXIES`        | `127.0.0.1`             | Trusted proxy IPs for `X-Forwarded-For` (Docker/uvicorn)        |
+| `TICKR_AUTH_ENABLED`           | `false`                 | Enable the single-password login                                |
+| `TICKR_PASSWORD_HASH`          | _(empty)_               | argon2 hash of the password                                     |
+| `TICKR_PASSWORD`               | _(empty)_               | Dev-only plaintext password                                     |
+| `TICKR_SESSION_SECRET`         | _(empty)_               | Secret for signing session cookies                              |
+| `TICKR_SESSION_DAYS`           | `30`                    | "Stay signed in" duration (days)                                |
+| `TICKR_COOKIE_SECURE`          | `true`                  | `Secure` flag on the cookie                                     |
+| `TICKR_COOKIE_SAMESITE`        | `lax`                   | `SameSite` flag on the cookie                                   |
 
 See [`docker-compose.yml`](docker-compose.yml) for a ready-to-use Docker Compose setup with commented-out environment overrides.
 
@@ -140,7 +151,9 @@ instead set `TICKR_PASSWORD` in plaintext; this logs a startup warning.
 
 ## API
 
-Interactive docs available at `/docs` (Swagger UI) and `/redoc`.
+Interactive API docs are available at `/api/docs` (Swagger UI) and `/api/redoc`
+(ReDoc); the OpenAPI schema is at `/api/openapi.json`. With `TICKR_AUTH_ENABLED`,
+these require a valid session like any other protected route.
 
 ## Development
 
@@ -153,7 +166,10 @@ uv run ruff check --fix .
 uv run ruff format .
 
 # Type check
-uv run mypy main.py
+uv run mypy .
+
+# Run tests
+uv run pytest
 
 # Frontend dev server (with API proxy to FastAPI)
 cd frontend && npm run dev
