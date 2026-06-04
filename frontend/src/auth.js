@@ -77,6 +77,10 @@ function buildPasswordField() {
     toggle.innerHTML = EYE_OPEN;
   };
 
+  // Keep focus on the password input so Enter still submits the form
+  // instead of re-triggering this toggle button.
+  toggle.addEventListener("mousedown", (event) => event.preventDefault());
+
   toggle.addEventListener("pointerdown", show);
   for (const event of ["pointerup", "pointerleave", "pointercancel", "blur"]) {
     toggle.addEventListener(event, hide);
