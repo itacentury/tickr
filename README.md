@@ -175,6 +175,23 @@ uv run pytest
 cd frontend && npm run dev
 ```
 
+### Editor setup (VS Code)
+
+Open `tickr.code-workspace` for ready-to-run tasks and debug configs. They start
+uvicorn with `--env-file .env.example`, so the app comes up with auth enabled and the
+dev credentials (`test1234`):
+
+- **Dev: Full Stack** — backend + Vite dev server together
+- **Run: Start Server** — backend only
+- **Dev: Frontend** / **Build: Frontend** / **Lint: All** / **Test: Run All** / **Format: All**
+
+Dev server URLs:
+
+- **http://localhost:5173** — Vite dev server (HMR); proxies `/api` to the backend, so the
+  backend must run too. Use this while developing the frontend.
+- **http://localhost:8000** — FastAPI serving the built SPA from `static/dist` (after
+  **Build: Frontend**).
+
 ## License
 
 [GPLv3](LICENSE)
