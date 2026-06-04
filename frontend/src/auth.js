@@ -87,18 +87,34 @@ export function renderLoginView(onSuccess) {
   const toggle = document.createElement("button");
   toggle.type = "button";
   toggle.className = "auth-password-toggle";
-  toggle.setAttribute("aria-label", "Passwort anzeigen");
+  toggle.setAttribute("aria-label", "Passwort anzeigen (gedrückt halten)");
   toggle.innerHTML = EYE_OPEN;
 
-  toggle.addEventListener("click", () => {
-    const show = passwordInput.type === "password";
-    passwordInput.type = show ? "text" : "password";
-    toggle.innerHTML = show ? EYE_OFF : EYE_OPEN;
-    toggle.setAttribute(
-      "aria-label",
-      show ? "Passwort verbergen" : "Passwort anzeigen",
-    );
-    passwordInput.focus();
+  // Passwort nur sichtbar, solange der Button gedrückt gehalten wird.
+  const show = () => {
+    passwordInput.type = "text";
+    toggle.innerHTML = EYE_OFF;
+  };
+  const hide = () => {
+    passwordInput.type = "password";
+    toggle.innerHTML = EYE_OPEN;
+  };
+
+  toggle.addEventListener("pointerdown", show);
+  toggle.addEventListener("pointerup", hide);
+  toggle.addEventListener("pointerleave", hide);
+  toggle.addEventListener("pointercancel", hide);
+  toggle.addEventListener("blur", hide);
+  toggle.addEventListener("keydown", (event) => {
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      show();
+    }
+  });
+  toggle.addEventListener("keyup", (event) => {
+    if (event.key === " " || event.key === "Enter") {
+      hide();
+    }
   });
 
   passwordWrap.appendChild(passwordInput);
