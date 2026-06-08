@@ -44,6 +44,7 @@ import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 import { parseCategoryTag } from "./category-tag.js";
 import { createCategoryAutocomplete } from "./add-item-autocomplete.js";
 import { openMetrics, closeMetrics } from "./metrics.js";
+import { logout } from "./auth.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
 function closeAllModals() {
@@ -585,6 +586,12 @@ export function setupEventListeners() {
       const registrations = await navigator.serviceWorker.getRegistrations();
       await Promise.all(registrations.map((reg) => reg.unregister()));
     }
+    location.reload();
+  });
+
+  // Sign out: clear the server session, then reload so the auth gate re-renders.
+  dom.logoutBtn?.addEventListener("click", async () => {
+    await logout();
     location.reload();
   });
 

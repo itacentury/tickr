@@ -160,6 +160,10 @@ export const listSortSettingDropdown =
 export const cancelSettings = document.getElementById("cancelSettings");
 export const saveSettings = document.getElementById("saveSettings");
 export const clearCacheBtn = document.getElementById("clearCacheBtn");
+export const accountSettingGroup = document.getElementById(
+  "accountSettingGroup",
+);
+export const logoutBtn = document.getElementById("logoutBtn");
 
 /** Close the mobile sidebar menu. */
 export function closeMobileMenu() {
