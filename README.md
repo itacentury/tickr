@@ -58,7 +58,7 @@ Open [http://localhost:8000](http://localhost:8000)
 All settings can be overridden via `TICKR_*` environment variables. Copy the example file to get started:
 
 ```bash
-cp .env.example .env
+cp tickr.env.example .env
 ```
 
 > **Note:** The app itself does not call `load_dotenv` — it reads `TICKR_*` from
@@ -95,7 +95,7 @@ cp .env.example .env
 > the container environment / `env_file` instead (see
 > [`docker-compose.yml`](docker-compose.yml)).
 
-See [`.env.example`](.env.example) for the full list with defaults.
+See [`tickr.env.example`](tickr.env.example) for the full list with defaults.
 
 | Variable                       | Default                 | Description                                                     |
 | ------------------------------ | ----------------------- | --------------------------------------------------------------- |
@@ -194,7 +194,7 @@ cd frontend && npm run dev
 ### Editor setup (VS Code)
 
 Open `tickr.code-workspace` for ready-to-run tasks and debug configs. They start
-uvicorn with `--env-file .env.example`, so the app comes up with auth enabled and the
+uvicorn with `--env-file tickr.env.example`, so the app comes up with auth enabled and the
 dev credentials (`test1234`):
 
 - **Dev: Full Stack** — backend + Vite dev server together
