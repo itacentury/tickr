@@ -141,6 +141,22 @@ Then set `TICKR_PASSWORD_HASH` and `TICKR_SESSION_SECRET` (keep both out of
 version control — use `.env` or Docker secrets). For quick local testing you may
 instead set `TICKR_PASSWORD` in plaintext; this logs a startup warning.
 
+> **Docker Compose & the `$` in argon2 hashes:** an argon2 hash
+> (`$argon2id$v=19$m=...`) contains `$` characters that Docker Compose treats as
+> variable references, so it mangles the hash and logs
+> `WARN The "argon2id" variable is not set`. Disable interpolation for the env
+> file using the long `env_file` syntax with `format: raw`:
+>
+> ```yaml
+> env_file:
+>   - path: tickr.env
+>     format: raw
+> ```
+>
+> The hash then stays untouched with single `$`. (Alternatively, double every
+> `$` to `$$` in the env file.) Verify with
+> `docker exec tickr printenv TICKR_PASSWORD_HASH`.
+
 - **Stay signed in:** the login form has a checkbox. Checked → the cookie lives
   ~30 days (`TICKR_SESSION_DAYS`); unchecked → it expires when the browser closes.
 - **HTTPS:** keep `TICKR_COOKIE_SECURE=true` behind TLS. For local plain-HTTP

@@ -5,8 +5,12 @@ services:
     restart: unless-stopped
     ports:
       - 127.0.0.1:8000:8000/tcp
+    # Keep secrets out of version control via an env file. Use the long syntax
+    # with `format: raw` so Compose does NOT interpolate the `$` characters in an
+    # argon2 hash (otherwise it mangles TICKR_PASSWORD_HASH — see README).
     # env_file:
-    #   - .env
+    #   - path: tickr.env
+    #     format: raw
     # environment:
     #   - TICKR_DATABASE=data/tickr.db
     #   - TICKR_RATE_LIMIT_REQUESTS=100
@@ -14,10 +18,6 @@ services:
     #   - TICKR_CORS_ORIGINS=https://app.example.com,https://admin.example.com
     #   # --- Authentication (single password) ---
     #   - TICKR_AUTH_ENABLED=true
-    #   # Generate the hash once (see README) and keep secrets out of version
-    #   # control, e.g. via the env_file above:
-    #   - TICKR_PASSWORD_HASH=${TICKR_PASSWORD_HASH}
-    #   - TICKR_SESSION_SECRET=${TICKR_SESSION_SECRET}
     #   # Behind HTTPS keep this true; for local plain-HTTP testing set it false:
     #   - TICKR_COOKIE_SECURE=true
     volumes:
