@@ -148,6 +148,7 @@ export const metricsModal = document.getElementById("metricsModal");
 export const metricsBtn = document.getElementById("metricsBtn");
 export const metricsBody = document.getElementById("metricsBody");
 export const closeMetricsBtn = document.getElementById("closeMetrics");
+export const metricsRange = document.getElementById("metricsRange");
 
 // Settings Modal
 export const settingsModal = document.getElementById("settingsModal");

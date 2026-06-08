@@ -4,14 +4,14 @@ import sqlite3
 import time
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
-from ..config import MAX_SSE_CLIENTS
+from ..config import APP_VERSION, MAX_SSE_CLIENTS, REGION
 from ..database import get_db
 from ..events import get_connection_counts
 from ..logging_config import get_logger
-from ..metrics import collector
+from ..metrics import DEFAULT_WINDOW, WINDOW_OPTIONS, collector
 
 router = APIRouter(prefix="/api/v1", tags=["monitoring"])
 
@@ -60,6 +60,14 @@ async def health_check(db: sqlite3.Connection = Depends(get_db)):
 
 
 @router.get("/metrics")
-async def metrics_snapshot():
-    """Return collected request metrics as JSON."""
-    return collector.get_snapshot()
+async def metrics_snapshot(window: int = Query(default=DEFAULT_WINDOW)):
+    """Return collected request metrics as JSON for the given time window (seconds).
+
+    ``window`` must be one of the supported presets (1h / 24h / 7d); anything else
+    falls back to the default window rather than erroring.
+    """
+    effective_window: int = window if window in WINDOW_OPTIONS else DEFAULT_WINDOW
+    snapshot: dict = collector.get_snapshot(effective_window)
+    snapshot["version"] = APP_VERSION
+    snapshot["region"] = REGION or None
+    return snapshot

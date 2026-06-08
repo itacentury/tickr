@@ -13,6 +13,8 @@ def _env_int(name: str, default: int) -> int:
     return int(os.getenv(name, str(default)))
 
 
+APP_VERSION: str = "2.0.0"
+
 DATABASE: str = os.getenv("TICKR_DATABASE", "data/tickr.db")
 
 LOG_LEVEL: str = os.getenv("TICKR_LOG_LEVEL", "INFO")
@@ -23,6 +25,9 @@ RATE_LIMIT_MAX_IPS: int = _env_int("TICKR_RATE_LIMIT_MAX_IPS", 10000)
 
 MAX_SSE_CLIENTS: int = _env_int("TICKR_MAX_SSE_CLIENTS", 10)
 SSE_HEARTBEAT_INTERVAL: int = _env_int("TICKR_SSE_HEARTBEAT_INTERVAL", 15)
+
+# Optional deployment region label shown in the metrics dashboard header. Empty = hidden.
+REGION: str = os.getenv("TICKR_REGION", "")
 
 BACKUP_DIR: str = os.getenv("TICKR_BACKUP_DIR", "data/backups")
 BACKUP_RETAIN: int = _env_int("TICKR_BACKUP_RETAIN", 7)
