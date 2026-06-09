@@ -117,4 +117,51 @@
   .ep-path {
     font-size: 0.7rem;
   }
+
+  /* Let the endpoints table fit narrow screens: honor container width and wrap
+     the otherwise unbreakable monospace path instead of forcing column width. */
+  .metrics-tbl {
+    table-layout: fixed;
+  }
+
+  .metrics-tbl tbody td {
+    font-size: 0.8rem;
+  }
+
+  .ep {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .ep-path {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  /* The count bar is decorative; the number alone is enough on mobile. */
+  .count-bar {
+    display: none;
+  }
+
+  .metrics-health .seg {
+    padding: 12px 14px;
+  }
+
+  .metrics-health .seg .v {
+    flex-wrap: wrap;
+  }
+
+  .metrics-health .seg small {
+    overflow-wrap: anywhere;
+  }
+
+  .kpi .kpi-val {
+    font-size: 1.5rem;
+  }
+
+  /* Backstop: vertical scroll lives on .metrics-content, so clipping any stray
+     horizontal overflow here is safe. */
+  .metrics-body {
+    overflow-x: hidden;
+  }
 }
