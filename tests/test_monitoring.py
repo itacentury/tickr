@@ -58,3 +58,28 @@ class TestMetrics:
         assert "requests" in data
         assert "response_times" in data
         assert "connections" in data
+
+    def test_metrics_snapshot_extended_sections(self, client):
+        """The dashboard snapshot includes every observability section."""
+        data = client.get("/api/v1/metrics").json()
+        for key in (
+            "kpis",
+            "traffic",
+            "latency_histogram",
+            "endpoints",
+            "sync",
+            "system",
+            "version",
+        ):
+            assert key in data
+
+    def test_metrics_valid_window(self, client):
+        """A supported window preset is honored."""
+        data = client.get("/api/v1/metrics?window=3600").json()
+        assert data["window_seconds"] == 3600
+
+    def test_metrics_invalid_window_falls_back(self, client):
+        """An unsupported window falls back to the default rather than erroring."""
+        resp = client.get("/api/v1/metrics?window=999")
+        assert resp.status_code == 200
+        assert resp.json()["window_seconds"] == 86_400

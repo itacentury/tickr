@@ -38,6 +38,7 @@ from fastapi.responses import JSONResponse
 from . import config
 from .auth import auth_config_warnings, is_authenticated
 from .config import (
+    APP_VERSION,
     CORS_ORIGINS,
     CSP_CONNECT_SRC,
     RATE_LIMIT_MAX_IPS,
@@ -48,12 +49,26 @@ from .database import init_db
 from .errors import ErrorCode, _error_body, register_error_handlers
 from .events import bind_loop, initiate_shutdown
 from .logging_config import configure_logging, get_logger
-from .metrics import collector
+from .metrics import collector, set_event_loop_lag
 from .routes import all_routers
 from .routes.static import mount_static
 
 configure_logging()
 logger = get_logger(__name__)
+
+
+# How often the event-loop lag sampler wakes up.
+_LAG_SAMPLE_INTERVAL: float = 5.0
+
+
+async def _sample_event_loop_lag() -> None:
+    """Periodically measure scheduling delay as a proxy for event-loop lag."""
+    while True:
+        before: float = time.monotonic()
+        await asyncio.sleep(_LAG_SAMPLE_INTERVAL)
+        # Time slept beyond the requested interval is the loop's scheduling lag.
+        lag_ms: float = (time.monotonic() - before - _LAG_SAMPLE_INTERVAL) * 1000
+        set_event_loop_lag(max(0.0, lag_ms))
 
 
 @asynccontextmanager
@@ -62,6 +77,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("app_startup_begin")
     init_db()
     bind_loop(asyncio.get_running_loop())
+    lag_task: asyncio.Task[None] = asyncio.create_task(_sample_event_loop_lag())
     if config.AUTH_ENABLED:
         for warning in auth_config_warnings():
             logger.warning("auth_config_warning", detail=warning)
@@ -69,12 +85,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("app_startup_complete")
     yield
     logger.info("app_shutdown_begin")
+    lag_task.cancel()
     await initiate_shutdown()
 
 
 app: FastAPI = FastAPI(
     title="Tickr",
-    version="2.0.0",
+    version=APP_VERSION,
     description="Offline-first to-do app with real-time sync",
     docs_url="/api/docs",
     redoc_url="/api/redoc",

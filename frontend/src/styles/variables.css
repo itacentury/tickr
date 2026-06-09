@@ -14,6 +14,8 @@
   --accent-hover: #3b82f6;
   --accent-subtle: rgba(96, 165, 250, 0.12);
   --accent-glow: rgba(96, 165, 250, 0.06);
+  --accent-2: #a78bfa;
+  --warning: #f59e0b;
 
   --success: #34d399;
   --danger: #f87171;

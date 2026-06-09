@@ -9,6 +9,7 @@ the loop thread.
 
 import asyncio
 import json
+import time
 from collections.abc import AsyncIterator
 from contextlib import suppress
 
@@ -31,6 +32,11 @@ class SseBroadcaster:
         self._queue_size = queue_size
         self._clients: set[asyncio.Queue[str]] = set()
         self._loop: asyncio.AbstractEventLoop | None = None
+        # Lifetime metrics for the observability dashboard.
+        self._events_sent: int = 0
+        self._connections_opened: int = 0
+        self._duration_sum: float = 0.0
+        self._connected_at: dict[asyncio.Queue[str], float] = {}
 
     def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Capture the running event loop for thread-safe broadcast calls."""
@@ -39,6 +45,17 @@ class SseBroadcaster:
     def client_count(self) -> int:
         """Return the number of currently connected clients."""
         return len(self._clients)
+
+    def stats(self) -> dict[str, float]:
+        """Return lifetime SSE metrics: active clients, events sent, opens, avg duration."""
+        closed: int = self._connections_opened - len(self._clients)
+        avg_duration: float = self._duration_sum / closed if closed > 0 else 0.0
+        return {
+            "active": len(self._clients),
+            "events_sent": self._events_sent,
+            "opened_total": self._connections_opened,
+            "avg_duration_seconds": round(avg_duration, 1),
+        }
 
     async def register(self) -> asyncio.Queue[str]:
         """Create a new client queue; raise 429 if at capacity."""
@@ -52,12 +69,17 @@ class SseBroadcaster:
             raise AppError(ErrorCode.TOO_MANY_CONNECTIONS, "Too many SSE connections", 429)
         queue: asyncio.Queue[str] = asyncio.Queue(maxsize=self._queue_size)
         self._clients.add(queue)
+        self._connections_opened += 1
+        self._connected_at[queue] = time.monotonic()
         logger.info("sse_client_connected", broadcaster=self._name, active=len(self._clients))
         return queue
 
     async def unregister(self, queue: asyncio.Queue[str]) -> None:
         """Remove a client queue from the active set."""
         self._clients.discard(queue)
+        opened_at: float | None = self._connected_at.pop(queue, None)
+        if opened_at is not None:
+            self._duration_sum += time.monotonic() - opened_at
         logger.info("sse_client_disconnected", broadcaster=self._name, active=len(self._clients))
 
     def broadcast(self, message: str) -> None:
@@ -96,6 +118,7 @@ class SseBroadcaster:
                 except TimeoutError:
                     yield ": heartbeat\n\n"
                     continue
+                self._events_sent += 1
                 yield f"data: {data}\n\n"
         except asyncio.CancelledError:
             pass
@@ -107,11 +130,22 @@ legacy_broadcaster: SseBroadcaster = SseBroadcaster("legacy", MAX_SSE_CLIENTS)
 sync_broadcaster: SseBroadcaster = SseBroadcaster("sync", MAX_SSE_CLIENTS)
 
 
-def get_connection_counts() -> dict[str, int]:
-    """Return SSE client counts per broadcaster for health/metrics endpoints."""
+def get_connection_counts() -> dict[str, float]:
+    """Return SSE client counts plus aggregated lifetime stats for health/metrics."""
+    legacy: dict[str, float] = legacy_broadcaster.stats()
+    sync: dict[str, float] = sync_broadcaster.stats()
+    closed_total: float = (
+        legacy["opened_total"] + sync["opened_total"] - legacy["active"] - sync["active"]
+    )
+    duration_sum: float = legacy["avg_duration_seconds"] * max(
+        legacy["opened_total"] - legacy["active"], 0
+    ) + sync["avg_duration_seconds"] * max(sync["opened_total"] - sync["active"], 0)
     return {
-        "sse_legacy": legacy_broadcaster.client_count(),
-        "sse_sync": sync_broadcaster.client_count(),
+        "sse_legacy": legacy["active"],
+        "sse_sync": sync["active"],
+        "events_sent": legacy["events_sent"] + sync["events_sent"],
+        "opened_total": legacy["opened_total"] + sync["opened_total"],
+        "avg_duration_seconds": round(duration_sum / closed_total, 1) if closed_total > 0 else 0.0,
     }
 
 

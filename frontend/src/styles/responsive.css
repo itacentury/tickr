@@ -85,15 +85,83 @@
     max-width: 100%;
     max-height: 100%;
     border-radius: 0;
+  }
+
+  .metrics-header {
+    flex-wrap: wrap;
     padding: 16px;
   }
 
-  .metrics-grid {
+  .metrics-body {
+    padding: 16px;
+  }
+
+  .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .bar-label {
-    min-width: 60px;
-    font-size: 0.75rem;
+  .metrics-cols-3,
+  .metrics-cols-3b {
+    grid-template-columns: 1fr;
+  }
+
+  .metrics-health {
+    flex-wrap: wrap;
+  }
+
+  .metrics-health .seg {
+    flex: 1 1 50%;
+    border-right: 0;
+  }
+
+  .ep-path {
+    font-size: 0.7rem;
+  }
+
+  /* Let the endpoints table fit narrow screens: honor container width and wrap
+     the otherwise unbreakable monospace path instead of forcing column width. */
+  .metrics-tbl {
+    table-layout: fixed;
+  }
+
+  .metrics-tbl tbody td {
+    font-size: 0.8rem;
+  }
+
+  .ep {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .ep-path {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  /* The count bar is decorative; the number alone is enough on mobile. */
+  .count-bar {
+    display: none;
+  }
+
+  .metrics-health .seg {
+    padding: 12px 14px;
+  }
+
+  .metrics-health .seg .v {
+    flex-wrap: wrap;
+  }
+
+  .metrics-health .seg small {
+    overflow-wrap: anywhere;
+  }
+
+  .kpi .kpi-val {
+    font-size: 1.5rem;
+  }
+
+  /* Backstop: vertical scroll lives on .metrics-content, so clipping any stray
+     horizontal overflow here is safe. */
+  .metrics-body {
+    overflow-x: hidden;
   }
 }

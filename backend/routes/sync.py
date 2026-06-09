@@ -15,6 +15,7 @@ from ..database import get_db, now
 from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update, sync_broadcaster
 from ..logging_config import get_logger
+from ..metrics import sync_metrics
 from ..models import SyncCategoryState, SyncChange, SyncItemState, SyncListState
 
 logger = get_logger(__name__)
@@ -348,6 +349,7 @@ def sync_pull(
         last: dict[str, Any] = documents[-1]
         checkpoint = {"updatedAt": last["updated_at"], "id": last["id"]}
 
+    sync_metrics.record_pull(len(documents))
     return {"documents": documents, "checkpoint": checkpoint}
 
 
@@ -418,6 +420,8 @@ def sync_push(
                     conflicts.append(dict(refreshed))
                 else:
                     raise AppError(ErrorCode.CONFLICT, str(exc), 409) from exc
+
+    sync_metrics.record_push(len(changes), len(conflicts))
 
     if not conflicts:
         bg.add_task(broadcast_update, spec.broadcast_event)

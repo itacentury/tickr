@@ -43,7 +43,7 @@ import { initDropdown, setDropdownValue, closeDropdown } from "./dropdown.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "./toast.js";
 import { parseCategoryTag } from "./category-tag.js";
 import { createCategoryAutocomplete } from "./add-item-autocomplete.js";
-import { openMetrics, closeMetrics } from "./metrics.js";
+import { openMetrics, closeMetrics, setMetricsWindow } from "./metrics.js";
 import { logout } from "./auth.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
@@ -551,6 +551,16 @@ export function setupEventListeners() {
   });
 
   dom.closeMetricsBtn.addEventListener("click", closeMetrics);
+
+  // Time-range segmented control: switch window and refresh.
+  dom.metricsRange.addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-window]");
+    if (!btn) return;
+    for (const b of dom.metricsRange.querySelectorAll("button")) {
+      b.classList.toggle("active", b === btn);
+    }
+    setMetricsWindow(Number(btn.dataset.window));
+  });
 
   makeBackdropDismiss(dom.metricsModal, closeMetrics);
 
