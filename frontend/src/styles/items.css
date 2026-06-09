@@ -21,6 +21,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  min-height: 84px; /* uniform row height regardless of category badge */
   padding: 18px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
