@@ -106,9 +106,6 @@ function renderMetrics(m, health) {
     ${latencySection(m)}
     ${endpointsSection(m)}
     ${resourcesSection(m)}
-    <div class="metrics-footnote">
-      <span>Updated just now · Window ${esc(WINDOW_LABELS[m.window_seconds] || "")}</span>
-    </div>
   `;
 
   postRender(m);

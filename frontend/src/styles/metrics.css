@@ -50,11 +50,6 @@
   letter-spacing: -0.01em;
 }
 
-.metrics-sub {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
 .metrics-head-right {
   display: flex;
   align-items: center;
@@ -655,15 +650,6 @@
 .mini-row .v {
   color: var(--text-primary);
   font-weight: 600;
-}
-
-.metrics-footnote {
-  margin-top: 22px;
-  font-size: 0.74rem;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* Error & loading states */
