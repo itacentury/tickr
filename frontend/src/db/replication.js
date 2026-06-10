@@ -9,6 +9,7 @@ import { replicateRxCollection } from "rxdb/plugins/replication";
 import { Subject } from "rxjs";
 import { authExpired$ } from "../bus.js";
 import { reportError } from "../error-reporting.js";
+import { resetDatabase } from "./index.js";
 import {
   REPLICATION_FETCH_TIMEOUT_MS,
   SSE_STALE_TIMEOUT_MS,
@@ -296,7 +297,7 @@ export function clientCategoryToServer(doc) {
  * @param {Function} toClient - Converter from server to client format.
  * @returns {Object} Pull handler configuration for replicateRxCollection.
  */
-function createPullHandler(collection, toClient) {
+export function createPullHandler(collection, toClient) {
   return {
     async handler(checkpoint, batchSize) {
       const params = new URLSearchParams({ limit: String(batchSize) });
@@ -311,6 +312,13 @@ function createPullHandler(collection, toClient) {
       if (response.status === 401) {
         handleAuthExpired();
         throw new Error(`Pull unauthorized for ${collection}`);
+      }
+      // 410 = our checkpoint predates the server's tombstone purge horizon, so
+      // an incremental pull could miss deletions. Wipe and full-resync instead.
+      // Must precede the generic !ok check, which would otherwise loop forever.
+      if (response.status === 410) {
+        resetDatabase(`Checkpoint too old for ${collection}`);
+        throw new Error(`Checkpoint too old for ${collection}; resyncing`);
       }
       if (!response.ok) {
         throw new Error(`Pull failed for ${collection}: ${response.status}`);

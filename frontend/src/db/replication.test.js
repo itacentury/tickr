@@ -189,6 +189,58 @@ describe("category converters", () => {
   });
 });
 
+describe("pull handler stale-checkpoint guard", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.restoreAllMocks();
+    // createPullHandler opens the shared SSE stream; stub EventSource so it is
+    // inert (jsdom does not provide one).
+    vi.stubGlobal(
+      "EventSource",
+      class {
+        addEventListener() {}
+        close() {}
+      },
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("wipes and resyncs when the server returns 410", async () => {
+    const resetDatabase = vi.fn();
+    vi.doMock("./index.js", () => ({ resetDatabase }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ status: 410, ok: false }),
+    );
+
+    const { createPullHandler } = await import("./replication.js");
+    const pull = createPullHandler("lists", (d) => d);
+
+    await expect(
+      pull.handler({ updatedAt: "2026-01-01T00:00:00.000Z", id: "x" }, 100),
+    ).rejects.toThrow(/Checkpoint too old for lists/);
+    expect(resetDatabase).toHaveBeenCalledOnce();
+  });
+
+  it("does not reset on a normal 500 error", async () => {
+    const resetDatabase = vi.fn();
+    vi.doMock("./index.js", () => ({ resetDatabase }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ status: 500, ok: false }),
+    );
+
+    const { createPullHandler } = await import("./replication.js");
+    const pull = createPullHandler("lists", (d) => d);
+
+    await expect(pull.handler(null, 100)).rejects.toThrow(/Pull failed/);
+    expect(resetDatabase).not.toHaveBeenCalled();
+  });
+});
+
 describe("SSE staleness reconnect", () => {
   // Minimal EventSource stub that records constructed instances, registered
   // listeners, and close() calls, and lets a test emit named events.

@@ -10,13 +10,14 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
-from ..config import SSE_HEARTBEAT_INTERVAL
+from ..config import SSE_HEARTBEAT_INTERVAL, TOMBSTONE_RETAIN_DAYS
 from ..database import get_db, now
 from ..errors import AppError, ErrorCode
 from ..events import broadcast_sync, broadcast_update, sync_broadcaster
 from ..logging_config import get_logger
 from ..metrics import sync_metrics
 from ..models import SyncCategoryState, SyncChange, SyncItemState, SyncListState
+from ..purge import tombstone_cutoff
 
 logger = get_logger(__name__)
 
@@ -339,6 +340,17 @@ def sync_pull(
 ) -> dict[str, Any]:
     """Pull documents newer than the given checkpoint for RxDB replication."""
     spec: CollectionSpec = _require_spec(collection)
+
+    # A checkpoint older than the tombstone purge horizon may have missed
+    # deletions that have since been purged. Force such clients into a full
+    # resync rather than silently leaving zombie documents behind.
+    if updated_at and updated_at < tombstone_cutoff(TOMBSTONE_RETAIN_DAYS):
+        raise AppError(
+            ErrorCode.CHECKPOINT_TOO_OLD,
+            "Checkpoint predates tombstone purge horizon; full resync required",
+            410,
+        )
+
     cursor: sqlite3.Cursor = db.cursor()
 
     rows: list[sqlite3.Row] = _pull_docs(cursor, spec, updated_at, id, limit)

@@ -67,6 +67,37 @@ async function _createDatabase() {
   }
 }
 
+/** Guards against concurrent resets when several collections fail at once. */
+let resetting = false;
+
+/**
+ * Wipe the local database and reload so replication restarts from a clean
+ * slate. Triggered when the server reports our sync checkpoint is older than
+ * the tombstone purge horizon: an incremental pull could miss purged deletions,
+ * so a full resync is the only way to stay consistent.
+ *
+ * Like the schema-reset path, the server is the source of truth via
+ * replication, so wiping IndexedDB loses no synced data. Unpushed local edits
+ * from a client offline longer than the purge window are the accepted tradeoff.
+ *
+ * @param {string} reason - Human-readable trigger, recorded for observability.
+ * @returns {Promise<void>}
+ */
+export async function resetDatabase(reason) {
+  if (resetting) return;
+  resetting = true;
+  reportError("checkpoint_reset", new Error(reason));
+  try {
+    const db = await dbPromise;
+    if (db) await db.remove();
+  } catch {
+    // The instance may already be unusable; fall back to a name-based wipe.
+    await removeRxDatabase(DB_NAME, storage);
+  } finally {
+    window.location.reload();
+  }
+}
+
 function _isRecoverable(err) {
   return RECOVERABLE_ERROR_CODES.has(err?.code);
 }

@@ -511,9 +511,7 @@ class TestSyncPushBroadcast:
         monkeypatch.setattr(sync, "broadcast_sync", sync_spy)
         return update_spy, sync_spy
 
-    def test_mixed_batch_broadcasts_despite_conflict(
-        self, client, create_list, monkeypatch
-    ):
+    def test_mixed_batch_broadcasts_despite_conflict(self, client, create_list, monkeypatch):
         """A batch with one write and one conflict still notifies other clients."""
         update_spy, sync_spy = self._patch_broadcasts(monkeypatch)
 
@@ -533,9 +531,7 @@ class TestSyncPushBroadcast:
         update_spy.assert_called_once()
         sync_spy.assert_called_once()
 
-    def test_pure_conflict_batch_does_not_broadcast(
-        self, client, create_list, monkeypatch
-    ):
+    def test_pure_conflict_batch_does_not_broadcast(self, client, create_list, monkeypatch):
         """A batch where every change conflicts writes nothing and stays silent."""
         update_spy, sync_spy = self._patch_broadcasts(monkeypatch)
 

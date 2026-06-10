@@ -14,7 +14,7 @@ Ordered by priority.
 - [ ] **B3 — Updates fill missing fields with defaults instead of current values** (footgun, `backend/routes/sync.py:308-313`)
       `_resolve_values()` combined with `model_dump(exclude_unset=True)` (line 384) means a partial `newDocumentState` resets omitted fields to collection defaults (e.g. `text=""`) on update rather than preserving the stored value. The RxDB client always sends complete documents, so this is latent — but any other API consumer would corrupt data. Fix: fill gaps from `current_dict` instead of `spec.defaults()` when updating.
 
-- [ ] **B4 — Tombstones accumulate forever**
+- [x] **B4 — Tombstones accumulate forever**
       The pull endpoint returns all soft-deleted documents indefinitely; nothing ever purges them. A fresh device transfers the entire deletion graveyard on initial sync. Consider periodically purging tombstones older than N days — clients offline longer than that already fall into the IndexedDB wipe-and-resync recovery path (`frontend/src/db/index.js:57-67`).
 
 ## Frontend hygiene

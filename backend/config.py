@@ -32,6 +32,13 @@ REGION: str = os.getenv("TICKR_REGION", "")
 BACKUP_DIR: str = os.getenv("TICKR_BACKUP_DIR", "data/backups")
 BACKUP_RETAIN: int = _env_int("TICKR_BACKUP_RETAIN", 7)
 
+# Tombstone purge: soft-deleted rows older than the retention window are deleted
+# for good by a periodic in-app task. The window must comfortably exceed any
+# realistic client offline duration — clients whose checkpoint predates it are
+# forced into a full resync (see the pull endpoint's stale-checkpoint guard).
+TOMBSTONE_RETAIN_DAYS: int = _env_int("TICKR_TOMBSTONE_RETAIN_DAYS", 30)
+TOMBSTONE_PURGE_INTERVAL_HOURS: int = _env_int("TICKR_TOMBSTONE_PURGE_INTERVAL_HOURS", 24)
+
 CORS_ORIGINS: list[str] = [
     origin.strip()
     for origin in os.getenv("TICKR_CORS_ORIGINS", "http://localhost:8000").split(",")

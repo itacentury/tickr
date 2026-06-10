@@ -25,6 +25,7 @@ Deployment note — behind a reverse proxy:
 """
 
 import asyncio
+import sqlite3
 import time
 from collections import defaultdict
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -41,15 +42,19 @@ from .config import (
     APP_VERSION,
     CORS_ORIGINS,
     CSP_CONNECT_SRC,
+    DATABASE,
     RATE_LIMIT_MAX_IPS,
     RATE_LIMIT_REQUESTS,
     RATE_LIMIT_WINDOW,
+    TOMBSTONE_PURGE_INTERVAL_HOURS,
+    TOMBSTONE_RETAIN_DAYS,
 )
 from .database import init_db
 from .errors import ErrorCode, _error_body, register_error_handlers
 from .events import bind_loop, initiate_shutdown
 from .logging_config import configure_logging, get_logger
 from .metrics import collector, set_event_loop_lag
+from .purge import purge_tombstones
 from .routes import all_routers
 from .routes.static import mount_static
 
@@ -71,6 +76,32 @@ async def _sample_event_loop_lag() -> None:
         set_event_loop_lag(max(0.0, lag_ms))
 
 
+def _run_purge() -> int:
+    """Open a short-lived connection and purge expired tombstones (blocking)."""
+    conn: sqlite3.Connection = sqlite3.connect(DATABASE)
+    try:
+        return purge_tombstones(conn, TOMBSTONE_RETAIN_DAYS)
+    finally:
+        conn.close()
+
+
+async def _purge_tombstones_loop() -> None:
+    """Purge expired tombstones at startup and then on a fixed interval.
+
+    The blocking SQLite delete runs in a worker thread so it never stalls the
+    event loop. Failures are logged and the loop continues — a transient purge
+    error must not take down the running app.
+    """
+    interval_seconds: float = TOMBSTONE_PURGE_INTERVAL_HOURS * 3600
+    while True:
+        try:
+            deleted: int = await asyncio.to_thread(_run_purge)
+            logger.info("tombstones_purged", count=deleted)
+        except Exception:
+            logger.exception("tombstone_purge_failed")
+        await asyncio.sleep(interval_seconds)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Initialize database on startup."""
@@ -78,6 +109,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     init_db()
     bind_loop(asyncio.get_running_loop())
     lag_task: asyncio.Task[None] = asyncio.create_task(_sample_event_loop_lag())
+    purge_task: asyncio.Task[None] = asyncio.create_task(_purge_tombstones_loop())
     if config.AUTH_ENABLED:
         for warning in auth_config_warnings():
             logger.warning("auth_config_warning", detail=warning)
@@ -86,6 +118,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
     logger.info("app_shutdown_begin")
     lag_task.cancel()
+    purge_task.cancel()
     await initiate_shutdown()
 
 
