@@ -76,7 +76,6 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
-        console.log("Service Worker registered");
         setInterval(() => reg.update(), 60000);
 
         if (reg.waiting) {
@@ -95,7 +94,7 @@ if ("serviceWorker" in navigator) {
           });
         });
       })
-      .catch((err) => console.log("Service Worker registration failed:", err));
+      .catch((err) => reportError("register service worker", err));
   });
 
   /**
