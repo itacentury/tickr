@@ -15,6 +15,8 @@ let reconnectTimeout = null;
 /** Set once a 401 is seen, to stop the SSE reconnect storm. */
 let sessionExpired = false;
 const collectionSubjects = {};
+/** Active replication states, used to re-sync after a session is restored. */
+let activeReplications = [];
 
 /**
  * Handle a 401 from any sync request: stop SSE, halt reconnects, and notify
@@ -23,8 +25,26 @@ const collectionSubjects = {};
 function handleAuthExpired() {
   if (sessionExpired) return;
   sessionExpired = true;
-  cleanupSSE();
+  pauseSSE();
   authExpired$.next();
+}
+
+/**
+ * Resume sync after a successful re-login: clear the expired latch, reopen the
+ * SSE stream, and trigger an immediate re-sync of all replications.
+ *
+ * The collection subjects survive the expired window (only paused, not
+ * completed), so replication can restart in place without a full page reload.
+ */
+export function resumeReplication() {
+  if (!sessionExpired) return;
+  sessionExpired = false;
+  if (Object.keys(collectionSubjects).length > 0) {
+    connectSharedStream();
+  }
+  for (const rep of activeReplications) {
+    rep.reSync();
+  }
 }
 
 /**
@@ -81,9 +101,10 @@ function getCollectionStream(collection) {
 }
 
 /**
- * Close the shared SSE connection and complete all collection subjects.
+ * Close the shared SSE connection and stop reconnects, leaving the collection
+ * subjects alive so the stream can be reopened later (e.g. after re-login).
  */
-function cleanupSSE() {
+function pauseSSE() {
   if (reconnectTimeout) {
     clearTimeout(reconnectTimeout);
     reconnectTimeout = null;
@@ -92,7 +113,14 @@ function cleanupSSE() {
 
   sharedEventSource.close();
   sharedEventSource = null;
+}
 
+/**
+ * Fully tear down the shared SSE connection and complete all collection
+ * subjects. Use on unload — the subjects are not reusable afterwards.
+ */
+function cleanupSSE() {
+  pauseSSE();
   for (const subject of Object.values(collectionSubjects)) {
     subject.complete();
   }
@@ -308,6 +336,12 @@ export function setupReplication(db) {
   });
 
   window.addEventListener("beforeunload", cleanupSSE);
+
+  activeReplications = [
+    listsReplication,
+    itemsReplication,
+    categoriesReplication,
+  ];
 
   const result = { listsReplication, itemsReplication, categoriesReplication };
   Object.defineProperty(result, "cleanup", {

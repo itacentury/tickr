@@ -26,6 +26,7 @@ import "./styles/auth.css";
 import { reportError } from "./error-reporting.js";
 import { initApp } from "./app.js";
 import { getAuthStatus, renderLoginView } from "./auth.js";
+import { resumeReplication } from "./db/replication.js";
 import { authExpired$ } from "./bus.js";
 import { accountSettingGroup } from "./dom.js";
 
@@ -55,10 +56,10 @@ getAuthStatus()
   })
   .catch((err) => reportError("check auth", err));
 
-// Session expired/revoked mid-session: drop back to the login view. A reload
-// is the simplest way to fully reset app + replication state after re-login.
+// Session expired/revoked mid-session: drop back to the login view, then resume
+// sync in place once re-login succeeds — no full reload needed.
 authExpired$.subscribe(() => {
-  renderLoginView(() => window.location.reload());
+  renderLoginView(() => resumeReplication());
 });
 
 // Register Service Worker
