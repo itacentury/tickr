@@ -8,17 +8,23 @@
 
 const CACHE_NAME = "tickr-v__APP_VERSION__";
 
-// Install event - pre-cache the app shell
+// Install event - pre-cache the app shell.
+// Deliberately no skipWaiting() here: a new worker stays in "waiting" until the
+// user accepts the in-app update prompt (SKIP_WAITING message). Auto-activating
+// here would, combined with clients.claim(), fire controllerchange on every
+// fresh load and trap the page in a reload loop.
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(["/", "/manifest.json"]))
-      .then(() => self.skipWaiting()),
+      .then((cache) => cache.addAll(["/", "/manifest.json"])),
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches.
+// Deliberately no clients.claim(): claiming an uncontrolled page fires
+// controllerchange, which the client turns into a reload — that is the loop we
+// must avoid. The new worker takes control on the next navigation instead.
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -29,8 +35,7 @@ self.addEventListener("activate", (event) => {
             .filter((name) => name !== CACHE_NAME)
             .map((name) => caches.delete(name)),
         ),
-      )
-      .then(() => self.clients.claim()),
+      ),
   );
 });
 
@@ -63,10 +68,13 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const responseToCache = response.clone();
-          caches
-            .open(CACHE_NAME)
-            .then((cache) => cache.put(request, responseToCache));
+          // Only cache successful shells; never persist a 429/503 as "/".
+          if (response.ok) {
+            const responseToCache = response.clone();
+            caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(request, responseToCache));
+          }
           return response;
         })
         .catch(() =>

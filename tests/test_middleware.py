@@ -39,6 +39,17 @@ class TestRateLimit:
             # These should NOT be 429 since they're exempt
             assert resp.status_code != 429, f"{path} should be exempt from rate limiting"
 
+    def test_rate_limit_excludes_static_shell(self):
+        """The app shell and PWA assets stay reachable even when rate limited."""
+        now = time.time()
+        rate_limit_store.clear()
+        rate_limit_store["testclient"] = [now] * RATE_LIMIT_REQUESTS
+
+        c = TestClient(app, raise_server_exceptions=False)
+        for path in ["/", "/sw.js", "/manifest.json"]:
+            resp = c.get(path)
+            assert resp.status_code != 429, f"{path} should be exempt from rate limiting"
+
     def test_rate_limit_retry_after_header(self, client):
         """429 response includes a Retry-After header."""
         now = time.time()

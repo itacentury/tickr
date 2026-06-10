@@ -192,6 +192,32 @@ def _is_public(path: str) -> bool:
     return any(path.startswith(prefix) for prefix in _PUBLIC_PREFIXES)
 
 
+# Paths exempt from per-IP rate limiting: real-time streams, monitoring probes,
+# and the static app shell + PWA assets. Auth endpoints are deliberately NOT
+# exempt so login stays brute-force limited. Locking a client out of the shell
+# (``/``, ``/sw.js``, ...) is the worst failure mode — a request storm could
+# brick the PWA — so these cheap FileResponses bypass the limiter while every
+# ``/api/...`` call stays counted.
+_RATE_LIMIT_EXEMPT_PATHS: frozenset[str] = frozenset(
+    {
+        "/",
+        "/manifest.json",
+        "/sw.js",
+        "/api/v1/events",
+        "/api/v1/sync/stream",
+        "/api/v1/health",
+        "/api/v1/metrics",
+    }
+)
+
+
+def _is_rate_limit_exempt(path: str) -> bool:
+    """Return whether a request path bypasses per-IP rate limiting."""
+    if path in _RATE_LIMIT_EXEMPT_PATHS:
+        return True
+    return any(path.startswith(prefix) for prefix in _PUBLIC_PREFIXES)
+
+
 # Declared first so it becomes the *innermost* middleware: rate limiting and
 # access logging wrap it, so login attempts are rate-limited and 401s are logged
 # and still receive security headers on the way out.
@@ -234,13 +260,8 @@ async def security_headers_middleware(request: Request, call_next: CallNext) -> 
 
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next: CallNext) -> Response:
-    """Enforce per-IP sliding window rate limiting, excluding SSE."""
-    if request.url.path in (
-        "/api/v1/events",
-        "/api/v1/sync/stream",
-        "/api/v1/health",
-        "/api/v1/metrics",
-    ):
+    """Enforce per-IP sliding window rate limiting, excluding exempt paths."""
+    if _is_rate_limit_exempt(request.url.path):
         return await call_next(request)
 
     client_ip: str = request.client.host if request.client else "unknown"
