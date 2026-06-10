@@ -30,10 +30,10 @@ Ordered by priority. Frontend items already tracked in `TODO-backend.md` (B5, B6
 - [ ] **F7 — No `:focus-visible` styles**
       Keyboard focus relies on browser defaults, which are barely visible on the dark theme. Dropdown/autocomplete ARIA (listbox/option, `aria-activedescendant`) is otherwise solid.
 
-- [ ] **F8 — No `aria-live` region for toasts**
+- [x] **F8 — No `aria-live` region for toasts**
       Undo/error toasts (`frontend/src/toast.js`) appear without screen reader announcement, so the undo window is effectively invisible to assistive tech. Fix: `role="status"` / `aria-live="polite"` on the toast container.
 
-- [ ] **F9 — Inline category forms lack labels; no skip link**
+- [x] **F9 — Inline category forms lack labels; no skip link**
       The quick-create category inputs rely on placeholders only; the page has no skip-to-content link.
 
 ## Hygiene

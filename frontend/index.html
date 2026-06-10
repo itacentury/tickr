@@ -39,6 +39,7 @@
     />
   </head>
   <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <div class="app">
       <!-- Sidebar Navigation -->
       <nav class="sidebar" id="sidebar">
@@ -94,7 +95,7 @@
         </div>
       </nav>
       <!-- Main Content -->
-      <main class="main-content">
+      <main class="main-content" id="main-content" tabindex="-1">
         <header class="header">
           <button
             class="mobile-menu-btn"
@@ -417,6 +418,7 @@
               <input
                 type="text"
                 id="editListCategoryName"
+                aria-label="Category name"
                 placeholder="Category name"
                 maxlength="200"
                 autocomplete="off"
@@ -427,6 +429,7 @@
                   id="editListCategoryColor"
                   class="color-picker-custom"
                   value="#3b82f6"
+                  aria-label="Category color"
                   title="Custom color"
                 />
               </div>
@@ -542,6 +545,7 @@
               <input
                 type="text"
                 id="editItemCategoryQuickName"
+                aria-label="Category name"
                 placeholder="Category name"
                 maxlength="200"
                 autocomplete="off"
@@ -552,6 +556,7 @@
                   id="editItemCategoryQuickColor"
                   class="color-picker-custom"
                   value="#3b82f6"
+                  aria-label="Category color"
                   title="Custom color"
                 />
               </div>
