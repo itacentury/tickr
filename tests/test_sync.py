@@ -480,3 +480,72 @@ class TestSyncHistory:
         ]
         resp = client.post("/api/v1/sync/lists/push", json=changes)
         assert resp.status_code == 422
+
+
+def _new_list_state(list_id):
+    """Build a complete, valid list document state for sync push."""
+    return {
+        "id": list_id,
+        "name": "Fresh List",
+        "icon": "list",
+        "item_sort": "alphabetical",
+        "sort_order": 0,
+        "created_at": "2025-01-01T00:00:00",
+        "updated_at": "2025-01-01T00:00:00",
+        "_deleted": 0,
+    }
+
+
+class TestSyncPushBroadcast:
+    """Push must broadcast whenever at least one write committed (B1)."""
+
+    def _patch_broadcasts(self, monkeypatch):
+        """Replace the broadcast callables in the sync module with spies."""
+        import unittest.mock as mock
+
+        from backend.routes import sync
+
+        update_spy = mock.Mock(name="broadcast_update")
+        sync_spy = mock.Mock(name="broadcast_sync")
+        monkeypatch.setattr(sync, "broadcast_update", update_spy)
+        monkeypatch.setattr(sync, "broadcast_sync", sync_spy)
+        return update_spy, sync_spy
+
+    def test_mixed_batch_broadcasts_despite_conflict(
+        self, client, create_list, monkeypatch
+    ):
+        """A batch with one write and one conflict still notifies other clients."""
+        update_spy, sync_spy = self._patch_broadcasts(monkeypatch)
+
+        existing = create_list(name="Already Here")
+        pull = client.get("/api/v1/sync/lists/pull").json()
+        existing_state = next(d for d in pull["documents"] if d["id"] == existing["id"])
+
+        changes = [
+            # Succeeds: brand-new document inserted.
+            {"newDocumentState": _new_list_state(_uuid()), "assumedMasterState": None},
+            # Conflicts: insert (assumed None) of an id that already exists.
+            {"newDocumentState": existing_state, "assumedMasterState": None},
+        ]
+        resp = client.post("/api/v1/sync/lists/push", json=changes)
+
+        assert len(resp.json()) == 1
+        update_spy.assert_called_once()
+        sync_spy.assert_called_once()
+
+    def test_pure_conflict_batch_does_not_broadcast(
+        self, client, create_list, monkeypatch
+    ):
+        """A batch where every change conflicts writes nothing and stays silent."""
+        update_spy, sync_spy = self._patch_broadcasts(monkeypatch)
+
+        existing = create_list(name="Only Conflict")
+        pull = client.get("/api/v1/sync/lists/pull").json()
+        existing_state = next(d for d in pull["documents"] if d["id"] == existing["id"])
+
+        changes = [{"newDocumentState": existing_state, "assumedMasterState": None}]
+        resp = client.post("/api/v1/sync/lists/push", json=changes)
+
+        assert len(resp.json()) == 1
+        update_spy.assert_not_called()
+        sync_spy.assert_not_called()

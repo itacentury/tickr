@@ -368,6 +368,7 @@ def sync_push(
     spec: CollectionSpec = _require_spec(collection)
     cursor: sqlite3.Cursor = db.cursor()
     conflicts: list[dict[str, Any]] = []
+    wrote_any: bool = False
 
     with db:
         for change in changes:
@@ -408,6 +409,7 @@ def sync_push(
                     else:
                         conflicts.append(current_dict)
                         continue
+                wrote_any = True
             except sqlite3.IntegrityError as exc:
                 logger.warning(
                     "sync_push_integrity_error",
@@ -423,7 +425,7 @@ def sync_push(
 
     sync_metrics.record_push(len(changes), len(conflicts))
 
-    if not conflicts:
+    if wrote_any:
         bg.add_task(broadcast_update, spec.broadcast_event)
         bg.add_task(broadcast_sync, collection)
 

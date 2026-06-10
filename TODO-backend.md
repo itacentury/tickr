@@ -5,7 +5,7 @@ Ordered by priority.
 
 ## Sync protocol
 
-- [ ] **B1 — No SSE broadcast on partial-conflict push batches** (bug, `backend/routes/sync.py:426-428`)
+- [x] **B1 — No SSE broadcast on partial-conflict push batches** (bug, `backend/routes/sync.py:426-428`)
       The broadcast only fires `if not conflicts`. A push batch with e.g. 9 successful writes and 1 conflict commits the 9 writes but never notifies other clients, so they only learn about the changes on the next unrelated event. Fix: broadcast whenever at least one write succeeded (track a `wrote_any` flag), independent of the conflicts list.
 
 - [ ] **B2 — Conflict detection compares only `updated_at`** (design limit, `backend/routes/sync.py:327-329`)
