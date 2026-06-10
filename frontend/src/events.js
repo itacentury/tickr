@@ -12,6 +12,7 @@
 
 import { state } from "./state.js";
 import * as dom from "./dom.js";
+import { getStorageItem, setStorageItem } from "./storage.js";
 import { populateIconPicker, applyIconSelection } from "./icons.js";
 import {
   createList,
@@ -177,7 +178,7 @@ export function setupEventListeners() {
   // Sidebar toggle
   dom.sidebarToggle.addEventListener("click", () => {
     dom.sidebar.classList.toggle("collapsed");
-    localStorage.setItem(
+    setStorageItem(
       "sidebarCollapsed",
       String(dom.sidebar.classList.contains("collapsed")),
     );
@@ -629,7 +630,7 @@ export function setupEventListeners() {
   });
 
   // Restore sidebar state
-  if (localStorage.getItem("sidebarCollapsed") === "true") {
+  if (getStorageItem("sidebarCollapsed") === "true") {
     dom.sidebar.classList.add("collapsed");
   }
 

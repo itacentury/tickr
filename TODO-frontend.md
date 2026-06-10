@@ -14,7 +14,7 @@ Ordered by priority. Frontend items already tracked in `TODO-backend.md` (B5, B6
 - [x] **F3 — No timeout on replication fetches** — tracked as **B6b** in `TODO-backend.md`
       (`frontend/src/db/replication.js:212,250`). A hung server stalls replication until the socket dies. Fixed: both pull and push fetches now use `AbortSignal.timeout(FETCH_TIMEOUT_MS)` (15s); RxDB's `retryTime` handles the retry.
 
-- [ ] **F4 — Unguarded `localStorage` access** (footgun, `frontend/src/data.js`, `frontend/src/events.js`)
+- [x] **F4 — Unguarded `localStorage` access** (footgun, `frontend/src/data.js`, `frontend/src/events.js`)
       `tickr_current_list` and `sidebarCollapsed` are read/written without try/catch. Private browsing modes or a full quota can throw and break list selection or the sidebar toggle. Fix: small safe-storage wrapper that falls back to in-memory state.
 
 - [ ] **F5 — SSE has no heartbeat/liveness check** (`frontend/src/db/replication.js:35-63`)
