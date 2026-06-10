@@ -5,10 +5,13 @@
  * than 500ms, avoiding flicker on fast syncs.
  */
 
+import { Subscription } from "rxjs";
+
 /**
  * Initialize sync status indicator and bind to replication states.
  *
  * @param {Object} replications - Object with listsReplication and itemsReplication.
+ * @returns {() => void} Teardown that unsubscribes from all replication states.
  */
 export function initSyncStatus(replications) {
   const syncIndicator = document.getElementById("syncIndicator");
@@ -30,9 +33,14 @@ export function initSyncStatus(replications) {
     }
   }
 
+  const subscription = new Subscription();
   for (const rep of Object.values(replications)) {
-    rep.active$.subscribe((active) => {
-      updateSyncUI(active);
-    });
+    subscription.add(
+      rep.active$.subscribe((active) => {
+        updateSyncUI(active);
+      }),
+    );
   }
+
+  return () => subscription.unsubscribe();
 }

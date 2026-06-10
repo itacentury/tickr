@@ -6,7 +6,7 @@
  */
 
 import { getDatabase } from "./db/index.js";
-import { setupReplication } from "./db/replication.js";
+import { setupReplication, registerCleanup } from "./db/replication.js";
 import { initSyncStatus } from "./sync-status.js";
 import { state } from "./state.js";
 import { fetchSettings, subscribeLists, subscribeItemCounts } from "./data.js";
@@ -24,7 +24,7 @@ export async function initApp() {
   subscribeItemCounts();
 
   const replications = setupReplication(state.db);
-  initSyncStatus(replications);
+  registerCleanup(initSyncStatus(replications));
 
   setupEventListeners();
 }

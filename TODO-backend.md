@@ -19,8 +19,8 @@ Ordered by priority.
 
 ## Frontend hygiene
 
-- [ ] **B5 — Replication subscriptions are never cleaned up**
-      `rep.active$.subscribe(...)` in `frontend/src/sync-status.js:33-37` has no unsubscribe, and `collectionSubjects` in `frontend/src/db/replication.js:17` is never cleared. Currently safe because `initApp()` runs once per page load and re-login forces a full reload, but fragile if the app lifecycle ever changes. Fix: store subscriptions and dispose them in `cleanupSSE()`.
+- [x] **B5 — Replication subscriptions are never cleaned up**
+      `rep.active$.subscribe(...)` in `frontend/src/sync-status.js:33-37` has no unsubscribe, and `collectionSubjects` in `frontend/src/db/replication.js:17` is never cleared. Currently safe because `initApp()` runs once per page load and re-login forces a full reload, but fragile if the app lifecycle ever changes. Fixed: `initSyncStatus()` returns a teardown registered via `registerCleanup()`; `cleanupSSE()` runs the registered callbacks and now also completes and clears `collectionSubjects`.
 
 ## Minor
 

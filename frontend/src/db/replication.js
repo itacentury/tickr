@@ -26,6 +26,19 @@ let sessionExpired = false;
 const collectionSubjects = {};
 /** Active replication states, used to re-sync after a session is restored. */
 let activeReplications = [];
+/** Extra teardown callbacks (e.g. UI subscriptions) run during cleanupSSE. */
+const teardownCallbacks = [];
+
+/**
+ * Register a teardown callback to run when the app fully tears down
+ * (`cleanupSSE`, on unload). Used to dispose UI subscriptions that outlive a
+ * single replication setup.
+ *
+ * @param {() => void} fn - Teardown callback.
+ */
+export function registerCleanup(fn) {
+  teardownCallbacks.push(fn);
+}
 
 /**
  * Handle a 401 from any sync request: stop SSE, halt reconnects, and notify
@@ -146,14 +159,27 @@ function pauseSSE() {
 }
 
 /**
- * Fully tear down the shared SSE connection and complete all collection
- * subjects. Use on unload — the subjects are not reusable afterwards.
+ * Fully tear down the shared SSE connection, run registered teardown
+ * callbacks, and complete and clear all collection subjects. Use on unload —
+ * the subjects are not reusable afterwards.
  */
 function cleanupSSE() {
   pauseSSE();
+  while (teardownCallbacks.length > 0) {
+    const fn = teardownCallbacks.pop();
+    try {
+      fn();
+    } catch {
+      // One bad teardown must not block the rest.
+    }
+  }
   for (const subject of Object.values(collectionSubjects)) {
     subject.complete();
   }
+  for (const key of Object.keys(collectionSubjects)) {
+    delete collectionSubjects[key];
+  }
+  activeReplications = [];
 }
 
 /**

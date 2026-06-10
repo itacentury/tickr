@@ -20,8 +20,10 @@ Ordered by priority. Frontend items already tracked in `TODO-backend.md` (B5, B6
 - [x] **F5 — SSE has no heartbeat/liveness check** (`frontend/src/db/replication.js:35-63`)
       A silently dropped EventSource connection stops live updates; the 3s reconnect only fires on an explicit `error` event. Replication still works on the 5s retry loop, but real-time updates degrade unnoticed. Fix: server-side keepalive pings plus a client-side staleness timer that forces a reconnect.
 
-- [ ] **F6 — Sync-status subscriptions never cleaned up** — tracked as **B5** in `TODO-backend.md`
-      (`frontend/src/sync-status.js:33-37`).
+- [x] **F6 — Sync-status subscriptions never cleaned up** — tracked as **B5** in `TODO-backend.md`
+      (`frontend/src/sync-status.js:33-37`). Fixed: `initSyncStatus()` now returns a teardown
+      that unsubscribes from all `active$` streams, registered via `registerCleanup()` and run by
+      `cleanupSSE()` on unload.
 
 ## Accessibility
 
