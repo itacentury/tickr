@@ -70,6 +70,9 @@ async function _createDatabase() {
 /** Guards against concurrent resets when several collections fail at once. */
 let resetting = false;
 
+/** sessionStorage marker so a checkpoint reset reloads at most once per tab. */
+export const CHECKPOINT_RESET_KEY = "tickr_checkpoint_reset";
+
 /**
  * Wipe the local database and reload so replication restarts from a clean
  * slate. Triggered when the server reports our sync checkpoint is older than
@@ -80,6 +83,10 @@ let resetting = false;
  * replication, so wiping IndexedDB loses no synced data. Unpushed local edits
  * from a client offline longer than the purge window are the accepted tradeoff.
  *
+ * Only reloads when the wipe actually succeeded and at most once per tab
+ * session: a failed wipe (or a server that keeps replying 410) would otherwise
+ * reload-loop forever instead of resyncing.
+ *
  * @param {string} reason - Human-readable trigger, recorded for observability.
  * @returns {Promise<void>}
  */
@@ -87,13 +94,36 @@ export async function resetDatabase(reason) {
   if (resetting) return;
   resetting = true;
   reportError("checkpoint_reset", new Error(reason));
+
+  // Already reset once this session: another reload would just loop. The marker
+  // is cleared on the next successful pull (see replication.js).
+  if (sessionStorage.getItem(CHECKPOINT_RESET_KEY)) {
+    reportError(
+      "checkpoint_reset_loop",
+      new Error(`Checkpoint reset repeated without recovery: ${reason}`),
+    );
+    return;
+  }
+
+  let wiped = false;
   try {
     const db = await dbPromise;
     if (db) await db.remove();
+    wiped = true;
   } catch {
     // The instance may already be unusable; fall back to a name-based wipe.
-    await removeRxDatabase(DB_NAME, storage);
-  } finally {
+    try {
+      await removeRxDatabase(DB_NAME, storage);
+      wiped = true;
+    } catch (err) {
+      reportError("checkpoint_reset_wipe_failed", err);
+    }
+  }
+
+  // Reload only if the local cache was actually cleared; reloading on a failed
+  // wipe re-pulls the same stale checkpoint and loops.
+  if (wiped) {
+    sessionStorage.setItem(CHECKPOINT_RESET_KEY, String(Date.now()));
     window.location.reload();
   }
 }

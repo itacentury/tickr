@@ -81,6 +81,21 @@ def service_worker():
     return response
 
 
+@router.get("/circuit-breaker.js")
+def circuit_breaker():
+    """Serve the reload-loop circuit breaker script."""
+    if (DIST_DIR / "circuit-breaker.js").exists():
+        response = FileResponse(
+            str(DIST_DIR / "circuit-breaker.js"), media_type="application/javascript"
+        )
+    else:
+        response = FileResponse("static/circuit-breaker.js", media_type="application/javascript")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
 @router.get("/icons/{file_path:path}")
 def serve_icon(file_path: str):
     """Serve icon files via the cached index built at first request."""

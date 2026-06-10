@@ -46,7 +46,7 @@ class TestRateLimit:
         rate_limit_store["testclient"] = [now] * RATE_LIMIT_REQUESTS
 
         c = TestClient(app, raise_server_exceptions=False)
-        for path in ["/", "/sw.js", "/manifest.json"]:
+        for path in ["/", "/sw.js", "/manifest.json", "/circuit-breaker.js"]:
             resp = c.get(path)
             assert resp.status_code != 429, f"{path} should be exempt from rate limiting"
 

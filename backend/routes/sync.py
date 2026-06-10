@@ -335,16 +335,23 @@ def sync_pull(
     collection: str,
     updated_at: str | None = None,
     id: str | None = None,
+    issued_at: str | None = None,
     limit: int = Query(default=100, ge=1, le=1000),
     db: sqlite3.Connection = Depends(get_db),
 ) -> dict[str, Any]:
     """Pull documents newer than the given checkpoint for RxDB replication."""
     spec: CollectionSpec = _require_spec(collection)
 
-    # A checkpoint older than the tombstone purge horizon may have missed
-    # deletions that have since been purged. Force such clients into a full
-    # resync rather than silently leaving zombie documents behind.
-    if updated_at and updated_at < tombstone_cutoff(TOMBSTONE_RETAIN_DAYS):
+    # A client that last synced before the tombstone purge horizon may have
+    # missed deletions that have since been purged. Force such clients into a
+    # full resync rather than silently leaving zombie documents behind.
+    #
+    # Staleness is judged by ``issued_at`` (server time when the checkpoint was
+    # handed out), NOT by ``updated_at``: the latter is a document timestamp,
+    # so old-but-just-synced data would otherwise 410 on every pull — including
+    # page 2 of a fresh resync, trapping clients in a wipe/reload loop.
+    # Checkpoints without ``issued_at`` predate this fix and resync once.
+    if updated_at and (issued_at is None or issued_at < tombstone_cutoff(TOMBSTONE_RETAIN_DAYS)):
         raise AppError(
             ErrorCode.CHECKPOINT_TOO_OLD,
             "Checkpoint predates tombstone purge horizon; full resync required",
@@ -359,7 +366,11 @@ def sync_pull(
     checkpoint: dict[str, Any] | None = None
     if documents:
         last: dict[str, Any] = documents[-1]
-        checkpoint = {"updatedAt": last["updated_at"], "id": last["id"]}
+        checkpoint = {"updatedAt": last["updated_at"], "id": last["id"], "issuedAt": now()}
+    elif updated_at and id:
+        # No new documents: echo the client's checkpoint with a fresh issuedAt
+        # so idle-but-active clients never age past the purge horizon.
+        checkpoint = {"updatedAt": updated_at, "id": id, "issuedAt": now()}
 
     sync_metrics.record_pull(len(documents))
     return {"documents": documents, "checkpoint": checkpoint}

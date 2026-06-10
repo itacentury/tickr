@@ -39,6 +39,7 @@ class TestSyncPull:
 
         pull2 = client.get(
             f"/api/v1/sync/lists/pull?updated_at={cp['updatedAt']}&id={cp['id']}"
+            f"&issued_at={cp['issuedAt']}"
         ).json()
         ids = [d["id"] for d in pull2["documents"]]
         assert lst2["id"] in ids

@@ -1,6 +1,12 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!--
+      Reload-loop circuit breaker. A classic, same-origin script (CSP forbids
+      inline scripts) that runs before the deferred app bundle, so it self-heals
+      a runaway reload loop even if the bundle or service worker is the cause.
+    -->
+    <script src="/circuit-breaker.js"></script>
     <meta charset="UTF-8" />
     <meta
       name="viewport"

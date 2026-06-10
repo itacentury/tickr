@@ -9,7 +9,7 @@ import { replicateRxCollection } from "rxdb/plugins/replication";
 import { Subject } from "rxjs";
 import { authExpired$ } from "../bus.js";
 import { reportError } from "../error-reporting.js";
-import { resetDatabase } from "./index.js";
+import { resetDatabase, CHECKPOINT_RESET_KEY } from "./index.js";
 import {
   REPLICATION_FETCH_TIMEOUT_MS,
   SSE_STALE_TIMEOUT_MS,
@@ -304,6 +304,12 @@ export function createPullHandler(collection, toClient) {
       if (checkpoint) {
         params.set("updated_at", checkpoint.updatedAt);
         params.set("id", checkpoint.id);
+        // Server stamp of when this checkpoint was handed out; the server's
+        // stale-checkpoint guard judges sync recency by this, not by the
+        // (possibly ancient) document timestamp in updatedAt.
+        if (checkpoint.issuedAt) {
+          params.set("issued_at", checkpoint.issuedAt);
+        }
       }
       const response = await fetch(
         `/api/v1/sync/${collection}/pull?${params.toString()}`,
@@ -322,6 +328,14 @@ export function createPullHandler(collection, toClient) {
       }
       if (!response.ok) {
         throw new Error(`Pull failed for ${collection}: ${response.status}`);
+      }
+      // Only a successful pull WITH a checkpoint proves the checkpoint path is
+      // healthy again, so only then clear the one-reset-per-session guard set
+      // by resetDatabase. The checkpoint-less page-1 pull right after a reset
+      // must not clear it — that would re-arm the wipe/reload loop if the
+      // server keeps rejecting checkpoints.
+      if (checkpoint) {
+        sessionStorage.removeItem(CHECKPOINT_RESET_KEY);
       }
       const data = await response.json();
       return {

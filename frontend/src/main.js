@@ -38,33 +38,45 @@ function startApp() {
   });
 }
 
-// Auth gate: only initialize the app (and thus replication) once authenticated.
-// The logout control is revealed only when the password gate is actually on.
-getAuthStatus()
-  .then(({ authed, enabled }) => {
-    const reveal = () => {
-      if (enabled && accountSettingGroup) accountSettingGroup.hidden = false;
-    };
-    if (authed) {
-      startApp();
-      reveal();
-    } else {
-      renderLoginView(() => {
+// The reload-loop circuit breaker (circuit-breaker.js, a classic script that
+// runs before this bundle) sets this flag when it has detected a loop and taken
+// over the page with a recovery screen. In that case we must not initialize the
+// app or re-register the service worker — both would fight the recovery screen
+// or re-arm the very reload we just stopped. The cast bridges the breaker's
+// untyped `window` global.
+const inRecovery = /** @type {{ __tickrRecovery?: boolean }} */ (window)
+  .__tickrRecovery;
+
+if (!inRecovery) {
+  // Auth gate: only initialize the app (and thus replication) once
+  // authenticated. The logout control is revealed only when the password gate
+  // is actually on.
+  getAuthStatus()
+    .then(({ authed, enabled }) => {
+      const reveal = () => {
+        if (enabled && accountSettingGroup) accountSettingGroup.hidden = false;
+      };
+      if (authed) {
         startApp();
         reveal();
-      });
-    }
-  })
-  .catch((err) => reportError("check auth", err));
+      } else {
+        renderLoginView(() => {
+          startApp();
+          reveal();
+        });
+      }
+    })
+    .catch((err) => reportError("check auth", err));
 
-// Session expired/revoked mid-session: drop back to the login view, then resume
-// sync in place once re-login succeeds — no full reload needed.
-authExpired$.subscribe(() => {
-  renderLoginView(() => resumeReplication());
-});
+  // Session expired/revoked mid-session: drop back to the login view, then
+  // resume sync in place once re-login succeeds — no full reload needed.
+  authExpired$.subscribe(() => {
+    renderLoginView(() => resumeReplication());
+  });
+}
 
-// Register Service Worker
-if ("serviceWorker" in navigator) {
+// Register Service Worker (skipped in recovery mode; see `inRecovery` above).
+if ("serviceWorker" in navigator && !inRecovery) {
   let refreshing = false;
 
   navigator.serviceWorker.addEventListener("controllerchange", () => {

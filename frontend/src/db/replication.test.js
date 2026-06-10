@@ -210,7 +210,10 @@ describe("pull handler stale-checkpoint guard", () => {
 
   it("wipes and resyncs when the server returns 410", async () => {
     const resetDatabase = vi.fn();
-    vi.doMock("./index.js", () => ({ resetDatabase }));
+    vi.doMock("./index.js", () => ({
+      resetDatabase,
+      CHECKPOINT_RESET_KEY: "tickr_checkpoint_reset",
+    }));
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({ status: 410, ok: false }),
@@ -227,7 +230,10 @@ describe("pull handler stale-checkpoint guard", () => {
 
   it("does not reset on a normal 500 error", async () => {
     const resetDatabase = vi.fn();
-    vi.doMock("./index.js", () => ({ resetDatabase }));
+    vi.doMock("./index.js", () => ({
+      resetDatabase,
+      CHECKPOINT_RESET_KEY: "tickr_checkpoint_reset",
+    }));
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({ status: 500, ok: false }),
@@ -238,6 +244,82 @@ describe("pull handler stale-checkpoint guard", () => {
 
     await expect(pull.handler(null, 100)).rejects.toThrow(/Pull failed/);
     expect(resetDatabase).not.toHaveBeenCalled();
+  });
+
+  it("clears the checkpoint-reset marker after a successful checkpoint pull", async () => {
+    vi.doMock("./index.js", () => ({
+      resetDatabase: vi.fn(),
+      CHECKPOINT_RESET_KEY: "tickr_checkpoint_reset",
+    }));
+    sessionStorage.setItem("tickr_checkpoint_reset", "123");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        json: () => Promise.resolve({ documents: [], checkpoint: null }),
+      }),
+    );
+
+    const { createPullHandler } = await import("./replication.js");
+    const pull = createPullHandler("lists", (d) => d);
+
+    await pull.handler({ updatedAt: "2026-01-01T00:00:00.000Z", id: "x" }, 100);
+    expect(sessionStorage.getItem("tickr_checkpoint_reset")).toBeNull();
+  });
+
+  it("keeps the checkpoint-reset marker on a checkpoint-less pull", async () => {
+    // The page-1 pull right after a reset has no checkpoint; its success does
+    // not prove the checkpoint path is healthy, so the once-per-session reset
+    // guard must stay armed.
+    vi.doMock("./index.js", () => ({
+      resetDatabase: vi.fn(),
+      CHECKPOINT_RESET_KEY: "tickr_checkpoint_reset",
+    }));
+    sessionStorage.setItem("tickr_checkpoint_reset", "123");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        status: 200,
+        ok: true,
+        json: () => Promise.resolve({ documents: [], checkpoint: null }),
+      }),
+    );
+
+    const { createPullHandler } = await import("./replication.js");
+    const pull = createPullHandler("lists", (d) => d);
+
+    await pull.handler(null, 100);
+    expect(sessionStorage.getItem("tickr_checkpoint_reset")).toBe("123");
+  });
+
+  it("sends the checkpoint's issuedAt stamp as issued_at", async () => {
+    vi.doMock("./index.js", () => ({
+      resetDatabase: vi.fn(),
+      CHECKPOINT_RESET_KEY: "tickr_checkpoint_reset",
+    }));
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      json: () => Promise.resolve({ documents: [], checkpoint: null }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { createPullHandler } = await import("./replication.js");
+    const pull = createPullHandler("lists", (d) => d);
+
+    await pull.handler(
+      {
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        id: "x",
+        issuedAt: "2026-06-09T00:00:00.000Z",
+      },
+      100,
+    );
+
+    const url = new URL(fetchMock.mock.calls[0][0], "http://localhost");
+    expect(url.searchParams.get("updated_at")).toBe("2026-01-01T00:00:00.000Z");
+    expect(url.searchParams.get("issued_at")).toBe("2026-06-09T00:00:00.000Z");
   });
 });
 
