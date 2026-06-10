@@ -49,6 +49,7 @@ import { parseCategoryTag } from "./category-tag.js";
 import { createCategoryAutocomplete } from "./add-item-autocomplete.js";
 import { openMetrics, closeMetrics, setMetricsWindow } from "./metrics.js";
 import { logout } from "./auth.js";
+import { MODAL_FOCUS_DELAY_MS, LIST_SWIPE_ANIMATION_MS } from "./timing.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
 function closeAllModals() {
@@ -295,7 +296,7 @@ export function setupEventListeners() {
       dom.iconPreview,
       state.selectedIcon,
     );
-    setTimeout(() => dom.newListName.focus(), 100);
+    setTimeout(() => dom.newListName.focus(), MODAL_FOCUS_DELAY_MS);
   });
 
   // Icon selection for new list
@@ -703,8 +704,8 @@ export function setupEventListeners() {
       setTimeout(() => {
         dom.itemsList.classList.remove(inClass);
         dom.listTitle.classList.remove("fade-in");
-      }, 150);
-    }, 150);
+      }, LIST_SWIPE_ANIMATION_MS);
+    }, LIST_SWIPE_ANIMATION_MS);
   }
 
   // Visual viewport tracking for modal positioning

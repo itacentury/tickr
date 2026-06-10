@@ -22,6 +22,7 @@ import { COLOR_PALETTE } from "./db/constants.js";
 import { setDropdownValue } from "./dropdown.js";
 import { reportError } from "./error-reporting.js";
 import { showErrorToast } from "./toast.js";
+import { MODAL_FOCUS_DELAY_MS } from "./timing.js";
 
 /**
  * Wire the view layer to the event bus.
@@ -387,7 +388,7 @@ export function openEditListModal() {
   resetCategoryForm(dom.editListCategoryForm);
   dom.editListModal.classList.add("open");
   if (window.matchMedia("(hover: hover)").matches) {
-    setTimeout(() => dom.editListName.focus(), 100);
+    setTimeout(() => dom.editListName.focus(), MODAL_FOCUS_DELAY_MS);
   }
 }
 
@@ -492,6 +493,6 @@ export function openEditItemModal(itemId, text) {
     setTimeout(() => {
       dom.editItemText.focus();
       dom.editItemText.select();
-    }, 100);
+    }, MODAL_FOCUS_DELAY_MS);
   }
 }

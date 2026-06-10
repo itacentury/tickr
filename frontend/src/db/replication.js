@@ -9,18 +9,16 @@ import { replicateRxCollection } from "rxdb/plugins/replication";
 import { Subject } from "rxjs";
 import { authExpired$ } from "../bus.js";
 import { reportError } from "../error-reporting.js";
-
-/** Abort replication fetches that hang past this many ms; RxDB retries via retryTime. */
-const FETCH_TIMEOUT_MS = 15000;
+import {
+  REPLICATION_FETCH_TIMEOUT_MS,
+  SSE_STALE_TIMEOUT_MS,
+  SSE_RECONNECT_DELAY_MS,
+  REPLICATION_RETRY_MS,
+} from "../timing.js";
 
 /** Shared SSE connection state for all collections. */
 let sharedEventSource = null;
 let reconnectTimeout = null;
-/**
- * Force a reconnect if no frame (data or heartbeat) arrives within this window.
- * The server sends a heartbeat every 15s, so ~2.5 missed beats triggers a refresh.
- */
-const STALE_TIMEOUT_MS = 40000;
 let staleTimeout = null;
 /** Set once a 401 is seen, to stop the SSE reconnect storm. */
 let sessionExpired = false;
@@ -77,7 +75,7 @@ export function resumeReplication() {
  */
 function resetStaleTimer() {
   clearTimeout(staleTimeout);
-  staleTimeout = setTimeout(() => connectSharedStream(), STALE_TIMEOUT_MS);
+  staleTimeout = setTimeout(() => connectSharedStream(), SSE_STALE_TIMEOUT_MS);
 }
 
 /**
@@ -128,7 +126,10 @@ function connectSharedStream() {
     clearTimeout(staleTimeout);
     if (sessionExpired) return;
     clearTimeout(reconnectTimeout);
-    reconnectTimeout = setTimeout(() => connectSharedStream(), 3000);
+    reconnectTimeout = setTimeout(
+      () => connectSharedStream(),
+      SSE_RECONNECT_DELAY_MS,
+    );
   });
 }
 
@@ -305,7 +306,7 @@ function createPullHandler(collection, toClient) {
       }
       const response = await fetch(
         `/api/v1/sync/${collection}/pull?${params.toString()}`,
-        { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) },
+        { signal: AbortSignal.timeout(REPLICATION_FETCH_TIMEOUT_MS) },
       );
       if (response.status === 401) {
         handleAuthExpired();
@@ -346,7 +347,7 @@ function createPushHandler(collection, toServer, toClient) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        signal: AbortSignal.timeout(REPLICATION_FETCH_TIMEOUT_MS),
       });
       if (response.status === 401) {
         handleAuthExpired();
@@ -373,7 +374,7 @@ export function setupReplication(db) {
     collection: db.lists,
     replicationIdentifier: "tickr-lists-sync",
     live: true,
-    retryTime: 5000,
+    retryTime: REPLICATION_RETRY_MS,
     pull: createPullHandler("lists", serverListToClient),
     push: createPushHandler("lists", clientListToServer, serverListToClient),
     autoStart: true,
@@ -383,7 +384,7 @@ export function setupReplication(db) {
     collection: db.items,
     replicationIdentifier: "tickr-items-sync",
     live: true,
-    retryTime: 5000,
+    retryTime: REPLICATION_RETRY_MS,
     pull: createPullHandler("items", serverItemToClient),
     push: createPushHandler("items", clientItemToServer, serverItemToClient),
     autoStart: true,
@@ -393,7 +394,7 @@ export function setupReplication(db) {
     collection: db.categories,
     replicationIdentifier: "tickr-categories-sync",
     live: true,
-    retryTime: 5000,
+    retryTime: REPLICATION_RETRY_MS,
     pull: createPullHandler("categories", serverCategoryToClient),
     push: createPushHandler(
       "categories",

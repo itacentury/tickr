@@ -43,7 +43,7 @@ Ordered by priority. Frontend items already tracked in `TODO-backend.md` (B5, B6
 
 - [x] **F11 — Malformed SSE messages silently swallowed** — tracked as **B6c** in `TODO-backend.md` (`frontend/src/db/replication.js:52-54`).
 
-- [ ] **F12 — Magic numbers scattered** (5000ms replication retry, 3000ms SSE reconnect, 500ms sync-indicator delay, undo window, `setTimeout(..., 100)` focus workarounds). Centralize in a constants module.
+- [x] **F12 — Magic numbers scattered** (5000ms replication retry, 3000ms SSE reconnect, 500ms sync-indicator delay, undo window, `setTimeout(..., 100)` focus workarounds). Centralize in a constants module.
 
 - [ ] **F13 — `setupEventListeners()` is monolithic** (`frontend/src/events.js`, ~720 lines)
       Hard to navigate and test. Split into per-feature wiring functions (nav, items, modals, settings, keyboard, swipe).

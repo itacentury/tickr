@@ -6,6 +6,7 @@
  */
 
 import { Subscription } from "rxjs";
+import { SYNC_INDICATOR_SHOW_DELAY_MS } from "./timing.js";
 
 /**
  * Initialize sync status indicator and bind to replication states.
@@ -16,7 +17,6 @@ import { Subscription } from "rxjs";
 export function initSyncStatus(replications) {
   const syncIndicator = document.getElementById("syncIndicator");
   let syncShowTimeout = null;
-  const SYNC_SHOW_DELAY = 500;
 
   function updateSyncUI(syncing) {
     if (!syncIndicator) return;
@@ -24,7 +24,7 @@ export function initSyncStatus(replications) {
       if (!syncShowTimeout) {
         syncShowTimeout = setTimeout(() => {
           syncIndicator.classList.add("visible");
-        }, SYNC_SHOW_DELAY);
+        }, SYNC_INDICATOR_SHOW_DELAY_MS);
       }
     } else {
       clearTimeout(syncShowTimeout);

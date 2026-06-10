@@ -29,6 +29,7 @@ import { getAuthStatus, renderLoginView } from "./auth.js";
 import { resumeReplication } from "./db/replication.js";
 import { authExpired$ } from "./bus.js";
 import { accountSettingGroup } from "./dom.js";
+import { SW_UPDATE_CHECK_INTERVAL_MS } from "./timing.js";
 
 /** Start the app, reporting any init failure. */
 function startApp() {
@@ -76,7 +77,7 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
-        setInterval(() => reg.update(), 60000);
+        setInterval(() => reg.update(), SW_UPDATE_CHECK_INTERVAL_MS);
 
         if (reg.waiting) {
           showUpdateNotification(reg.waiting);

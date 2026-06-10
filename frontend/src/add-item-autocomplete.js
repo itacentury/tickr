@@ -10,6 +10,7 @@
 
 import { state } from "./state.js";
 import { detectTrigger, formatTag } from "./category-tag.js";
+import { AUTOCOMPLETE_BLUR_DELAY_MS } from "./timing.js";
 
 /**
  * Create a category autocomplete bound to one input + popup pair.
@@ -185,7 +186,7 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
     // Slight delay so a mousedown on the menu can run first.
     setTimeout(() => {
       if (document.activeElement !== input) hide();
-    }, 100);
+    }, AUTOCOMPLETE_BLUR_DELAY_MS);
   });
 
   return { accept, hide };
