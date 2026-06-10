@@ -1,6 +1,9 @@
 /* Items List */
 .items-list {
   flex: 1;
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
   overflow-y: auto;
   padding: 8px 24px 24px;
   display: flex;
@@ -18,6 +21,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
+  min-height: 84px; /* uniform row height regardless of category badge */
   padding: 18px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -122,6 +126,13 @@
 .item-checkbox input:checked + .checkmark svg {
   opacity: 1;
   transform: scale(1);
+}
+
+/* Ghost checkmark on hover hints "check off" before interaction */
+.item-checkbox input:hover:not(:checked) + .checkmark svg {
+  opacity: 0.4;
+  transform: scale(1);
+  stroke: var(--accent);
 }
 
 .item-content {
