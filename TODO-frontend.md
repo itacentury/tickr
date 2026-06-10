@@ -17,7 +17,7 @@ Ordered by priority. Frontend items already tracked in `TODO-backend.md` (B5, B6
 - [x] **F4 — Unguarded `localStorage` access** (footgun, `frontend/src/data.js`, `frontend/src/events.js`)
       `tickr_current_list` and `sidebarCollapsed` are read/written without try/catch. Private browsing modes or a full quota can throw and break list selection or the sidebar toggle. Fix: small safe-storage wrapper that falls back to in-memory state.
 
-- [ ] **F5 — SSE has no heartbeat/liveness check** (`frontend/src/db/replication.js:35-63`)
+- [x] **F5 — SSE has no heartbeat/liveness check** (`frontend/src/db/replication.js:35-63`)
       A silently dropped EventSource connection stops live updates; the 3s reconnect only fires on an explicit `error` event. Replication still works on the 5s retry loop, but real-time updates degrade unnoticed. Fix: server-side keepalive pings plus a client-side staleness timer that forces a reconnect.
 
 - [ ] **F6 — Sync-status subscriptions never cleaned up** — tracked as **B5** in `TODO-backend.md`

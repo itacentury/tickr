@@ -116,7 +116,9 @@ class SseBroadcaster:
                 try:
                     data: str = await asyncio.wait_for(queue.get(), timeout=heartbeat)
                 except TimeoutError:
-                    yield ": heartbeat\n\n"
+                    # Named event (not a comment) so clients can observe it via
+                    # addEventListener("heartbeat") and reset their liveness timer.
+                    yield "event: heartbeat\ndata: {}\n\n"
                     continue
                 self._events_sent += 1
                 yield f"data: {data}\n\n"

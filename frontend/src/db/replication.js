@@ -15,6 +15,12 @@ const FETCH_TIMEOUT_MS = 15000;
 /** Shared SSE connection state for all collections. */
 let sharedEventSource = null;
 let reconnectTimeout = null;
+/**
+ * Force a reconnect if no frame (data or heartbeat) arrives within this window.
+ * The server sends a heartbeat every 15s, so ~2.5 missed beats triggers a refresh.
+ */
+const STALE_TIMEOUT_MS = 40000;
+let staleTimeout = null;
 /** Set once a 401 is seen, to stop the SSE reconnect storm. */
 let sessionExpired = false;
 const collectionSubjects = {};
@@ -51,11 +57,22 @@ export function resumeReplication() {
 }
 
 /**
+ * Restart the staleness timer. Called on every observed frame (data or
+ * heartbeat); if it ever fires, the connection is assumed silently dropped and
+ * a fresh EventSource is opened — catching drops that never emit an `error`.
+ */
+function resetStaleTimer() {
+  clearTimeout(staleTimeout);
+  staleTimeout = setTimeout(() => connectSharedStream(), STALE_TIMEOUT_MS);
+}
+
+/**
  * Open a single SSE connection and route messages to per-collection subjects.
  *
  * Closes any existing connection before reconnecting.
  */
 function connectSharedStream() {
+  clearTimeout(reconnectTimeout);
   if (sharedEventSource) {
     sharedEventSource.close();
     sharedEventSource = null;
@@ -63,8 +80,10 @@ function connectSharedStream() {
 
   const eventSource = new EventSource("/api/v1/sync/stream");
   sharedEventSource = eventSource;
+  resetStaleTimer();
 
   eventSource.addEventListener("message", (event) => {
+    resetStaleTimer();
     try {
       const data = JSON.parse(event.data);
       for (const [name, subject] of Object.entries(collectionSubjects)) {
@@ -77,9 +96,13 @@ function connectSharedStream() {
     }
   });
 
+  // Keepalive frames carry no payload; they exist only to prove liveness.
+  eventSource.addEventListener("heartbeat", resetStaleTimer);
+
   eventSource.addEventListener("error", () => {
     eventSource.close();
     sharedEventSource = null;
+    clearTimeout(staleTimeout);
     if (sessionExpired) return;
     clearTimeout(reconnectTimeout);
     reconnectTimeout = setTimeout(() => connectSharedStream(), 3000);
@@ -93,7 +116,7 @@ function connectSharedStream() {
  * @param {string} collection - The collection name (e.g. "lists", "items").
  * @returns {import('rxjs').Observable} Observable that emits "RESYNC" events.
  */
-function getCollectionStream(collection) {
+export function getCollectionStream(collection) {
   if (!collectionSubjects[collection]) {
     collectionSubjects[collection] = new Subject();
   }
@@ -111,6 +134,10 @@ function pauseSSE() {
   if (reconnectTimeout) {
     clearTimeout(reconnectTimeout);
     reconnectTimeout = null;
+  }
+  if (staleTimeout) {
+    clearTimeout(staleTimeout);
+    staleTimeout = null;
   }
   if (!sharedEventSource) return;
 

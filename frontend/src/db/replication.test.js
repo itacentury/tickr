@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   serverListToClient,
   clientListToServer,
@@ -185,5 +185,76 @@ describe("category converters", () => {
     expect(serverCategoryToClient(clientCategoryToServer(client))).toEqual(
       client,
     );
+  });
+});
+
+describe("SSE staleness reconnect", () => {
+  // Minimal EventSource stub that records constructed instances, registered
+  // listeners, and close() calls, and lets a test emit named events.
+  class MockEventSource {
+    static instances = [];
+
+    constructor(url) {
+      this.url = url;
+      this.listeners = {};
+      this.closed = false;
+      MockEventSource.instances.push(this);
+    }
+
+    addEventListener(type, cb) {
+      (this.listeners[type] ??= []).push(cb);
+    }
+
+    close() {
+      this.closed = true;
+    }
+
+    emit(type, event) {
+      for (const cb of this.listeners[type] ?? []) cb(event);
+    }
+  }
+
+  beforeEach(() => {
+    MockEventSource.instances = [];
+    vi.stubGlobal("EventSource", MockEventSource);
+    vi.useFakeTimers();
+    // Fresh module so the shared SSE singleton state does not leak between tests.
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("opens a single connection on first stream subscription", async () => {
+    const { getCollectionStream } = await import("./replication.js");
+    getCollectionStream("lists");
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockEventSource.instances[0].url).toBe("/api/v1/sync/stream");
+  });
+
+  it("forces a reconnect when no frame arrives within the stale window", async () => {
+    const { getCollectionStream } = await import("./replication.js");
+    getCollectionStream("lists");
+    expect(MockEventSource.instances).toHaveLength(1);
+
+    vi.advanceTimersByTime(40000);
+
+    expect(MockEventSource.instances).toHaveLength(2);
+    expect(MockEventSource.instances[0].closed).toBe(true);
+  });
+
+  it("treats a heartbeat as liveness and skips the reconnect", async () => {
+    const { getCollectionStream } = await import("./replication.js");
+    getCollectionStream("lists");
+    const first = MockEventSource.instances[0];
+
+    vi.advanceTimersByTime(39000);
+    first.emit("heartbeat");
+    vi.advanceTimersByTime(39000);
+
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(first.closed).toBe(false);
   });
 });
