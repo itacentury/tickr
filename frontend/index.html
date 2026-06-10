@@ -750,7 +750,13 @@
       </div>
     </div>
     <!-- Undo Toast -->
-    <div class="toast" id="undoToast">
+    <div
+      class="toast"
+      id="undoToast"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <span class="toast-message" id="toastMessage"></span>
       <button class="toast-action" id="toastUndo">Undo</button>
       <button class="toast-close" id="toastClose" title="Close">
@@ -766,7 +772,13 @@
       </button>
       <div class="toast-progress" id="toastProgress"></div>
     </div>
-    <div class="toast error-toast" id="errorToast">
+    <div
+      class="toast error-toast"
+      id="errorToast"
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+    >
       <span class="toast-message" id="errorToastMessage"></span>
       <button class="toast-close" id="errorToastClose" title="Close">
         <svg

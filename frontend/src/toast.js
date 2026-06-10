@@ -105,8 +105,12 @@ function presentToast(message, undoCallback, commitCallback) {
       startCountdown();
     }, TOAST_SWAP_ANIMATION_MS);
   } else {
-    toastMessage.textContent = message;
     undoToast.classList.add("visible");
+    // Set the message only after the toast enters the a11y tree (it is
+    // visibility:hidden until .visible) so the live region announces it.
+    requestAnimationFrame(() => {
+      toastMessage.textContent = message;
+    });
     startCountdown();
   }
 }
@@ -160,8 +164,11 @@ export function showErrorToast(message) {
     errorToastTimeout = null;
   }
 
-  errorToastMessage.textContent = message;
   errorToast.classList.add("visible");
+  // Same reasoning as the undo toast: announce only once visible.
+  requestAnimationFrame(() => {
+    errorToastMessage.textContent = message;
+  });
 
   animateProgress(errorToastProgress, ERROR_TOAST_DURATION_MS);
 
