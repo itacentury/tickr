@@ -41,7 +41,7 @@ Ordered by priority. Frontend items already tracked in `TODO-backend.md` (B5, B6
 - [x] **F10 — `console.log` leftovers** (`frontend/src/main.js:78,97`)
       Service worker registration logs should be removed or gated behind a debug flag.
 
-- [ ] **F11 — Malformed SSE messages silently swallowed** — tracked as **B6c** in `TODO-backend.md` (`frontend/src/db/replication.js:52-54`).
+- [x] **F11 — Malformed SSE messages silently swallowed** — tracked as **B6c** in `TODO-backend.md` (`frontend/src/db/replication.js:52-54`).
 
 - [ ] **F12 — Magic numbers scattered** (5000ms replication retry, 3000ms SSE reconnect, 500ms sync-indicator delay, undo window, `setTimeout(..., 100)` focus workarounds). Centralize in a constants module.
 

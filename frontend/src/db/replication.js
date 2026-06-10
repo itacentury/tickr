@@ -8,6 +8,7 @@
 import { replicateRxCollection } from "rxdb/plugins/replication";
 import { Subject } from "rxjs";
 import { authExpired$ } from "../bus.js";
+import { reportError } from "../error-reporting.js";
 
 /** Abort replication fetches that hang past this many ms; RxDB retries via retryTime. */
 const FETCH_TIMEOUT_MS = 15000;
@@ -95,6 +96,9 @@ function connectSharedStream() {
   sharedEventSource = eventSource;
   resetStaleTimer();
 
+  // Throttle malformed-frame reports to one per connection, so a server that
+  // streams garbage doesn't flood the error endpoint. Reset on every reconnect.
+  let malformedReported = false;
   eventSource.addEventListener("message", (event) => {
     resetStaleTimer();
     try {
@@ -104,8 +108,14 @@ function connectSharedStream() {
           subject.next("RESYNC");
         }
       }
-    } catch {
-      // Ignore malformed messages
+    } catch (err) {
+      if (!malformedReported) {
+        malformedReported = true;
+        reportError(
+          `parse SSE message (payload: ${String(event.data).slice(0, 200)})`,
+          err,
+        );
+      }
     }
   });
 
