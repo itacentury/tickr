@@ -18,6 +18,8 @@ import {
 } from "./bus.js";
 import { COLOR_PALETTE } from "./db/constants.js";
 import { setDropdownValue } from "./dropdown.js";
+import { reportError } from "./error-reporting.js";
+import { showErrorToast } from "./toast.js";
 
 /**
  * Wire the view layer to the event bus.
@@ -247,9 +249,14 @@ export async function fetchHistory(listId) {
     const response = await fetch(`/api/v1/lists/${listId}/history`, {
       cache: "no-store",
     });
+    if (!response.ok) {
+      throw new Error(`History request failed with status ${response.status}`);
+    }
     const history = await response.json();
     renderHistory(history);
-  } catch {
+  } catch (error) {
+    reportError("fetch history", error);
+    showErrorToast("Failed to load history");
     renderHistory([]);
   }
 }

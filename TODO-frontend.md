@@ -5,7 +5,7 @@ Ordered by priority. Frontend items already tracked in `TODO-backend.md` (B5, B6
 
 ## Robustness
 
-- [ ] **F1 — `fetchHistory()` does not check `response.ok`** (bug, `frontend/src/render.js:245-255`)
+- [x] **F1 — `fetchHistory()` does not check `response.ok`** (bug, `frontend/src/render.js:245-255`)
       A 401/404/500 response is parsed as JSON (or throws), gets caught, and renders as an empty history — the failure is invisible to both the user and error reporting. Fix: throw on `!response.ok` before `response.json()` and report the error.
 
 - [ ] **F2 — `sessionExpired` flag is never reset** (design gap, `frontend/src/db/replication.js:16,24,60`)
