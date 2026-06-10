@@ -92,6 +92,12 @@
   border-color: var(--accent);
 }
 
+/* Project keyboard-focus ring onto the visible checkmark (input is opacity: 0). */
+.item-checkbox input:focus-visible + .checkmark {
+  outline: var(--focus-ring-width) solid var(--accent);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .item-checkbox input:checked + .checkmark {
   background: var(--accent);
   border-color: var(--accent);

@@ -77,7 +77,6 @@
 }
 
 .modal-content input[type="text"]:focus {
-  outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-subtle);
 }
@@ -113,7 +112,6 @@
 }
 
 .setting-select:focus {
-  outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-subtle);
 }
