@@ -11,8 +11,8 @@ Ordered by priority. Frontend items already tracked in `TODO-backend.md` (B5, B6
 - [x] **F2 — `sessionExpired` flag is never reset** (design gap, `frontend/src/db/replication.js:16,24,60`)
       Once a 401 is seen, SSE stays closed and reconnects are suppressed for the lifetime of the page. This is only healed by the full reload after re-login (`frontend/src/main.js:60-62`). In the window between 401 and reload, sync stalls silently with no UI indication. Fix: either reset the flag on successful re-login or show a "signed out" state in the sync indicator.
 
-- [ ] **F3 — No timeout on replication fetches** — tracked as **B6b** in `TODO-backend.md`
-      (`frontend/src/db/replication.js:212,250`). A hung server stalls replication until the socket dies. Fix: AbortController with a 10-15s timeout; RxDB's `retryTime` handles the retry.
+- [x] **F3 — No timeout on replication fetches** — tracked as **B6b** in `TODO-backend.md`
+      (`frontend/src/db/replication.js:212,250`). A hung server stalls replication until the socket dies. Fixed: both pull and push fetches now use `AbortSignal.timeout(FETCH_TIMEOUT_MS)` (15s); RxDB's `retryTime` handles the retry.
 
 - [ ] **F4 — Unguarded `localStorage` access** (footgun, `frontend/src/data.js`, `frontend/src/events.js`)
       `tickr_current_list` and `sidebarCollapsed` are read/written without try/catch. Private browsing modes or a full quota can throw and break list selection or the sidebar toggle. Fix: small safe-storage wrapper that falls back to in-memory state.

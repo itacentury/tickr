@@ -9,6 +9,9 @@ import { replicateRxCollection } from "rxdb/plugins/replication";
 import { Subject } from "rxjs";
 import { authExpired$ } from "../bus.js";
 
+/** Abort replication fetches that hang past this many ms; RxDB retries via retryTime. */
+const FETCH_TIMEOUT_MS = 15000;
+
 /** Shared SSE connection state for all collections. */
 let sharedEventSource = null;
 let reconnectTimeout = null;
@@ -239,6 +242,7 @@ function createPullHandler(collection, toClient) {
       }
       const response = await fetch(
         `/api/v1/sync/${collection}/pull?${params.toString()}`,
+        { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) },
       );
       if (response.status === 401) {
         handleAuthExpired();
@@ -279,6 +283,7 @@ function createPushHandler(collection, toServer, toClient) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
       if (response.status === 401) {
         handleAuthExpired();

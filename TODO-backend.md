@@ -25,5 +25,5 @@ Ordered by priority.
 ## Minor
 
 - [ ] **B6a** — `history` table has no `ON DELETE CASCADE` (`backend/database.py:53-60`); irrelevant with soft deletes, but a hard delete would leave orphaned rows.
-- [ ] **B6b** — Pull/push `fetch()` calls have no timeout or `AbortController` (`frontend/src/db/replication.js:212,250`); a hung server stalls replication until the socket dies.
+- [x] **B6b** — Pull/push `fetch()` calls have no timeout or `AbortController` (`frontend/src/db/replication.js:212,250`); a hung server stalls replication until the socket dies. Fixed via `AbortSignal.timeout(15s)` on both fetches; RxDB's `retryTime` handles the retry.
 - [ ] **B6c** — Malformed SSE messages are silently swallowed (`frontend/src/db/replication.js:52-54`); logging unexpected payloads would make sync failures debuggable.
