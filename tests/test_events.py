@@ -85,7 +85,7 @@ def test_broadcast_drops_when_queue_full():
 
 
 def test_stream_emits_heartbeat_on_timeout():
-    """When no message arrives within the heartbeat window, a comment frame is yielded."""
+    """When no message arrives within the heartbeat window, a named heartbeat event is yielded."""
 
     async def _test():
         bc = SseBroadcaster("test", max_clients=3, queue_size=4)
@@ -93,7 +93,7 @@ def test_stream_emits_heartbeat_on_timeout():
         q = await bc.register()
         gen = bc.stream(q, heartbeat=0.05)
         frame = await asyncio.wait_for(gen.__anext__(), timeout=1.0)
-        assert frame == ": heartbeat\n\n"
+        assert frame == "event: heartbeat\ndata: {}\n\n"
         await gen.aclose()
 
     _run(_test())

@@ -10,6 +10,7 @@
 
 import { state } from "./state.js";
 import { detectTrigger, formatTag } from "./category-tag.js";
+import { AUTOCOMPLETE_BLUR_DELAY_MS } from "./timing.js";
 
 /**
  * Create a category autocomplete bound to one input + popup pair.
@@ -170,7 +171,10 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
   menu.addEventListener("mousedown", (e) => {
     // mousedown (not click) so the input's blur doesn't close the popup
     // before the selection registers.
-    const li = e.target.closest(".category-autocomplete-item");
+    const el = /** @type {HTMLElement} */ (e.target);
+    const li = /** @type {HTMLElement} */ (
+      el.closest(".category-autocomplete-item")
+    );
     if (!li) return;
     e.preventDefault();
     acActiveIndex = Number(li.dataset.index);
@@ -182,7 +186,7 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
     // Slight delay so a mousedown on the menu can run first.
     setTimeout(() => {
       if (document.activeElement !== input) hide();
-    }, 100);
+    }, AUTOCOMPLETE_BLUR_DELAY_MS);
   });
 
   return { accept, hide };

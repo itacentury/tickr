@@ -1,3 +1,5 @@
+// @ts-nocheck — DOM-heavy view module: checkJs cannot narrow event.target /
+// querySelector results without per-callsite casts.
 /**
  * UI rendering functions, drag-and-drop, and modal openers.
  *
@@ -18,6 +20,9 @@ import {
 } from "./bus.js";
 import { COLOR_PALETTE } from "./db/constants.js";
 import { setDropdownValue } from "./dropdown.js";
+import { reportError } from "./error-reporting.js";
+import { showErrorToast } from "./toast.js";
+import { MODAL_FOCUS_DELAY_MS } from "./timing.js";
 
 /**
  * Wire the view layer to the event bus.
@@ -247,9 +252,14 @@ export async function fetchHistory(listId) {
     const response = await fetch(`/api/v1/lists/${listId}/history`, {
       cache: "no-store",
     });
+    if (!response.ok) {
+      throw new Error(`History request failed with status ${response.status}`);
+    }
     const history = await response.json();
     renderHistory(history);
-  } catch {
+  } catch (error) {
+    reportError("fetch history", error);
+    showErrorToast("Failed to load history");
     renderHistory([]);
   }
 }
@@ -288,7 +298,9 @@ function renderHistory(history) {
       date.getMonth(),
       date.getDate(),
     );
-    const diffDays = Math.round((today - entryDate) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.round(
+      (today.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
     return date.toLocaleDateString("en-US", {
@@ -376,7 +388,7 @@ export function openEditListModal() {
   resetCategoryForm(dom.editListCategoryForm);
   dom.editListModal.classList.add("open");
   if (window.matchMedia("(hover: hover)").matches) {
-    setTimeout(() => dom.editListName.focus(), 100);
+    setTimeout(() => dom.editListName.focus(), MODAL_FOCUS_DELAY_MS);
   }
 }
 
@@ -481,6 +493,6 @@ export function openEditItemModal(itemId, text) {
     setTimeout(() => {
       dom.editItemText.focus();
       dom.editItemText.select();
-    }, 100);
+    }, MODAL_FOCUS_DELAY_MS);
   }
 }

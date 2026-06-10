@@ -26,8 +26,10 @@ import "./styles/auth.css";
 import { reportError } from "./error-reporting.js";
 import { initApp } from "./app.js";
 import { getAuthStatus, renderLoginView } from "./auth.js";
+import { resumeReplication } from "./db/replication.js";
 import { authExpired$ } from "./bus.js";
 import { accountSettingGroup } from "./dom.js";
+import { SW_UPDATE_CHECK_INTERVAL_MS } from "./timing.js";
 
 /** Start the app, reporting any init failure. */
 function startApp() {
@@ -55,10 +57,10 @@ getAuthStatus()
   })
   .catch((err) => reportError("check auth", err));
 
-// Session expired/revoked mid-session: drop back to the login view. A reload
-// is the simplest way to fully reset app + replication state after re-login.
+// Session expired/revoked mid-session: drop back to the login view, then resume
+// sync in place once re-login succeeds — no full reload needed.
 authExpired$.subscribe(() => {
-  renderLoginView(() => window.location.reload());
+  renderLoginView(() => resumeReplication());
 });
 
 // Register Service Worker
@@ -75,8 +77,7 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
-        console.log("Service Worker registered");
-        setInterval(() => reg.update(), 60000);
+        setInterval(() => reg.update(), SW_UPDATE_CHECK_INTERVAL_MS);
 
         if (reg.waiting) {
           showUpdateNotification(reg.waiting);
@@ -94,7 +95,7 @@ if ("serviceWorker" in navigator) {
           });
         });
       })
-      .catch((err) => console.log("Service Worker registration failed:", err));
+      .catch((err) => reportError("register service worker", err));
   });
 
   /**

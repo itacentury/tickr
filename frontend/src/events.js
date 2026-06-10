@@ -1,14 +1,15 @@
 /**
  * Event listener wiring for the entire application.
  *
- * Exports a single setupEventListeners() function that attaches all
- * DOM event handlers. Called once during initialization.
+ * Exports a single setupEventListeners() function that delegates to small,
+ * per-feature wire*() helpers. Called once during initialization.
  *
  * Note: .exec() calls below are RxDB query execution, not shell commands.
  */
 
 import { state } from "./state.js";
 import * as dom from "./dom.js";
+import { getStorageItem, setStorageItem } from "./storage.js";
 import { populateIconPicker, applyIconSelection } from "./icons.js";
 import {
   createList,
@@ -45,6 +46,7 @@ import { parseCategoryTag } from "./category-tag.js";
 import { createCategoryAutocomplete } from "./add-item-autocomplete.js";
 import { openMetrics, closeMetrics, setMetricsWindow } from "./metrics.js";
 import { logout } from "./auth.js";
+import { MODAL_FOCUS_DELAY_MS, LIST_SWIPE_ANIMATION_MS } from "./timing.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
 function closeAllModals() {
@@ -84,6 +86,9 @@ function pickInitialColor() {
 /**
  * Wire backdrop-click dismissal for a modal. onClose (if provided) runs
  * after removing `open`, so transient state (e.g. editingItemId) can reset.
+ *
+ * @param {HTMLElement} modal
+ * @param {() => void} [onClose]
  */
 function makeBackdropDismiss(modal, onClose) {
   modal.addEventListener("click", (e) => {
@@ -115,8 +120,8 @@ function wireQuickFormEnter(input, form, saveBtn, modalSaveBtn) {
   });
 }
 
-/** Attach all application event listeners. */
-export function setupEventListeners() {
+/** Custom dropdowns, icon pickers, toast listeners, restored sidebar state. */
+function wireInitialUi() {
   // Custom dropdowns (replace native <select>)
   // Selecting an existing category collapses the inline "+ New" form so the two
   // category modes (pick existing / create new) are never active at once.
@@ -133,19 +138,51 @@ export function setupEventListeners() {
   // Toast interaction listeners
   initToastListeners();
 
+  // Restore sidebar state
+  if (getStorageItem("sidebarCollapsed") === "true") {
+    dom.sidebar.classList.add("collapsed");
+  }
+}
+
+/** Sidebar nav, sidebar toggle, mobile menu, overlay dismissal. */
+function wireNavigation() {
   // Navigation click delegation
   dom.navList.addEventListener("click", (e) => {
-    const link = e.target.closest(".nav-link");
+    const target = /** @type {HTMLElement} */ (e.target);
+    const link = /** @type {HTMLElement} */ (target.closest(".nav-link"));
     if (!link) return;
     selectList(link.dataset.id);
     dom.closeMobileMenu();
   });
 
+  // Sidebar toggle
+  dom.sidebarToggle.addEventListener("click", () => {
+    dom.sidebar.classList.toggle("collapsed");
+    setStorageItem(
+      "sidebarCollapsed",
+      String(dom.sidebar.classList.contains("collapsed")),
+    );
+  });
+
+  dom.mobileMenuBtn.addEventListener("click", dom.openMobileMenu);
+
+  dom.overlay.addEventListener("click", () => {
+    dom.closeMobileMenu();
+    dom.historyPanel.classList.remove("open");
+    dom.overlay.classList.remove("visible");
+  });
+}
+
+/** Item checkbox/open delegation and the add-item form. */
+function wireItems() {
   // Items checkbox delegation
   dom.itemsList.addEventListener("change", async (e) => {
-    const checkbox = e.target.closest('input[type="checkbox"]');
+    const target = /** @type {HTMLElement} */ (e.target);
+    const checkbox = /** @type {HTMLInputElement} */ (
+      target.closest('input[type="checkbox"]')
+    );
     if (!checkbox) return;
-    const itemEl = checkbox.closest(".item");
+    const itemEl = /** @type {HTMLElement} */ (checkbox.closest(".item"));
     if (!itemEl) return;
     const itemId = itemEl.dataset.id;
     const item = state.items.find((i) => i.id === itemId);
@@ -162,8 +199,9 @@ export function setupEventListeners() {
 
   // Items click delegation (open edit modal)
   dom.itemsList.addEventListener("click", (e) => {
-    if (e.target.closest(".item-checkbox")) return;
-    const itemEl = e.target.closest(".item");
+    const target = /** @type {HTMLElement} */ (e.target);
+    if (target.closest(".item-checkbox")) return;
+    const itemEl = /** @type {HTMLElement} */ (target.closest(".item"));
     if (!itemEl) return;
     const itemId = itemEl.dataset.id;
     const item = state.items.find((i) => i.id === itemId);
@@ -171,45 +209,11 @@ export function setupEventListeners() {
     openEditItemModal(itemId, item.text);
   });
 
-  // Sidebar toggle
-  dom.sidebarToggle.addEventListener("click", () => {
-    dom.sidebar.classList.toggle("collapsed");
-    localStorage.setItem(
-      "sidebarCollapsed",
-      dom.sidebar.classList.contains("collapsed"),
-    );
-  });
-
-  dom.mobileMenuBtn.addEventListener("click", dom.openMobileMenu);
-
-  dom.overlay.addEventListener("click", () => {
-    dom.closeMobileMenu();
-    dom.historyPanel.classList.remove("open");
-    dom.overlay.classList.remove("visible");
-  });
-
-  // Icon pickers
-  dom.iconPickerToggle.addEventListener("click", () => {
-    dom.iconPickerToggle.classList.toggle("open");
-    dom.iconOptionsContainer.classList.toggle("expanded");
-  });
-
-  dom.editIconPickerToggle.addEventListener("click", () => {
-    dom.editIconPickerToggle.classList.toggle("open");
-    dom.editIconOptionsContainer.classList.toggle("expanded");
-  });
-
-  // Add item & edit item — both support a trailing `#Name` / `#"Name with
-  // spaces"` tag to assign a category inline. Each input gets its own
-  // autocomplete instance with independent popup state.
+  // Add item — supports a trailing `#Name` / `#"Name with spaces"` tag to
+  // assign a category inline, via its own autocomplete instance.
   const addItemAutocomplete = createCategoryAutocomplete(
     dom.addItemInput,
     dom.addItemCategoryAutocomplete,
-  );
-  const editItemAutocomplete = createCategoryAutocomplete(
-    dom.editItemText,
-    dom.editItemCategoryAutocomplete,
-    (cat) => setDropdownValue(dom.editItemCategoryDropdown, cat.id),
   );
 
   dom.addItemForm.addEventListener("submit", async (e) => {
@@ -243,19 +247,19 @@ export function setupEventListeners() {
     dom.addItemInput.value = "";
     addItemAutocomplete.hide();
   });
+}
 
-  // History
-  dom.historyBtn.addEventListener("click", () => {
-    if (state.currentListId) {
-      fetchHistory(state.currentListId);
-      dom.historyPanel.classList.add("open");
-      dom.overlay.classList.add("visible");
-    }
+/** New-list and edit-list modals: icon pickers, create, update, delete. */
+function wireListModals() {
+  // Icon pickers
+  dom.iconPickerToggle.addEventListener("click", () => {
+    dom.iconPickerToggle.classList.toggle("open");
+    dom.iconOptionsContainer.classList.toggle("expanded");
   });
 
-  dom.closeHistoryBtn.addEventListener("click", () => {
-    dom.historyPanel.classList.remove("open");
-    dom.overlay.classList.remove("visible");
+  dom.editIconPickerToggle.addEventListener("click", () => {
+    dom.editIconPickerToggle.classList.toggle("open");
+    dom.editIconOptionsContainer.classList.toggle("expanded");
   });
 
   // Edit list
@@ -291,12 +295,13 @@ export function setupEventListeners() {
       dom.iconPreview,
       state.selectedIcon,
     );
-    setTimeout(() => dom.newListName.focus(), 100);
+    setTimeout(() => dom.newListName.focus(), MODAL_FOCUS_DELAY_MS);
   });
 
   // Icon selection for new list
   dom.iconOptionsContainer.addEventListener("click", (e) => {
-    const option = e.target.closest(".icon-option");
+    const target = /** @type {HTMLElement} */ (e.target);
+    const option = /** @type {HTMLElement} */ (target.closest(".icon-option"));
     if (!option) return;
     state.selectedIcon = option.dataset.icon;
     applyIconSelection(
@@ -309,7 +314,8 @@ export function setupEventListeners() {
 
   // Icon selection for edit list
   dom.editIconOptionsContainer.addEventListener("click", (e) => {
-    const option = e.target.closest(".icon-option");
+    const target = /** @type {HTMLElement} */ (e.target);
+    const option = /** @type {HTMLElement} */ (target.closest(".icon-option"));
     if (!option) return;
     state.editSelectedIcon = option.dataset.icon;
     applyIconSelection(
@@ -356,8 +362,26 @@ export function setupEventListeners() {
     dom.editListModal.classList.remove("open");
   });
 
-  // Edit item form — also supports a trailing `#Name` tag in the name field,
-  // which takes precedence over the dropdown selection.
+  // Modal backdrop dismiss
+  makeBackdropDismiss(dom.newListModal);
+  makeBackdropDismiss(dom.editListModal, () => {
+    discardCategoryDraft();
+    resetCategoryForm(dom.editListCategoryForm);
+  });
+}
+
+/** Edit-item modal: name/category form, delete, backdrop dismiss. */
+function wireItemModal() {
+  // Edit item supports a trailing `#Name` tag to assign a category inline,
+  // via its own autocomplete instance with independent popup state.
+  const editItemAutocomplete = createCategoryAutocomplete(
+    dom.editItemText,
+    dom.editItemCategoryAutocomplete,
+    (cat) => setDropdownValue(dom.editItemCategoryDropdown, cat.id),
+  );
+
+  // Edit item form — the trailing `#Name` tag takes precedence over the
+  // dropdown selection.
   dom.editItemForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -426,6 +450,14 @@ export function setupEventListeners() {
     });
   });
 
+  makeBackdropDismiss(dom.editItemModal, () => {
+    discardCategoryDraft();
+    state.editingItemId = null;
+  });
+}
+
+/** Category quick-create (item modal) and management (list modal). */
+function wireCategories() {
   // ---- Categories: Quick-create from item modal ----
   dom.editItemCategoryNew?.addEventListener("click", () => {
     // Entering "create new" mode clears any existing dropdown selection so only
@@ -444,7 +476,8 @@ export function setupEventListeners() {
   });
 
   dom.editItemCategoryQuickSwatches?.addEventListener("click", (e) => {
-    const swatch = e.target.closest(".color-swatch");
+    const target = /** @type {HTMLElement} */ (e.target);
+    const swatch = /** @type {HTMLElement} */ (target.closest(".color-swatch"));
     if (!swatch) return;
     const color = swatch.dataset.color;
     dom.editItemCategoryQuickColor.value = color;
@@ -487,7 +520,8 @@ export function setupEventListeners() {
   });
 
   dom.editListCategorySwatches?.addEventListener("click", (e) => {
-    const swatch = e.target.closest(".color-swatch");
+    const target = /** @type {HTMLElement} */ (e.target);
+    const swatch = /** @type {HTMLElement} */ (target.closest(".color-swatch"));
     if (!swatch) return;
     const color = swatch.dataset.color;
     dom.editListCategoryColor.value = color;
@@ -515,10 +549,11 @@ export function setupEventListeners() {
   );
 
   dom.editListCategoriesList?.addEventListener("click", (e) => {
-    const row = e.target.closest(".category-row");
+    const target = /** @type {HTMLElement} */ (e.target);
+    const row = /** @type {HTMLElement} */ (target.closest(".category-row"));
     if (!row) return;
     const id = row.dataset.id;
-    if (e.target.closest(".category-edit")) {
+    if (target.closest(".category-edit")) {
       const cat = state.categoryDraft?.find((c) => c.id === id);
       if (!cat) return;
       state.editingCategoryId = id;
@@ -527,24 +562,31 @@ export function setupEventListeners() {
       renderColorPalette(dom.editListCategorySwatches, cat.color);
       dom.editListCategoryForm.classList.add("expanded");
       setTimeout(() => dom.editListCategoryName.focus(), 0);
-    } else if (e.target.closest(".category-delete")) {
+    } else if (target.closest(".category-delete")) {
       draftDeleteCategory(id);
       renderEditListCategories();
     }
   });
+}
 
-  // Modal backdrop dismiss
-  makeBackdropDismiss(dom.newListModal);
-  makeBackdropDismiss(dom.editListModal, () => {
-    discardCategoryDraft();
-    resetCategoryForm(dom.editListCategoryForm);
-  });
-  makeBackdropDismiss(dom.editItemModal, () => {
-    discardCategoryDraft();
-    state.editingItemId = null;
+/** History panel open/close. */
+function wireHistory() {
+  dom.historyBtn.addEventListener("click", () => {
+    if (state.currentListId) {
+      fetchHistory(state.currentListId);
+      dom.historyPanel.classList.add("open");
+      dom.overlay.classList.add("visible");
+    }
   });
 
-  // Metrics modal
+  dom.closeHistoryBtn.addEventListener("click", () => {
+    dom.historyPanel.classList.remove("open");
+    dom.overlay.classList.remove("visible");
+  });
+}
+
+/** Metrics modal: open/close, time-range control, backdrop dismiss. */
+function wireMetrics() {
   dom.metricsBtn.addEventListener("click", () => {
     openMetrics();
     dom.closeMobileMenu();
@@ -554,7 +596,10 @@ export function setupEventListeners() {
 
   // Time-range segmented control: switch window and refresh.
   dom.metricsRange.addEventListener("click", (event) => {
-    const btn = event.target.closest("button[data-window]");
+    const target = /** @type {HTMLElement} */ (event.target);
+    const btn = /** @type {HTMLElement} */ (
+      target.closest("button[data-window]")
+    );
     if (!btn) return;
     for (const b of dom.metricsRange.querySelectorAll("button")) {
       b.classList.toggle("active", b === btn);
@@ -563,8 +608,10 @@ export function setupEventListeners() {
   });
 
   makeBackdropDismiss(dom.metricsModal, closeMetrics);
+}
 
-  // Settings modal
+/** Settings modal: open/save, clear cache, sign out, backdrop dismiss. */
+function wireSettings() {
   dom.settingsBtn.addEventListener("click", () => {
     setDropdownValue(
       dom.listSortSettingDropdown,
@@ -606,8 +653,10 @@ export function setupEventListeners() {
   });
 
   makeBackdropDismiss(dom.settingsModal);
+}
 
-  // Keyboard shortcuts
+/** Global keyboard shortcuts: Escape closes modals, Ctrl/Cmd+N focuses input. */
+function wireKeyboardShortcuts() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeAllModals();
@@ -624,13 +673,10 @@ export function setupEventListeners() {
       dom.addItemInput.focus();
     }
   });
+}
 
-  // Restore sidebar state
-  if (localStorage.getItem("sidebarCollapsed") === "true") {
-    dom.sidebar.classList.add("collapsed");
-  }
-
-  // Touch swipe navigation
+/** Touch-swipe navigation between lists on the main content area. */
+function wireSwipeNavigation() {
   let touchStartX = 0;
   let touchStartY = 0;
   let touchEndX = 0;
@@ -639,8 +685,9 @@ export function setupEventListeners() {
   dom.mainContent.addEventListener(
     "touchstart",
     (e) => {
-      touchStartX = e.changedTouches[0].screenX;
-      touchStartY = e.changedTouches[0].screenY;
+      const touch = /** @type {TouchEvent} */ (e);
+      touchStartX = touch.changedTouches[0].screenX;
+      touchStartY = touch.changedTouches[0].screenY;
     },
     { passive: true },
   );
@@ -648,8 +695,9 @@ export function setupEventListeners() {
   dom.mainContent.addEventListener(
     "touchend",
     (e) => {
-      touchEndX = e.changedTouches[0].screenX;
-      touchEndY = e.changedTouches[0].screenY;
+      const touch = /** @type {TouchEvent} */ (e);
+      touchEndX = touch.changedTouches[0].screenX;
+      touchEndY = touch.changedTouches[0].screenY;
       handleSwipe();
     },
     { passive: true },
@@ -699,21 +747,39 @@ export function setupEventListeners() {
       setTimeout(() => {
         dom.itemsList.classList.remove(inClass);
         dom.listTitle.classList.remove("fade-in");
-      }, 150);
-    }, 150);
+      }, LIST_SWIPE_ANIMATION_MS);
+    }, LIST_SWIPE_ANIMATION_MS);
   }
+}
 
-  // Visual viewport tracking for modal positioning
-  if (window.visualViewport) {
-    function updateVisualViewport() {
-      const vv = window.visualViewport;
-      document.documentElement.style.setProperty(
-        "--visual-viewport-height",
-        `${vv.height}px`,
-      );
-    }
-    updateVisualViewport();
-    window.visualViewport.addEventListener("resize", updateVisualViewport);
-    window.visualViewport.addEventListener("scroll", updateVisualViewport);
+/** Track the visual viewport height for modal positioning. */
+function wireVisualViewport() {
+  if (!window.visualViewport) return;
+
+  function updateVisualViewport() {
+    const vv = window.visualViewport;
+    document.documentElement.style.setProperty(
+      "--visual-viewport-height",
+      `${vv.height}px`,
+    );
   }
+  updateVisualViewport();
+  window.visualViewport.addEventListener("resize", updateVisualViewport);
+  window.visualViewport.addEventListener("scroll", updateVisualViewport);
+}
+
+/** Attach all application event listeners. */
+export function setupEventListeners() {
+  wireInitialUi();
+  wireNavigation();
+  wireItems();
+  wireListModals();
+  wireItemModal();
+  wireCategories();
+  wireHistory();
+  wireMetrics();
+  wireSettings();
+  wireKeyboardShortcuts();
+  wireSwipeNavigation();
+  wireVisualViewport();
 }

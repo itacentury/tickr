@@ -8,13 +8,37 @@
 import { replicateRxCollection } from "rxdb/plugins/replication";
 import { Subject } from "rxjs";
 import { authExpired$ } from "../bus.js";
+import { reportError } from "../error-reporting.js";
+import { resetDatabase } from "./index.js";
+import {
+  REPLICATION_FETCH_TIMEOUT_MS,
+  SSE_STALE_TIMEOUT_MS,
+  SSE_RECONNECT_DELAY_MS,
+  REPLICATION_RETRY_MS,
+} from "../timing.js";
 
 /** Shared SSE connection state for all collections. */
 let sharedEventSource = null;
 let reconnectTimeout = null;
+let staleTimeout = null;
 /** Set once a 401 is seen, to stop the SSE reconnect storm. */
 let sessionExpired = false;
 const collectionSubjects = {};
+/** Active replication states, used to re-sync after a session is restored. */
+let activeReplications = [];
+/** Extra teardown callbacks (e.g. UI subscriptions) run during cleanupSSE. */
+const teardownCallbacks = [];
+
+/**
+ * Register a teardown callback to run when the app fully tears down
+ * (`cleanupSSE`, on unload). Used to dispose UI subscriptions that outlive a
+ * single replication setup.
+ *
+ * @param {() => void} fn - Teardown callback.
+ */
+export function registerCleanup(fn) {
+  teardownCallbacks.push(fn);
+}
 
 /**
  * Handle a 401 from any sync request: stop SSE, halt reconnects, and notify
@@ -23,8 +47,36 @@ const collectionSubjects = {};
 function handleAuthExpired() {
   if (sessionExpired) return;
   sessionExpired = true;
-  cleanupSSE();
+  pauseSSE();
   authExpired$.next();
+}
+
+/**
+ * Resume sync after a successful re-login: clear the expired latch, reopen the
+ * SSE stream, and trigger an immediate re-sync of all replications.
+ *
+ * The collection subjects survive the expired window (only paused, not
+ * completed), so replication can restart in place without a full page reload.
+ */
+export function resumeReplication() {
+  if (!sessionExpired) return;
+  sessionExpired = false;
+  if (Object.keys(collectionSubjects).length > 0) {
+    connectSharedStream();
+  }
+  for (const rep of activeReplications) {
+    rep.reSync();
+  }
+}
+
+/**
+ * Restart the staleness timer. Called on every observed frame (data or
+ * heartbeat); if it ever fires, the connection is assumed silently dropped and
+ * a fresh EventSource is opened — catching drops that never emit an `error`.
+ */
+function resetStaleTimer() {
+  clearTimeout(staleTimeout);
+  staleTimeout = setTimeout(() => connectSharedStream(), SSE_STALE_TIMEOUT_MS);
 }
 
 /**
@@ -33,6 +85,7 @@ function handleAuthExpired() {
  * Closes any existing connection before reconnecting.
  */
 function connectSharedStream() {
+  clearTimeout(reconnectTimeout);
   if (sharedEventSource) {
     sharedEventSource.close();
     sharedEventSource = null;
@@ -40,8 +93,13 @@ function connectSharedStream() {
 
   const eventSource = new EventSource("/api/v1/sync/stream");
   sharedEventSource = eventSource;
+  resetStaleTimer();
 
+  // Throttle malformed-frame reports to one per connection, so a server that
+  // streams garbage doesn't flood the error endpoint. Reset on every reconnect.
+  let malformedReported = false;
   eventSource.addEventListener("message", (event) => {
+    resetStaleTimer();
     try {
       const data = JSON.parse(event.data);
       for (const [name, subject] of Object.entries(collectionSubjects)) {
@@ -49,17 +107,30 @@ function connectSharedStream() {
           subject.next("RESYNC");
         }
       }
-    } catch {
-      // Ignore malformed messages
+    } catch (err) {
+      if (!malformedReported) {
+        malformedReported = true;
+        reportError(
+          `parse SSE message (payload: ${String(event.data).slice(0, 200)})`,
+          err,
+        );
+      }
     }
   });
+
+  // Keepalive frames carry no payload; they exist only to prove liveness.
+  eventSource.addEventListener("heartbeat", resetStaleTimer);
 
   eventSource.addEventListener("error", () => {
     eventSource.close();
     sharedEventSource = null;
+    clearTimeout(staleTimeout);
     if (sessionExpired) return;
     clearTimeout(reconnectTimeout);
-    reconnectTimeout = setTimeout(() => connectSharedStream(), 3000);
+    reconnectTimeout = setTimeout(
+      () => connectSharedStream(),
+      SSE_RECONNECT_DELAY_MS,
+    );
   });
 }
 
@@ -70,7 +141,7 @@ function connectSharedStream() {
  * @param {string} collection - The collection name (e.g. "lists", "items").
  * @returns {import('rxjs').Observable} Observable that emits "RESYNC" events.
  */
-function getCollectionStream(collection) {
+export function getCollectionStream(collection) {
   if (!collectionSubjects[collection]) {
     collectionSubjects[collection] = new Subject();
   }
@@ -81,27 +152,52 @@ function getCollectionStream(collection) {
 }
 
 /**
- * Close the shared SSE connection and complete all collection subjects.
+ * Close the shared SSE connection and stop reconnects, leaving the collection
+ * subjects alive so the stream can be reopened later (e.g. after re-login).
  */
-function cleanupSSE() {
+function pauseSSE() {
   if (reconnectTimeout) {
     clearTimeout(reconnectTimeout);
     reconnectTimeout = null;
+  }
+  if (staleTimeout) {
+    clearTimeout(staleTimeout);
+    staleTimeout = null;
   }
   if (!sharedEventSource) return;
 
   sharedEventSource.close();
   sharedEventSource = null;
+}
 
+/**
+ * Fully tear down the shared SSE connection, run registered teardown
+ * callbacks, and complete and clear all collection subjects. Use on unload —
+ * the subjects are not reusable afterwards.
+ */
+function cleanupSSE() {
+  pauseSSE();
+  while (teardownCallbacks.length > 0) {
+    const fn = teardownCallbacks.pop();
+    try {
+      fn();
+    } catch {
+      // One bad teardown must not block the rest.
+    }
+  }
   for (const subject of Object.values(collectionSubjects)) {
     subject.complete();
   }
+  for (const key of Object.keys(collectionSubjects)) {
+    delete collectionSubjects[key];
+  }
+  activeReplications = [];
 }
 
 /**
  * Convert a server-side list document to RxDB format (snake_case -> camelCase).
  */
-function serverListToClient(doc) {
+export function serverListToClient(doc) {
   return {
     id: doc.id,
     name: doc.name,
@@ -117,7 +213,7 @@ function serverListToClient(doc) {
 /**
  * Convert a client-side list document to server format (camelCase -> snake_case).
  */
-function clientListToServer(doc) {
+export function clientListToServer(doc) {
   return {
     id: doc.id,
     name: doc.name,
@@ -133,7 +229,7 @@ function clientListToServer(doc) {
 /**
  * Convert a server-side item document to RxDB format.
  */
-function serverItemToClient(doc) {
+export function serverItemToClient(doc) {
   return {
     id: doc.id,
     listId: doc.list_id,
@@ -150,7 +246,7 @@ function serverItemToClient(doc) {
 /**
  * Convert a client-side item document to server format.
  */
-function clientItemToServer(doc) {
+export function clientItemToServer(doc) {
   return {
     id: doc.id,
     list_id: doc.listId,
@@ -167,7 +263,7 @@ function clientItemToServer(doc) {
 /**
  * Convert a server-side category document to RxDB format.
  */
-function serverCategoryToClient(doc) {
+export function serverCategoryToClient(doc) {
   return {
     id: doc.id,
     listId: doc.list_id,
@@ -182,7 +278,7 @@ function serverCategoryToClient(doc) {
 /**
  * Convert a client-side category document to server format.
  */
-function clientCategoryToServer(doc) {
+export function clientCategoryToServer(doc) {
   return {
     id: doc.id,
     list_id: doc.listId,
@@ -201,7 +297,7 @@ function clientCategoryToServer(doc) {
  * @param {Function} toClient - Converter from server to client format.
  * @returns {Object} Pull handler configuration for replicateRxCollection.
  */
-function createPullHandler(collection, toClient) {
+export function createPullHandler(collection, toClient) {
   return {
     async handler(checkpoint, batchSize) {
       const params = new URLSearchParams({ limit: String(batchSize) });
@@ -211,10 +307,18 @@ function createPullHandler(collection, toClient) {
       }
       const response = await fetch(
         `/api/v1/sync/${collection}/pull?${params.toString()}`,
+        { signal: AbortSignal.timeout(REPLICATION_FETCH_TIMEOUT_MS) },
       );
       if (response.status === 401) {
         handleAuthExpired();
         throw new Error(`Pull unauthorized for ${collection}`);
+      }
+      // 410 = our checkpoint predates the server's tombstone purge horizon, so
+      // an incremental pull could miss deletions. Wipe and full-resync instead.
+      // Must precede the generic !ok check, which would otherwise loop forever.
+      if (response.status === 410) {
+        resetDatabase(`Checkpoint too old for ${collection}`);
+        throw new Error(`Checkpoint too old for ${collection}; resyncing`);
       }
       if (!response.ok) {
         throw new Error(`Pull failed for ${collection}: ${response.status}`);
@@ -251,6 +355,7 @@ function createPushHandler(collection, toServer, toClient) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(REPLICATION_FETCH_TIMEOUT_MS),
       });
       if (response.status === 401) {
         handleAuthExpired();
@@ -277,7 +382,7 @@ export function setupReplication(db) {
     collection: db.lists,
     replicationIdentifier: "tickr-lists-sync",
     live: true,
-    retryTime: 5000,
+    retryTime: REPLICATION_RETRY_MS,
     pull: createPullHandler("lists", serverListToClient),
     push: createPushHandler("lists", clientListToServer, serverListToClient),
     autoStart: true,
@@ -287,7 +392,7 @@ export function setupReplication(db) {
     collection: db.items,
     replicationIdentifier: "tickr-items-sync",
     live: true,
-    retryTime: 5000,
+    retryTime: REPLICATION_RETRY_MS,
     pull: createPullHandler("items", serverItemToClient),
     push: createPushHandler("items", clientItemToServer, serverItemToClient),
     autoStart: true,
@@ -297,7 +402,7 @@ export function setupReplication(db) {
     collection: db.categories,
     replicationIdentifier: "tickr-categories-sync",
     live: true,
-    retryTime: 5000,
+    retryTime: REPLICATION_RETRY_MS,
     pull: createPullHandler("categories", serverCategoryToClient),
     push: createPushHandler(
       "categories",
@@ -308,6 +413,12 @@ export function setupReplication(db) {
   });
 
   window.addEventListener("beforeunload", cleanupSSE);
+
+  activeReplications = [
+    listsReplication,
+    itemsReplication,
+    categoriesReplication,
+  ];
 
   const result = { listsReplication, itemsReplication, categoriesReplication };
   Object.defineProperty(result, "cleanup", {

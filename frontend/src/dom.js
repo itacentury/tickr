@@ -20,10 +20,14 @@ export const listTitle = document.getElementById("listTitle");
 export const listTitleIcon = document.getElementById("listTitleIcon");
 
 // Items
-export const addItemForm = document.getElementById("addItemForm");
-export const addItemInput = document.getElementById("addItemInput");
-export const addItemCategoryAutocomplete = document.getElementById(
-  "addItemCategoryAutocomplete",
+export const addItemForm = /** @type {HTMLFormElement} */ (
+  document.getElementById("addItemForm")
+);
+export const addItemInput = /** @type {HTMLInputElement} */ (
+  document.getElementById("addItemInput")
+);
+export const addItemCategoryAutocomplete = /** @type {HTMLUListElement} */ (
+  document.getElementById("addItemCategoryAutocomplete")
 );
 export const itemsList = document.getElementById("itemsList");
 export const emptyState = document.getElementById("emptyState");
@@ -41,8 +45,12 @@ export const editListBtn = document.getElementById("editListBtn");
 // New List Modal
 export const newListModal = document.getElementById("newListModal");
 export const addListBtn = document.getElementById("addListBtn");
-export const newListForm = document.getElementById("newListForm");
-export const newListName = document.getElementById("newListName");
+export const newListForm = /** @type {HTMLFormElement} */ (
+  document.getElementById("newListForm")
+);
+export const newListName = /** @type {HTMLInputElement} */ (
+  document.getElementById("newListName")
+);
 export const cancelNewList = document.getElementById("cancelNewList");
 export const iconPickerToggle = document.getElementById("iconPickerToggle");
 export const iconOptionsContainer = document.getElementById("iconOptions");
@@ -50,8 +58,12 @@ export const iconPreview = document.getElementById("iconPreview");
 
 // Edit List Modal
 export const editListModal = document.getElementById("editListModal");
-export const editListForm = document.getElementById("editListForm");
-export const editListName = document.getElementById("editListName");
+export const editListForm = /** @type {HTMLFormElement} */ (
+  document.getElementById("editListForm")
+);
+export const editListName = /** @type {HTMLInputElement} */ (
+  document.getElementById("editListName")
+);
 export const cancelEditList = document.getElementById("cancelEditList");
 export const editListSave = document.getElementById("editListSave");
 export const editIconPickerToggle = document.getElementById(
@@ -62,23 +74,29 @@ export const editIconOptionsContainer =
 export const editIconPreview = document.getElementById("editIconPreview");
 // Custom dropdown: `editListSort` holds the value (hidden input); the
 // wrapper element is referenced separately for init/close.
-export const editListSort = document.getElementById("editListSortValue");
+export const editListSort = /** @type {HTMLInputElement} */ (
+  document.getElementById("editListSortValue")
+);
 export const editListSortDropdown = document.getElementById("editListSort");
 
 // Edit Item Modal
 export const editItemModal = document.getElementById("editItemModal");
-export const editItemForm = document.getElementById("editItemForm");
-export const editItemText = document.getElementById("editItemText");
-export const editItemCategoryAutocomplete = document.getElementById(
-  "editItemCategoryAutocomplete",
+export const editItemForm = /** @type {HTMLFormElement} */ (
+  document.getElementById("editItemForm")
+);
+export const editItemText = /** @type {HTMLInputElement} */ (
+  document.getElementById("editItemText")
+);
+export const editItemCategoryAutocomplete = /** @type {HTMLUListElement} */ (
+  document.getElementById("editItemCategoryAutocomplete")
 );
 export const cancelEditItem = document.getElementById("cancelEditItem");
 export const editItemSave = document.getElementById("editItemSave");
 export const deleteEditItem = document.getElementById("deleteEditItem");
 // Custom dropdown: `editItemCategory` holds the value (hidden input); the
 // wrapper element is referenced separately for init/close.
-export const editItemCategory = document.getElementById(
-  "editItemCategoryValue",
+export const editItemCategory = /** @type {HTMLInputElement} */ (
+  document.getElementById("editItemCategoryValue")
 );
 export const editItemCategoryDropdown =
   document.getElementById("editItemCategory");
@@ -88,11 +106,11 @@ export const editItemCategoryNew = document.getElementById(
 export const editItemCategoryQuickForm = document.getElementById(
   "editItemCategoryQuickForm",
 );
-export const editItemCategoryQuickName = document.getElementById(
-  "editItemCategoryQuickName",
+export const editItemCategoryQuickName = /** @type {HTMLInputElement} */ (
+  document.getElementById("editItemCategoryQuickName")
 );
-export const editItemCategoryQuickColor = document.getElementById(
-  "editItemCategoryQuickColor",
+export const editItemCategoryQuickColor = /** @type {HTMLInputElement} */ (
+  document.getElementById("editItemCategoryQuickColor")
 );
 export const editItemCategoryQuickSwatches = document.getElementById(
   "editItemCategoryQuickSwatches",
@@ -114,11 +132,11 @@ export const editListCategoryAddBtn = document.getElementById(
 export const editListCategoryForm = document.getElementById(
   "editListCategoryForm",
 );
-export const editListCategoryName = document.getElementById(
-  "editListCategoryName",
+export const editListCategoryName = /** @type {HTMLInputElement} */ (
+  document.getElementById("editListCategoryName")
 );
-export const editListCategoryColor = document.getElementById(
-  "editListCategoryColor",
+export const editListCategoryColor = /** @type {HTMLInputElement} */ (
+  document.getElementById("editListCategoryColor")
 );
 export const editListCategorySwatches = document.getElementById(
   "editListCategorySwatches",
@@ -155,7 +173,9 @@ export const settingsModal = document.getElementById("settingsModal");
 export const settingsBtn = document.getElementById("settingsBtn");
 // Custom dropdown: `listSortSetting` holds the value (hidden input); the
 // wrapper element is referenced separately for init/close.
-export const listSortSetting = document.getElementById("listSortSettingValue");
+export const listSortSetting = /** @type {HTMLInputElement} */ (
+  document.getElementById("listSortSettingValue")
+);
 export const listSortSettingDropdown =
   document.getElementById("listSortSetting");
 export const cancelSettings = document.getElementById("cancelSettings");

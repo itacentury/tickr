@@ -39,8 +39,9 @@ export function reportError(action, error) {
 
 // ---- Global error handlers ----
 
-if (!window.__errorReportingInit) {
-  window.__errorReportingInit = true;
+const globalWindow = /** @type {any} */ (window);
+if (!globalWindow.__errorReportingInit) {
+  globalWindow.__errorReportingInit = true;
 
   window.addEventListener("error", (event) => {
     reportError("unhandled error", event.error);

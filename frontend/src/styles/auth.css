@@ -50,7 +50,6 @@
 }
 
 .auth-input:focus {
-  outline: none;
   border-color: var(--accent);
 }
 
@@ -82,7 +81,6 @@
 .auth-password-toggle:hover,
 .auth-password-toggle:focus-visible {
   color: var(--accent);
-  outline: none;
 }
 
 .auth-password-toggle svg {

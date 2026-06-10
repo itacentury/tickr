@@ -16,6 +16,11 @@ import {
   errorToastClose,
   errorToastProgress,
 } from "./dom.js";
+import {
+  UNDO_WINDOW_MS,
+  ERROR_TOAST_DURATION_MS,
+  TOAST_SWAP_ANIMATION_MS,
+} from "./timing.js";
 
 /**
  * Run the shrink-to-zero progress animation on `el` over `ms` milliseconds.
@@ -41,7 +46,7 @@ let toastUndoCallback = null;
 // replaced by a newer toast, or page unload). Used to finalize a deferred
 // deletion. Cleared once run so it never fires twice.
 let toastCommitCallback = null;
-let toastRemainingTime = 5000;
+let toastRemainingTime = UNDO_WINDOW_MS;
 
 /**
  * Run the pending commit callback exactly once, if any. Invoked whenever the
@@ -81,7 +86,7 @@ function presentToast(message, undoCallback, commitCallback) {
   }
   toastUndoCallback = undoCallback;
   toastCommitCallback = commitCallback;
-  toastRemainingTime = 5000;
+  toastRemainingTime = UNDO_WINDOW_MS;
   const isVisible = undoToast.classList.contains("visible");
 
   function startCountdown() {
@@ -98,10 +103,14 @@ function presentToast(message, undoCallback, commitCallback) {
       toastMessage.textContent = message;
       toastMessage.classList.remove("swapping");
       startCountdown();
-    }, 150);
+    }, TOAST_SWAP_ANIMATION_MS);
   } else {
-    toastMessage.textContent = message;
     undoToast.classList.add("visible");
+    // Set the message only after the toast enters the a11y tree (it is
+    // visibility:hidden until .visible) so the live region announces it.
+    requestAnimationFrame(() => {
+      toastMessage.textContent = message;
+    });
     startCountdown();
   }
 }
@@ -132,12 +141,12 @@ function pauseToast() {
 /** Resume the toast countdown after a pause. */
 function resumeToast() {
   if (!undoToast.classList.contains("visible")) return;
-  toastRemainingTime = 5000;
-  animateProgress(toastProgress, 5000);
+  toastRemainingTime = UNDO_WINDOW_MS;
+  animateProgress(toastProgress, UNDO_WINDOW_MS);
   toastTimeout = setTimeout(() => {
     commitPending();
     hideUndoToast();
-  }, 5000);
+  }, UNDO_WINDOW_MS);
 }
 
 // Error toast state
@@ -155,12 +164,18 @@ export function showErrorToast(message) {
     errorToastTimeout = null;
   }
 
-  errorToastMessage.textContent = message;
   errorToast.classList.add("visible");
+  // Same reasoning as the undo toast: announce only once visible.
+  requestAnimationFrame(() => {
+    errorToastMessage.textContent = message;
+  });
 
-  animateProgress(errorToastProgress, 4000);
+  animateProgress(errorToastProgress, ERROR_TOAST_DURATION_MS);
 
-  errorToastTimeout = setTimeout(() => hideErrorToast(), 4000);
+  errorToastTimeout = setTimeout(
+    () => hideErrorToast(),
+    ERROR_TOAST_DURATION_MS,
+  );
 }
 
 /** Pause the error-toast countdown (e.g. on hover). */
@@ -175,8 +190,11 @@ function pauseErrorToast() {
 /** Resume the error-toast countdown after a pause. */
 function resumeErrorToast() {
   if (!errorToast.classList.contains("visible")) return;
-  animateProgress(errorToastProgress, 4000);
-  errorToastTimeout = setTimeout(() => hideErrorToast(), 4000);
+  animateProgress(errorToastProgress, ERROR_TOAST_DURATION_MS);
+  errorToastTimeout = setTimeout(
+    () => hideErrorToast(),
+    ERROR_TOAST_DURATION_MS,
+  );
 }
 
 /** Dismiss the error toast and clear any pending timeout. */

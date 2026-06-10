@@ -17,6 +17,11 @@ import {
 } from "./bus.js";
 import { showErrorToast } from "./toast.js";
 import { reportError } from "./error-reporting.js";
+import {
+  getStorageItem,
+  setStorageItem,
+  removeStorageItem,
+} from "./storage.js";
 
 // ---- Helpers ----
 
@@ -54,7 +59,7 @@ export async function fetchSettings() {
  * Update settings on the server and refresh local state.
  *
  * @param {Object} settings - Key-value pairs to update.
- * @returns {boolean} Whether the update succeeded.
+ * @returns {Promise<boolean>} Whether the update succeeded.
  */
 export async function updateSettings(settings) {
   try {
@@ -178,7 +183,7 @@ function applyListsSnapshot(docs) {
       selectList(state.lists[0].id);
     } else {
       state.currentListId = null;
-      localStorage.removeItem("tickr_current_list");
+      removeStorageItem("tickr_current_list");
       state.items = [];
       itemsChanged$.next();
       dom.listTitle.textContent = "No Lists";
@@ -314,7 +319,7 @@ export async function refreshItemCounts() {
  * @returns {string|null} The list ID to select initially.
  */
 export function getInitialListId() {
-  const savedId = localStorage.getItem("tickr_current_list");
+  const savedId = getStorageItem("tickr_current_list");
   if (savedId && state.lists.some((l) => l.id === savedId)) {
     return savedId;
   }
@@ -328,7 +333,7 @@ export function getInitialListId() {
  */
 export function selectList(listId) {
   state.currentListId = listId;
-  localStorage.setItem("tickr_current_list", listId);
+  setStorageItem("tickr_current_list", listId);
 
   const list = state.lists.find((l) => l.id === listId);
   if (list) {
@@ -341,7 +346,8 @@ export function selectList(listId) {
   }
 
   dom.navList.querySelectorAll(".nav-link").forEach((link) => {
-    link.classList.toggle("active", link.dataset.id === listId);
+    const el = /** @type {HTMLElement} */ (link);
+    el.classList.toggle("active", el.dataset.id === listId);
   });
 
   subscribeItems(listId);

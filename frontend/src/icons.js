@@ -317,7 +317,8 @@ export function updateIconPreview(previewElement, iconKey) {
 export function applyIconSelection(container, toggle, preview, iconKey) {
   updateIconPreview(preview, iconKey);
   container.querySelectorAll(".icon-option").forEach((opt) => {
-    opt.classList.toggle("selected", opt.dataset.icon === iconKey);
+    const el = /** @type {HTMLElement} */ (opt);
+    el.classList.toggle("selected", el.dataset.icon === iconKey);
   });
   toggle.classList.remove("open");
   container.classList.remove("expanded");
