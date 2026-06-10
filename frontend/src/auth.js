@@ -109,7 +109,9 @@ function buildPasswordField() {
  */
 export function renderLoginView(onSuccess) {
   // Hide the app shell while the gate is shown.
-  const appEl = document.querySelector(".app");
+  const appEl = /** @type {HTMLElement | null} */ (
+    document.querySelector(".app")
+  );
   if (appEl) appEl.style.display = "none";
 
   // Reuse an existing gate if present (e.g. session expired mid-session).

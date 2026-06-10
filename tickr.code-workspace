@@ -90,7 +90,7 @@
 			{
 				"label": "Lint: All",
 				"type": "shell",
-				"command": "uv run ruff check . && uv run mypy backend",
+				"command": "uv run ruff check . && uv run mypy backend && cd frontend && npm run lint && npm run typecheck",
 				"group": "build",
 				"presentation": {
 					"panel": "shared",
@@ -100,7 +100,7 @@
 			{
 				"label": "Test: Run All",
 				"type": "shell",
-				"command": "uv run pytest tests/ -v",
+				"command": "uv run pytest tests/ -v && cd frontend && npm run test",
 				"group": "build",
 				"presentation": {
 					"panel": "shared",

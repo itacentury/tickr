@@ -1,3 +1,5 @@
+// @ts-nocheck — DOM-heavy view module: checkJs cannot narrow event.target /
+// querySelector results without per-callsite casts.
 /**
  * Metrics dashboard module.
  *

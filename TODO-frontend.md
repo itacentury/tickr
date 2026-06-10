@@ -46,7 +46,7 @@ Ordered by priority. Frontend items already tracked in `TODO-backend.md` (B5, B6
 - [ ] **F13 — `setupEventListeners()` is monolithic** (`frontend/src/events.js`, ~720 lines)
       Hard to navigate and test. Split into per-feature wiring functions (nav, items, modals, settings, keyboard, swipe).
 
-- [ ] **F14 — No linter, tests, or type checking for the frontend**
+- [x] **F14 — No linter, tests, or type checking for the frontend**
       Only Prettier is configured (`frontend/package.json`). Consider ESLint + vitest; the pure modules (`category-tag.js`, sort logic in `data.js`, converters in `db/replication.js`) are cheap to unit-test.
 
 ## Reviewed and fine

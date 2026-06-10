@@ -54,7 +54,7 @@ export async function fetchSettings() {
  * Update settings on the server and refresh local state.
  *
  * @param {Object} settings - Key-value pairs to update.
- * @returns {boolean} Whether the update succeeded.
+ * @returns {Promise<boolean>} Whether the update succeeded.
  */
 export async function updateSettings(settings) {
   try {
@@ -341,7 +341,8 @@ export function selectList(listId) {
   }
 
   dom.navList.querySelectorAll(".nav-link").forEach((link) => {
-    link.classList.toggle("active", link.dataset.id === listId);
+    const el = /** @type {HTMLElement} */ (link);
+    el.classList.toggle("active", el.dataset.id === listId);
   });
 
   subscribeItems(listId);

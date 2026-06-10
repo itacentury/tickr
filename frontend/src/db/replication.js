@@ -129,7 +129,7 @@ function cleanupSSE() {
 /**
  * Convert a server-side list document to RxDB format (snake_case -> camelCase).
  */
-function serverListToClient(doc) {
+export function serverListToClient(doc) {
   return {
     id: doc.id,
     name: doc.name,
@@ -145,7 +145,7 @@ function serverListToClient(doc) {
 /**
  * Convert a client-side list document to server format (camelCase -> snake_case).
  */
-function clientListToServer(doc) {
+export function clientListToServer(doc) {
   return {
     id: doc.id,
     name: doc.name,
@@ -161,7 +161,7 @@ function clientListToServer(doc) {
 /**
  * Convert a server-side item document to RxDB format.
  */
-function serverItemToClient(doc) {
+export function serverItemToClient(doc) {
   return {
     id: doc.id,
     listId: doc.list_id,
@@ -178,7 +178,7 @@ function serverItemToClient(doc) {
 /**
  * Convert a client-side item document to server format.
  */
-function clientItemToServer(doc) {
+export function clientItemToServer(doc) {
   return {
     id: doc.id,
     list_id: doc.listId,
@@ -195,7 +195,7 @@ function clientItemToServer(doc) {
 /**
  * Convert a server-side category document to RxDB format.
  */
-function serverCategoryToClient(doc) {
+export function serverCategoryToClient(doc) {
   return {
     id: doc.id,
     listId: doc.list_id,
@@ -210,7 +210,7 @@ function serverCategoryToClient(doc) {
 /**
  * Convert a client-side category document to server format.
  */
-function clientCategoryToServer(doc) {
+export function clientCategoryToServer(doc) {
   return {
     id: doc.id,
     list_id: doc.listId,

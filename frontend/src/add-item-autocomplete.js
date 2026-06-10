@@ -170,7 +170,10 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
   menu.addEventListener("mousedown", (e) => {
     // mousedown (not click) so the input's blur doesn't close the popup
     // before the selection registers.
-    const li = e.target.closest(".category-autocomplete-item");
+    const el = /** @type {HTMLElement} */ (e.target);
+    const li = /** @type {HTMLElement} */ (
+      el.closest(".category-autocomplete-item")
+    );
     if (!li) return;
     e.preventDefault();
     acActiveIndex = Number(li.dataset.index);
