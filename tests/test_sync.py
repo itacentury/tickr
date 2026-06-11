@@ -137,6 +137,36 @@ class TestSyncPush:
         assert len(conflicts) == 1
         assert conflicts[0]["name"] == "Server Update"
 
+    def test_push_conflict_same_timestamp_different_content(self, client, create_list, db):
+        """A server change that keeps updated_at unchanged is still a conflict (B2).
+
+        Simulates two writes that coincidentally share a millisecond-precision
+        updated_at: a full-field comparison must catch the divergence that a
+        timestamp-only check would silently overwrite.
+        """
+        lst = create_list(name="Original")
+        pull = client.get("/api/v1/sync/lists/pull").json()
+        current = next(d for d in pull["documents"] if d["id"] == lst["id"])
+
+        # Mutate the server row WITHOUT touching updated_at — the coincidental
+        # same-timestamp collision the timestamp-only check could not detect.
+        db.execute(
+            "UPDATE lists SET name = ? WHERE id = ?",
+            ("Server Edit", lst["id"]),
+        )
+        db.commit()
+
+        changes = [
+            {
+                "newDocumentState": {**current, "name": "Client Edit"},
+                "assumedMasterState": current,
+            }
+        ]
+        resp = client.post("/api/v1/sync/lists/push", json=changes)
+        conflicts = resp.json()
+        assert len(conflicts) == 1
+        assert conflicts[0]["name"] == "Server Edit"
+
     def test_push_insert_conflict_exists(self, client, create_list):
         """Insert when document already exists returns conflict."""
         lst = create_list(name="Existing")

@@ -8,8 +8,8 @@ Ordered by priority.
 - [x] **B1 — No SSE broadcast on partial-conflict push batches** (bug, `backend/routes/sync.py:426-428`)
       The broadcast only fires `if not conflicts`. A push batch with e.g. 9 successful writes and 1 conflict commits the 9 writes but never notifies other clients, so they only learn about the changes on the next unrelated event. Fix: broadcast whenever at least one write succeeded (track a `wrote_any` flag), independent of the conflicts list.
 
-- [ ] **B2 — Conflict detection compares only `updated_at`** (design limit, `backend/routes/sync.py:327-329`)
-      `_states_match()` checks timestamp equality only (millisecond precision). Two clients that happen to produce the same `updated_at` silently overwrite each other without a detected conflict. Acceptable for a single-user app; a full field comparison of `assumedMasterState` against the current row (or a revision counter) would be more robust.
+- [x] **B2 — Conflict detection compares only `updated_at`** (design limit, `backend/routes/sync.py:327-329`)
+      `_states_match()` checked timestamp equality only (millisecond precision). Two clients that happen to produce the same `updated_at` silently overwrote each other without a detected conflict. Fixed: `_states_match()` now compares every persisted column of the server row against `assumedMasterState` (with boolean→int normalization for `_deleted`), so a coincidental timestamp collision with diverging content is reported as a conflict instead of overwriting.
 
 - [ ] **B3 — Updates fill missing fields with defaults instead of current values** (footgun, `backend/routes/sync.py:308-313`)
       `_resolve_values()` combined with `model_dump(exclude_unset=True)` (line 384) means a partial `newDocumentState` resets omitted fields to collection defaults (e.g. `text=""`) on update rather than preserving the stored value. The RxDB client always sends complete documents, so this is latent — but any other API consumer would corrupt data. Fix: fill gaps from `current_dict` instead of `spec.defaults()` when updating.

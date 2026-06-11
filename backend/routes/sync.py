@@ -325,9 +325,31 @@ def _update_doc(cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict[str, Any
     cursor.execute(spec.update_sql, (*values, doc["id"]))
 
 
+def _normalize(value: bool | int | str | None) -> int | str | None:
+    """Coerce JSON booleans to the 0/1 integers SQLite returns for them.
+
+    ``assumed`` carries ``_deleted`` as a JSON boolean while the server row
+    stores it as an integer, so a ``True``/``False`` must fold to ``1``/``0``
+    before comparison; all other column values pass through unchanged.
+    """
+    if isinstance(value, bool):
+        return int(value)
+    return value
+
+
 def _states_match(current: dict[str, Any], assumed: dict[str, Any]) -> bool:
-    """Check if current server state matches the client's assumed state."""
-    return current.get("updated_at") == assumed.get("updated_at")
+    """Check if every persisted column of the server row matches the client's
+    assumed state.
+
+    Comparing all columns rather than ``updated_at`` alone closes a conflict
+    gap: two writes that coincidentally share the same millisecond timestamp
+    would otherwise look identical and silently overwrite each other. Booleans
+    in ``assumed`` (e.g. ``_deleted``) are normalized to the integers SQLite
+    stores so a JSON ``false`` compares equal to ``0``.
+    """
+    return all(
+        _normalize(value) == _normalize(assumed.get(field)) for field, value in current.items()
+    )
 
 
 @router.get("/{collection}/pull")
