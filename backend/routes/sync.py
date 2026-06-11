@@ -336,7 +336,11 @@ def _normalize(value: bool | int | str | None) -> int | str | None:
 
     ``assumed`` carries ``_deleted`` as a JSON boolean while the server row
     stores it as an integer, so a ``True``/``False`` must fold to ``1``/``0``
-    before comparison; all other column values pass through unchanged.
+    before comparison; all other column values pass through unchanged. The
+    current schema has only TEXT/INTEGER columns, so the annotated types cover
+    every case today. Should a REAL (float) column ever be added, its value
+    passes through untouched, which still compares correctly because both the
+    server and client sides arrive as floats.
     """
     if isinstance(value, bool):
         return int(value)
