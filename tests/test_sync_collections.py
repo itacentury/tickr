@@ -83,7 +83,8 @@ def test_update_doc_rewrites_fields(db):
     cursor = db.cursor()
 
     _insert_doc(cursor, spec, {"id": doc_id, "name": "Before"})
-    _update_doc(cursor, spec, {"id": doc_id, "name": "After", "icon": "star"})
+    current = dict(_select_doc(cursor, spec, doc_id))
+    _update_doc(cursor, spec, {"id": doc_id, "name": "After", "icon": "star"}, current)
     db.commit()
 
     row = _select_doc(cursor, spec, doc_id)

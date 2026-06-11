@@ -307,27 +307,59 @@ def _pull_docs(
 
 
 def _resolve_values(
-    spec: CollectionSpec, doc: dict[str, Any], fields: tuple[str, ...]
+    doc: dict[str, Any], fields: tuple[str, ...], fallback: dict[str, Any]
 ) -> tuple[Any, ...]:
-    """Pick ``fields`` from ``doc`` in order, filling gaps from ``spec.defaults()``."""
-    defaults: dict[str, Any] = spec.defaults()
-    return tuple(doc.get(f, defaults.get(f)) for f in fields)
+    """Pick ``fields`` from ``doc`` in order, filling gaps from ``fallback``."""
+    return tuple(doc.get(f, fallback.get(f)) for f in fields)
 
 
 def _insert_doc(cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict[str, Any]) -> None:
     """Insert a new document into the collection described by ``spec``."""
-    cursor.execute(spec.insert_sql, _resolve_values(spec, doc, spec.insert_fields))
+    cursor.execute(spec.insert_sql, _resolve_values(doc, spec.insert_fields, spec.defaults()))
 
 
-def _update_doc(cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict[str, Any]) -> None:
-    """Update an existing document; ``id`` is appended as the WHERE parameter."""
-    values: tuple[Any, ...] = _resolve_values(spec, doc, spec.update_fields)
+def _update_doc(
+    cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict[str, Any], current: dict[str, Any]
+) -> None:
+    """Update an existing document, preserving stored values for omitted fields.
+
+    ``id`` is appended as the WHERE parameter. Gaps in the partial ``doc`` are
+    filled from the currently stored row rather than collection defaults, so an
+    omitted field keeps its existing value instead of being reset.
+    """
+    values: tuple[Any, ...] = _resolve_values(doc, spec.update_fields, current)
     cursor.execute(spec.update_sql, (*values, doc["id"]))
 
 
+def _normalize(value: bool | int | str | None) -> int | str | None:
+    """Coerce JSON booleans to the 0/1 integers SQLite returns for them.
+
+    ``assumed`` carries ``_deleted`` as a JSON boolean while the server row
+    stores it as an integer, so a ``True``/``False`` must fold to ``1``/``0``
+    before comparison; all other column values pass through unchanged. The
+    current schema has only TEXT/INTEGER columns, so the annotated types cover
+    every case today. Should a REAL (float) column ever be added, its value
+    passes through untouched, which still compares correctly because both the
+    server and client sides arrive as floats.
+    """
+    if isinstance(value, bool):
+        return int(value)
+    return value
+
+
 def _states_match(current: dict[str, Any], assumed: dict[str, Any]) -> bool:
-    """Check if current server state matches the client's assumed state."""
-    return current.get("updated_at") == assumed.get("updated_at")
+    """Check if every persisted column of the server row matches the client's
+    assumed state.
+
+    Comparing all columns rather than ``updated_at`` alone closes a conflict
+    gap: two writes that coincidentally share the same millisecond timestamp
+    would otherwise look identical and silently overwrite each other. Booleans
+    in ``assumed`` (e.g. ``_deleted``) are normalized to the integers SQLite
+    stores so a JSON ``false`` compares equal to ``0``.
+    """
+    return all(
+        _normalize(value) == _normalize(assumed.get(field)) for field, value in current.items()
+    )
 
 
 @router.get("/{collection}/pull")
@@ -426,7 +458,7 @@ def sync_push(
                         if spec.log_history is not None:
                             spec.log_history(cursor, None, new_state)
                     elif _states_match(current_dict, assumed):
-                        _update_doc(cursor, spec, new_state)
+                        _update_doc(cursor, spec, new_state, current_dict)
                         if spec.log_history is not None:
                             spec.log_history(cursor, current_dict, new_state)
                     else:

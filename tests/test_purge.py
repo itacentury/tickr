@@ -3,7 +3,9 @@
 import sqlite3
 from datetime import UTC, datetime, timedelta
 
-from backend.database import now
+import pytest
+
+from backend.database import _ensure_history_item_fk, init_db, now
 from backend.purge import purge_tombstones, tombstone_cutoff
 
 
@@ -22,6 +24,17 @@ def _insert_list(conn: sqlite3.Connection, name: str, deleted: int, updated_at: 
     )
     conn.commit()
     return list_id
+
+
+def _insert_item(conn: sqlite3.Connection, item_id: str, list_id: str, deleted: int) -> None:
+    """Insert one item row whose tombstone is old enough to be purged."""
+    stamp: str = _days_ago(40)
+    conn.execute(
+        "INSERT INTO items (id, list_id, text, created_at, updated_at, _deleted) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (item_id, list_id, "Buy milk", stamp, stamp, deleted),
+    )
+    conn.commit()
 
 
 class TestTombstoneCutoff:
@@ -179,3 +192,145 @@ class TestCheckpointIssuedAt:
         )
         assert page2.status_code == 200
         assert len(page2.json()["documents"]) == 1
+
+
+class TestPurgeForeignKeyCascades:
+    """B6a: hard deletes must not orphan history rows.
+
+    ``purge_tombstones`` enables ``PRAGMA foreign_keys`` so the schema's cascade
+    rules fire: deleting a list removes its history; purging an item nulls the
+    dangling ``history.item_id`` while keeping the audit row.
+    """
+
+    def test_deleting_list_cascades_history(self, db_connection):
+        """Purging a soft-deleted list removes its items and history."""
+        list_id = _insert_list(db_connection, "doomed", deleted=1, updated_at=_days_ago(40))
+        _insert_item(db_connection, "item-1", list_id, deleted=0)
+        db_connection.execute(
+            "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+            (list_id, "item-1", "item_created", "Buy milk"),
+        )
+        db_connection.commit()
+
+        purge_tombstones(db_connection, retain_days=30)
+
+        assert _count(db_connection, "lists", list_id) == 0
+        assert _count(db_connection, "items", "item-1") == 0
+        history = db_connection.execute(
+            "SELECT COUNT(*) FROM history WHERE list_id = ?", (list_id,)
+        ).fetchone()[0]
+        assert history == 0
+
+    def test_purging_item_nulls_history_reference(self, db_connection):
+        """Purging an item under a live list nulls item_id but keeps the row."""
+        list_id = _insert_list(db_connection, "live", deleted=0, updated_at=now())
+        _insert_item(db_connection, "item-1", list_id, deleted=1)
+        db_connection.execute(
+            "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+            (list_id, "item-1", "item_deleted", "Buy milk"),
+        )
+        db_connection.commit()
+
+        purge_tombstones(db_connection, retain_days=30)
+
+        assert _count(db_connection, "items", "item-1") == 0
+        row = db_connection.execute(
+            "SELECT item_id, item_text FROM history WHERE list_id = ?", (list_id,)
+        ).fetchone()
+        assert row is not None
+        assert row["item_id"] is None
+        assert row["item_text"] == "Buy milk"
+
+
+class TestHistoryItemFkMigration:
+    """``_ensure_history_item_fk`` rebuilds legacy history tables idempotently."""
+
+    @staticmethod
+    def _downgrade_history(conn: sqlite3.Connection) -> None:
+        """Replace history with a legacy table lacking the item_id foreign key."""
+        conn.execute("DROP TABLE history")
+        conn.execute("""
+            CREATE TABLE history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                list_id TEXT NOT NULL,
+                item_id TEXT,
+                action TEXT NOT NULL,
+                item_text TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
+            )
+        """)
+        conn.commit()
+
+    @staticmethod
+    def _has_item_fk(conn: sqlite3.Connection) -> bool:
+        rows = conn.execute("PRAGMA foreign_key_list(history)").fetchall()
+        return any(row[3] == "item_id" for row in rows)
+
+    def test_migration_adds_fk_and_preserves_rows(self):
+        conn = sqlite3.connect(":memory:")
+        init_db(conn)
+        self._downgrade_history(conn)
+        conn.execute(
+            "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+            ("list-1", "item-1", "item_created", "Buy milk"),
+        )
+        conn.commit()
+        assert not self._has_item_fk(conn)
+
+        _ensure_history_item_fk(conn)
+
+        assert self._has_item_fk(conn)
+        row = conn.execute("SELECT item_id, item_text FROM history").fetchone()
+        assert row == ("item-1", "Buy milk")
+        conn.close()
+
+    def test_migration_is_idempotent(self):
+        conn = sqlite3.connect(":memory:")
+        init_db(conn)  # schema already carries the FK
+        assert self._has_item_fk(conn)
+
+        _ensure_history_item_fk(conn)
+
+        assert self._has_item_fk(conn)
+        conn.close()
+
+    def test_migration_rolls_back_on_failure(self):
+        """A failure mid-rebuild leaves the original history table intact."""
+        conn = sqlite3.connect(":memory:")
+        init_db(conn)
+        self._downgrade_history(conn)
+        conn.execute(
+            "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+            ("list-1", "item-1", "item_created", "Buy milk"),
+        )
+        conn.commit()
+
+        class _CommitFails:
+            """Delegate to the real connection but raise on commit."""
+
+            def __init__(self, real: sqlite3.Connection) -> None:
+                self._real = real
+
+            def cursor(self) -> sqlite3.Cursor:
+                return self._real.cursor()
+
+            def commit(self) -> None:
+                raise sqlite3.OperationalError("simulated failure")
+
+            def rollback(self) -> None:
+                self._real.rollback()
+
+        with pytest.raises(sqlite3.OperationalError):
+            _ensure_history_item_fk(_CommitFails(conn))  # type: ignore[arg-type]
+
+        # Rollback restored the original (FK-less) table and its row.
+        assert not self._has_item_fk(conn)
+        row = conn.execute("SELECT item_id, item_text FROM history").fetchone()
+        assert row == ("item-1", "Buy milk")
+        conn.close()
+
+
+def _count(conn: sqlite3.Connection, table: str, row_id: str) -> int:
+    """Return how many rows in ``table`` carry the given id."""
+    return conn.execute(f"SELECT COUNT(*) FROM {table} WHERE id = ?", (row_id,)).fetchone()[0]

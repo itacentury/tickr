@@ -45,6 +45,10 @@ def purge_tombstones(conn: sqlite3.Connection, retain_days: int) -> int:
     Returns:
         The total number of rows deleted across all synced tables.
     """
+    # Cascades depend on FK enforcement, which SQLite disables per-connection by
+    # default. Deleting a list relies on ``ON DELETE CASCADE`` to drop its items,
+    # categories, and history; without this PRAGMA those rows would be orphaned.
+    conn.execute("PRAGMA foreign_keys = ON")
     cutoff: str = tombstone_cutoff(retain_days)
     cursor: sqlite3.Cursor = conn.cursor()
     deleted: int = 0
