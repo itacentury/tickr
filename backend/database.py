@@ -402,6 +402,8 @@ def _ensure_history_item_fk(conn: sqlite3.Connection) -> None:
             "INSERT INTO history_new (id, list_id, item_id, action, item_text, timestamp) "
             "SELECT id, list_id, item_id, action, item_text, timestamp FROM history"
         )
+        # Capture now: the DROP/ALTER DDL below resets rowcount to -1, so it
+        # cannot be read at the logger.info call.
         migrated: int = cursor.rowcount
         cursor.execute("DROP TABLE IF EXISTS history")
         cursor.execute("ALTER TABLE history_new RENAME TO history")
