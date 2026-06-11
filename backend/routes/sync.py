@@ -307,21 +307,27 @@ def _pull_docs(
 
 
 def _resolve_values(
-    spec: CollectionSpec, doc: dict[str, Any], fields: tuple[str, ...]
+    doc: dict[str, Any], fields: tuple[str, ...], fallback: dict[str, Any]
 ) -> tuple[Any, ...]:
-    """Pick ``fields`` from ``doc`` in order, filling gaps from ``spec.defaults()``."""
-    defaults: dict[str, Any] = spec.defaults()
-    return tuple(doc.get(f, defaults.get(f)) for f in fields)
+    """Pick ``fields`` from ``doc`` in order, filling gaps from ``fallback``."""
+    return tuple(doc.get(f, fallback.get(f)) for f in fields)
 
 
 def _insert_doc(cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict[str, Any]) -> None:
     """Insert a new document into the collection described by ``spec``."""
-    cursor.execute(spec.insert_sql, _resolve_values(spec, doc, spec.insert_fields))
+    cursor.execute(spec.insert_sql, _resolve_values(doc, spec.insert_fields, spec.defaults()))
 
 
-def _update_doc(cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict[str, Any]) -> None:
-    """Update an existing document; ``id`` is appended as the WHERE parameter."""
-    values: tuple[Any, ...] = _resolve_values(spec, doc, spec.update_fields)
+def _update_doc(
+    cursor: sqlite3.Cursor, spec: CollectionSpec, doc: dict[str, Any], current: dict[str, Any]
+) -> None:
+    """Update an existing document, preserving stored values for omitted fields.
+
+    ``id`` is appended as the WHERE parameter. Gaps in the partial ``doc`` are
+    filled from the currently stored row rather than collection defaults, so an
+    omitted field keeps its existing value instead of being reset.
+    """
+    values: tuple[Any, ...] = _resolve_values(doc, spec.update_fields, current)
     cursor.execute(spec.update_sql, (*values, doc["id"]))
 
 
@@ -448,7 +454,7 @@ def sync_push(
                         if spec.log_history is not None:
                             spec.log_history(cursor, None, new_state)
                     elif _states_match(current_dict, assumed):
-                        _update_doc(cursor, spec, new_state)
+                        _update_doc(cursor, spec, new_state, current_dict)
                         if spec.log_history is not None:
                             spec.log_history(cursor, current_dict, new_state)
                     else:

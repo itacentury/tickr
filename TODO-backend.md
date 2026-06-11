@@ -11,7 +11,7 @@ Ordered by priority.
 - [x] **B2 — Conflict detection compares only `updated_at`** (design limit, `backend/routes/sync.py:327-329`)
       `_states_match()` checked timestamp equality only (millisecond precision). Two clients that happen to produce the same `updated_at` silently overwrote each other without a detected conflict. Fixed: `_states_match()` now compares every persisted column of the server row against `assumedMasterState` (with boolean→int normalization for `_deleted`), so a coincidental timestamp collision with diverging content is reported as a conflict instead of overwriting.
 
-- [ ] **B3 — Updates fill missing fields with defaults instead of current values** (footgun, `backend/routes/sync.py:308-313`)
+- [x] **B3 — Updates fill missing fields with defaults instead of current values** (footgun, `backend/routes/sync.py:308-313`)
       `_resolve_values()` combined with `model_dump(exclude_unset=True)` (line 384) means a partial `newDocumentState` resets omitted fields to collection defaults (e.g. `text=""`) on update rather than preserving the stored value. The RxDB client always sends complete documents, so this is latent — but any other API consumer would corrupt data. Fix: fill gaps from `current_dict` instead of `spec.defaults()` when updating.
 
 - [x] **B4 — Tombstones accumulate forever**

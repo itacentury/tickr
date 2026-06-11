@@ -321,6 +321,58 @@ class TestSyncPush:
         assert inserted["created_at"] is not None
         assert inserted["updated_at"] is not None
 
+    def test_push_partial_update_preserves_existing_values(self, client, create_list):
+        """A partial update keeps omitted fields at their stored value, not defaults."""
+        lst = create_list()
+        item_id = _uuid()
+        client.post(
+            "/api/v1/sync/items/push",
+            json=[
+                {
+                    "newDocumentState": {
+                        "id": item_id,
+                        "list_id": lst["id"],
+                        "text": "keep me",
+                        "completed": 0,
+                        "created_at": "2025-01-01T00:00:00",
+                        "updated_at": "2025-01-01T00:00:00",
+                        "completed_at": None,
+                        "_deleted": 0,
+                    },
+                    "assumedMasterState": None,
+                }
+            ],
+        )
+        current = next(
+            d
+            for d in client.get("/api/v1/sync/items/pull").json()["documents"]
+            if d["id"] == item_id
+        )
+
+        # Update only ``completed`` and ``updated_at``; ``text`` is intentionally omitted.
+        resp = client.post(
+            "/api/v1/sync/items/push",
+            json=[
+                {
+                    "newDocumentState": {
+                        "id": item_id,
+                        "completed": 1,
+                        "updated_at": "2099-01-01T00:00:00",
+                    },
+                    "assumedMasterState": current,
+                }
+            ],
+        )
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+        docs = client.get("/api/v1/sync/items/pull").json()["documents"]
+        updated = next(d for d in docs if d["id"] == item_id)
+        assert updated["completed"] == 1
+        # Omitted field must be preserved, not reset to the collection default ("").
+        assert updated["text"] == "keep me"
+        assert updated["list_id"] == lst["id"]
+
 
 def _push_item(client, *, new_state, assumed=None):
     """Send a single items push and return (status, conflicts)."""
