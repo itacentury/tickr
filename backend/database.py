@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS history (
     action TEXT NOT NULL,
     item_text TEXT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
+    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -136,6 +137,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
 
     _ensure_indexes(conn)
     _rename_legacy_history_actions(conn)
+    _ensure_history_item_fk(conn)
 
     # Settings table
     cursor.execute("PRAGMA table_info(settings)")
@@ -269,7 +271,8 @@ def _migrate_to_uuid(conn: sqlite3.Connection) -> None:
             action TEXT NOT NULL,
             item_text TEXT,
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (list_id) REFERENCES lists_new(id) ON DELETE CASCADE
+            FOREIGN KEY (list_id) REFERENCES lists_new(id) ON DELETE CASCADE,
+            FOREIGN KEY (item_id) REFERENCES items_new(id) ON DELETE SET NULL
         )
     """)
 
@@ -359,6 +362,55 @@ def _rename_legacy_history_actions(conn: sqlite3.Connection) -> None:
             "history_action_renamed", rows=cursor.rowcount, old="item_edited", new="item_renamed"
         )
     conn.commit()
+
+
+def _ensure_history_item_fk(conn: sqlite3.Connection) -> None:
+    """Add the ``history.item_id -> items(id) ON DELETE SET NULL`` foreign key.
+
+    SQLite cannot attach a foreign key via ``ALTER TABLE``, so an older database
+    whose ``history`` table predates this constraint is rebuilt: a new table with
+    both foreign keys is created, rows are copied verbatim, and the old table is
+    dropped. Idempotent — a no-op once the ``item_id`` key is present.
+    """
+    cursor: sqlite3.Cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_key_list(history)")
+    # foreign_key_list columns: (id, seq, table, from, to, ...); row[3] is "from".
+    # Positional access avoids depending on a sqlite3.Row factory, which init_db's
+    # own connection does not set.
+    has_item_fk: bool = any(row[3] == "item_id" for row in cursor.fetchall())
+    if has_item_fk:
+        return
+
+    # SQLite has transactional DDL, so a failure mid-rebuild can be rolled back to
+    # the intact original table instead of leaving the database without history.
+    logger.info("db_migration_begin", migration="history_item_fk")
+    try:
+        cursor.execute("DROP TABLE IF EXISTS history_new")
+        cursor.execute("""
+            CREATE TABLE history_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                list_id TEXT NOT NULL,
+                item_id TEXT,
+                action TEXT NOT NULL,
+                item_text TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
+                FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
+            )
+        """)
+        cursor.execute(
+            "INSERT INTO history_new (id, list_id, item_id, action, item_text, timestamp) "
+            "SELECT id, list_id, item_id, action, item_text, timestamp FROM history"
+        )
+        migrated: int = cursor.rowcount
+        cursor.execute("DROP TABLE IF EXISTS history")
+        cursor.execute("ALTER TABLE history_new RENAME TO history")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception("db_migration_failed", migration="history_item_fk")
+        raise
+    logger.info("db_migration_complete", migration="history_item_fk", rows=migrated)
 
 
 def _ensure_indexes(conn: sqlite3.Connection) -> None:
