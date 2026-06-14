@@ -23,6 +23,9 @@ import {
   commitItemDelete,
   unmarkItemPendingDelete,
   restoreItem,
+  markHistoryPendingHide,
+  unmarkHistoryPendingHide,
+  commitHistoryHide,
   updateSettings,
   selectList,
   discardCategoryDraft,
@@ -39,6 +42,7 @@ import {
   toggleHistoryCard,
   toggleHistoryExpandAll,
   getHistoryCard,
+  rerenderHistory,
   renderColorPalette,
   renderEditListCategories,
   renderItemCategoryOptions,
@@ -643,6 +647,24 @@ function refreshDrawer() {
 async function handleHistoryAction(action, id) {
   const card = getHistoryCard(id);
   if (!card) return;
+
+  if (action === "remove") {
+    // Optimistically drop the card; defer the server hide to the undo window.
+    const listId = state.currentListId;
+    markHistoryPendingHide(id);
+    rerenderHistory();
+    showUndoToast(`"${card.name}" removed from history`, {
+      onUndo: () => {
+        unmarkHistoryPendingHide(id);
+        rerenderHistory();
+      },
+      onCommit: async () => {
+        await commitHistoryHide(id, listId);
+        refreshDrawer();
+      },
+    });
+    return;
+  }
 
   if (action === "reopen") {
     await updateItem(id, { completed: false });

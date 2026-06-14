@@ -324,10 +324,15 @@ export function toggleHistoryCard(id) {
 
 /** Expand all cards, or collapse all when every card is already open. */
 export function toggleHistoryExpandAll() {
-  const allOpen =
-    historyCards.length > 0 && historyCards.every((c) => expandedIds.has(c.id));
+  const cards = visibleCards();
+  const allOpen = cards.length > 0 && cards.every((c) => expandedIds.has(c.id));
   expandedIds.clear();
-  if (!allOpen) for (const c of historyCards) expandedIds.add(c.id);
+  if (!allOpen) for (const c of cards) expandedIds.add(c.id);
+  renderHistory();
+}
+
+/** Re-render the drawer from the current cards without re-fetching. */
+export function rerenderHistory() {
   renderHistory();
 }
 
@@ -336,9 +341,14 @@ function earliest(card) {
   return card.events[card.events.length - 1].timestamp;
 }
 
-/** Return cards ordered per the active sort. */
+/** Cards not currently pending-hidden (optimistic "remove from history"). */
+function visibleCards() {
+  return historyCards.filter((c) => !state.pendingDeletes.history.has(c.id));
+}
+
+/** Return visible cards ordered per the active sort. */
 function sortedCards() {
-  const cards = [...historyCards];
+  const cards = visibleCards();
   if (historySort === "oldest") {
     cards.sort((a, b) => earliest(a).localeCompare(earliest(b)));
   } else {
@@ -421,10 +431,10 @@ function renderCard(card) {
 
 /** Render the By-item card list (or the empty state) and sync the controls. */
 function renderHistory() {
+  const cards = sortedCards();
   if (dom.historyExpandAll) {
     const allOpen =
-      historyCards.length > 0 &&
-      historyCards.every((c) => expandedIds.has(c.id));
+      cards.length > 0 && cards.every((c) => expandedIds.has(c.id));
     dom.historyExpandAll.textContent = allOpen ? "Collapse all" : "Expand all";
   }
   if (dom.historySort) {
@@ -433,11 +443,11 @@ function renderHistory() {
     });
   }
 
-  if (historyCards.length === 0) {
+  if (cards.length === 0) {
     dom.historyList.innerHTML = '<div class="empty">No history to show.</div>';
     return;
   }
-  dom.historyList.innerHTML = sortedCards().map(renderCard).join("");
+  dom.historyList.innerHTML = cards.map(renderCard).join("");
 }
 
 // ---- Modal openers ----

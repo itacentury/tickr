@@ -137,24 +137,17 @@ export function groupHistoryByItem(events, items, categories, options = {}) {
     rawByItem.get(event.item_id).push(event);
   }
 
-  // Every live item gets a card even if its history was purged.
-  const itemIds = new Set([...rawByItem.keys(), ...itemsById.keys()]);
-
+  // Only items with visible history get a card. A live item whose history was
+  // removed (hidden) or purged intentionally produces no card.
   const cards = [];
-  for (const id of itemIds) {
+  for (const [id, rawEvents] of rawByItem) {
     if (pendingHideIds.has(id)) continue;
 
     const liveItem = itemsById.get(id);
-    const rawEvents = rawByItem.get(id) ?? [];
     const timeline = rawEvents
       .map((e) => toTimelineEvent(e, categoriesById))
       .filter((e) => e !== null);
 
-    // A live item with no history still renders via a synthetic "added" event.
-    if (timeline.length === 0 && liveItem) {
-      const ts = liveItem.createdAt ?? liveItem.updatedAt;
-      timeline.push({ type: "added", timestamp: ts });
-    }
     if (timeline.length === 0) continue;
 
     /** @type {"active"|"done"|"deleted"} */

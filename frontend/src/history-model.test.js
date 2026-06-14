@@ -167,7 +167,7 @@ describe("groupHistoryByItem", () => {
     expect(change.after).toBeNull();
   });
 
-  it("synthesises an added event for a live item with no history", () => {
+  it("produces no card for a live item with no visible history", () => {
     const items = [
       {
         id: "a",
@@ -177,10 +177,7 @@ describe("groupHistoryByItem", () => {
       },
     ];
     const cards = groupHistoryByItem([], items, CATS);
-    expect(cards[0].events).toEqual([
-      { type: "added", timestamp: "2026-06-01T09:00:00Z" },
-    ]);
-    expect(cards[0].status).toBe("active");
+    expect(cards).toEqual([]);
   });
 
   it("orders cards by most recent activity first", () => {
