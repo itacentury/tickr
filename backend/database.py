@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS history (
     item_id TEXT,
     action TEXT NOT NULL,
     item_text TEXT,
+    hidden INTEGER DEFAULT 0,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
@@ -137,6 +138,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
 
     _ensure_indexes(conn)
     _rename_legacy_history_actions(conn)
+    _ensure_history_hidden_column(conn)
     _ensure_history_item_fk(conn)
 
     # Settings table
@@ -361,6 +363,21 @@ def _rename_legacy_history_actions(conn: sqlite3.Connection) -> None:
         logger.info(
             "history_action_renamed", rows=cursor.rowcount, old="item_edited", new="item_renamed"
         )
+    conn.commit()
+
+
+def _ensure_history_hidden_column(conn: sqlite3.Connection) -> None:
+    """Add the ``hidden`` column to the history table if it is missing.
+
+    Idempotent — supports "remove from history" by soft-hiding rows rather
+    than deleting them.
+    """
+    cursor: sqlite3.Cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(history)")
+    history_cols: list[str] = [row[1] for row in cursor.fetchall()]
+    if "hidden" not in history_cols:
+        cursor.execute("ALTER TABLE history ADD COLUMN hidden INTEGER DEFAULT 0")
+        logger.info("history_hidden_column_added")
     conn.commit()
 
 

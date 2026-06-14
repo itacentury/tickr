@@ -182,6 +182,10 @@ def _log_item_history(
         _insert_history(cursor, list_id, item_id, "item_deleted", current.get("text"))
         return
 
+    if current.get("_deleted") and not new_state.get("_deleted"):
+        _insert_history(cursor, list_id, item_id, "item_restored", new_state.get("text"))
+        return
+
     old_text: str | None = current.get("text")
     new_text: str | None = new_state.get("text")
     if old_text != new_text:
