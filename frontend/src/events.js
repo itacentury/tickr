@@ -34,6 +34,9 @@ import {
   openEditListModal,
   openEditItemModal,
   fetchHistory,
+  setHistorySort,
+  toggleHistoryCard,
+  toggleHistoryExpandAll,
   renderColorPalette,
   renderEditListCategories,
   renderItemCategoryOptions,
@@ -582,6 +585,36 @@ function wireHistory() {
   dom.closeHistoryBtn.addEventListener("click", () => {
     dom.historyPanel.classList.remove("open");
     dom.overlay.classList.remove("visible");
+  });
+
+  // Sort toggle (Newest / Oldest first).
+  dom.historySort.addEventListener("click", (event) => {
+    const target = /** @type {HTMLElement} */ (event.target);
+    const btn = /** @type {HTMLElement} */ (target.closest(".seg-btn"));
+    if (btn) setHistorySort(btn.dataset.sort);
+  });
+
+  // Expand all / Collapse all.
+  dom.historyExpandAll.addEventListener("click", toggleHistoryExpandAll);
+
+  // Expand/collapse a single card (click or keyboard on its header).
+  dom.historyList.addEventListener("click", (event) => {
+    const target = /** @type {HTMLElement} */ (event.target);
+    const head = target.closest(".icard-head");
+    if (head)
+      toggleHistoryCard(
+        /** @type {HTMLElement} */ (head.closest(".icard")).dataset.id,
+      );
+  });
+  dom.historyList.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = /** @type {HTMLElement} */ (event.target);
+    const head = target.closest(".icard-head");
+    if (!head) return;
+    event.preventDefault();
+    toggleHistoryCard(
+      /** @type {HTMLElement} */ (head.closest(".icard")).dataset.id,
+    );
   });
 }
 

@@ -217,7 +217,7 @@
         </div>
       </main>
       <!-- History Panel -->
-      <aside class="history-panel" id="historyPanel">
+      <aside class="history-panel" id="historyPanel" aria-hidden="true">
         <div class="history-header">
           <h2>History</h2>
           <button
@@ -236,9 +236,27 @@
             </svg>
           </button>
         </div>
-        <ul class="history-list" id="historyList">
+        <div class="byitem-controls">
+          <div
+            class="byitem-sort"
+            id="historySort"
+            role="group"
+            aria-label="Sort order"
+          >
+            <button type="button" class="seg-btn active" data-sort="newest">
+              Newest first
+            </button>
+            <button type="button" class="seg-btn" data-sort="oldest">
+              Oldest first
+            </button>
+          </div>
+          <button type="button" class="expand-all-btn" id="historyExpandAll">
+            Expand all
+          </button>
+        </div>
+        <div class="history-list" id="historyList">
           <!-- History will be populated by JS -->
-        </ul>
+        </div>
       </aside>
       <!-- Overlay for mobile -->
       <div class="overlay" id="overlay"></div>

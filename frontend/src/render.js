@@ -10,8 +10,9 @@
 
 import { state } from "./state.js";
 import * as dom from "./dom.js";
-import { icons } from "./icons.js";
+import { icons, uiIcons } from "./icons.js";
 import { applyIconSelection } from "./icons.js";
+import { groupHistoryByItem, relativeTime } from "./history-model.js";
 import { reorderLists, beginCategoryDraft } from "./data.js";
 import {
   navigationChanged$,
@@ -240,10 +241,38 @@ function applyCatColors(root) {
   }
 }
 
-// ---- History ----
+// ---- History ("By item" view) ----
+
+/** Uppercase status badge labels. */
+const STATUS_LABEL = { active: "ACTIVE", done: "DONE", deleted: "DELETED" };
+
+/** Verb + node icon per timeline event type. */
+const EVENT_VERB = {
+  added: "Added",
+  completed: "Completed",
+  reopened: "Reopened",
+  restored: "Restored",
+  deleted: "Deleted",
+  renamed: "Renamed",
+  category: "Category",
+};
+const EVENT_ICON = {
+  added: "plus",
+  completed: "check",
+  reopened: "undo",
+  restored: "undo",
+  deleted: "trash",
+  renamed: "pencil",
+  category: "tag",
+};
+
+// View state, local to the By-item drawer.
+let historyCards = [];
+let historySort = "newest"; // "newest" | "oldest"
+const expandedIds = new Set();
 
 /**
- * Fetch and render history from the server.
+ * Fetch history plus the full item set and rebuild the By-item cards.
  *
  * @param {string} listId - The list ID to fetch history for.
  */
@@ -256,116 +285,154 @@ export async function fetchHistory(listId) {
       throw new Error(`History request failed with status ${response.status}`);
     }
     const history = await response.json();
-    renderHistory(history);
+    // Full item set incl. completed (RxDB excludes _deleted by default).
+    const items = state.db
+      ? (await state.db.items.find({ selector: { listId } }).exec()).map((d) =>
+          d.toJSON(),
+        )
+      : [];
+    historyCards = groupHistoryByItem(history, items, state.categories, {
+      pendingHideIds: state.pendingDeletes.history ?? new Set(),
+      pendingDeleteIds: state.pendingDeletes.items,
+    });
+    renderHistory();
   } catch (error) {
     reportError("fetch history", error);
     showErrorToast("Failed to load history");
-    renderHistory([]);
+    historyCards = [];
+    renderHistory();
   }
 }
 
-/** Render history entries grouped by date. */
-function renderHistory(history) {
-  if (history.length === 0) {
-    dom.historyList.innerHTML =
-      '<li class="history-empty">No activities yet</li>';
+/** Set the By-item sort order and re-render. */
+export function setHistorySort(sort) {
+  historySort = sort;
+  renderHistory();
+}
+
+/** Toggle a single card's expanded state. */
+export function toggleHistoryCard(id) {
+  if (expandedIds.has(id)) expandedIds.delete(id);
+  else expandedIds.add(id);
+  renderHistory();
+}
+
+/** Expand all cards, or collapse all when every card is already open. */
+export function toggleHistoryExpandAll() {
+  const allOpen =
+    historyCards.length > 0 && historyCards.every((c) => expandedIds.has(c.id));
+  expandedIds.clear();
+  if (!allOpen) for (const c of historyCards) expandedIds.add(c.id);
+  renderHistory();
+}
+
+/** Earliest activity timestamp for a card (events are newest-first). */
+function earliest(card) {
+  return card.events[card.events.length - 1].timestamp;
+}
+
+/** Return cards ordered per the active sort. */
+function sortedCards() {
+  const cards = [...historyCards];
+  if (historySort === "oldest") {
+    cards.sort((a, b) => earliest(a).localeCompare(earliest(b)));
+  } else {
+    cards.sort((a, b) => b.lastChanged.localeCompare(a.lastChanged));
+  }
+  return cards;
+}
+
+/** Render one mini-timeline row for a single event. */
+function renderEvent(event) {
+  const icon = uiIcons[EVENT_ICON[event.type]] || "";
+  let transition = "";
+  if (event.type === "renamed" && event.after !== undefined) {
+    transition = `<span class="mini-transition">${escapeHtml(event.before || "")} \u2192 ${escapeHtml(event.after || "")}</span>`;
+  } else if (event.type === "category") {
+    const label = event.after ? escapeHtml(event.after) : "None";
+    transition = `<span class="mini-transition">${label}</span>`;
+  }
+  return `<div class="mini-row ${event.type}">
+      <span class="mini-node">${icon}</span>
+      <div class="mini-body">
+        <span class="mini-verb">${EVENT_VERB[event.type]}</span>
+        ${transition}
+      </div>
+      <span class="mini-time">${relativeTime(event.timestamp)}</span>
+    </div>`;
+}
+
+/** Render the status-dependent action row (done/deleted only). */
+function renderActions(card) {
+  if (card.status === "active") return "";
+  const primary =
+    card.status === "deleted"
+      ? { action: "restore", label: "Restore" }
+      : { action: "reopen", label: "Reopen" };
+  return `<div class="icard-actions">
+      <button type="button" class="act-btn primary" data-action="${primary.action}">
+        ${uiIcons.undo}<span>${primary.label}</span>
+      </button>
+      <button type="button" class="act-btn danger" data-action="remove">
+        ${uiIcons.trash}<span>Remove from history</span>
+      </button>
+    </div>`;
+}
+
+/** Render a single item card. */
+function renderCard(card) {
+  const open = expandedIds.has(card.id);
+  const events =
+    historySort === "oldest" ? [...card.events].reverse() : card.events;
+
+  let categoryTag = "";
+  if (card.category) {
+    const dot = card.accent
+      ? `<span class="cat-dot" style="background:${sanitizeHexColor(card.accent)}"></span>`
+      : "";
+    categoryTag = `<span class="icard-divider"></span><span class="cat-tag">${dot}${escapeHtml(card.category.name)}</span>`;
+  }
+
+  return `<div class="icard ${card.status}${open ? " expanded" : ""}" data-id="${escapeHtml(card.id)}">
+      <div class="icard-head" role="button" tabindex="0" aria-expanded="${open}">
+        <div class="icard-main">
+          <div class="icard-name">${escapeHtml(card.name)}</div>
+          <div class="icard-sub">
+            <span class="status ${card.status}">${STATUS_LABEL[card.status]}</span>
+            ${categoryTag}
+          </div>
+        </div>
+        <div class="icard-meta">
+          <span class="icard-time">${relativeTime(card.lastChanged)}</span>
+          <span class="chevron">${uiIcons.chevron}</span>
+        </div>
+      </div>
+      <div class="icard-body">
+        <div class="mini">${events.map(renderEvent).join("")}</div>
+        ${renderActions(card)}
+      </div>
+    </div>`;
+}
+
+/** Render the By-item card list (or the empty state) and sync the controls. */
+function renderHistory() {
+  if (dom.historyExpandAll) {
+    const allOpen =
+      historyCards.length > 0 &&
+      historyCards.every((c) => expandedIds.has(c.id));
+    dom.historyExpandAll.textContent = allOpen ? "Collapse all" : "Expand all";
+  }
+  if (dom.historySort) {
+    dom.historySort.querySelectorAll(".seg-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.sort === historySort);
+    });
+  }
+
+  if (historyCards.length === 0) {
+    dom.historyList.innerHTML = '<div class="empty">No history to show.</div>';
     return;
   }
-
-  const actionLabels = {
-    item_created: { text: "Added", class: "created" },
-    item_completed: { text: "Completed", class: "completed" },
-    item_uncompleted: { text: "Reopened", class: "uncompleted" },
-    item_deleted: { text: "Deleted", class: "deleted" },
-    item_renamed: { text: "Renamed", class: "renamed" },
-    item_category_changed: { text: "Category changed", class: "renamed" },
-    list_created: { text: "List created", class: "list" },
-    list_renamed: { text: "List renamed", class: "list" },
-    list_icon_changed: { text: "Icon changed", class: "list" },
-    list_sort_changed: { text: "Sort changed", class: "list" },
-  };
-
-  function getDateGroup(timestamp) {
-    const date = new Date(timestamp);
-    const todayDate = new Date();
-    const today = new Date(
-      todayDate.getFullYear(),
-      todayDate.getMonth(),
-      todayDate.getDate(),
-    );
-    const entryDate = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-    );
-    const diffDays = Math.round(
-      (today.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
-  function formatTime(timestamp) {
-    return new Date(timestamp).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    });
-  }
-
-  const groups = [];
-  let currentGroup = null;
-  for (const entry of history) {
-    const label = getDateGroup(entry.timestamp);
-    if (!currentGroup || currentGroup.label !== label) {
-      currentGroup = { label, entries: [] };
-      groups.push(currentGroup);
-    }
-    currentGroup.entries.push(entry);
-  }
-
-  dom.historyList.innerHTML = groups
-    .map((group) => {
-      const entries = group.entries
-        .map((entry) => {
-          const action = actionLabels[entry.action] || {
-            text: entry.action,
-            class: "",
-          };
-          const itemText = entry.item_text || "";
-          let displayText = itemText;
-          if (
-            entry.action === "item_renamed" &&
-            itemText.includes(" \u2192 ")
-          ) {
-            displayText = itemText.split(" \u2192 ")[1];
-          } else if (entry.action === "item_category_changed") {
-            const cat = state.categories.find((c) => c.id === itemText);
-            displayText = cat ? cat.name : itemText ? "\u2014" : "(none)";
-          }
-          const shortId = entry.item_id ? entry.item_id.slice(0, 6) : "";
-          const idBadge = shortId
-            ? `<span class="history-id" title="${escapeHtml(entry.item_id)}">${escapeHtml(shortId)}</span>`
-            : "";
-          return `<li class="history-entry">
-            <span class="history-time">${formatTime(entry.timestamp)}</span>
-            <span class="action-type ${action.class}">${action.text}</span>
-            ${idBadge}
-            <span class="history-text">${escapeHtml(displayText)}</span>
-          </li>`;
-        })
-        .join("");
-      return `<li class="history-group">
-        <div class="history-date-header">${group.label}</div>
-        <ul class="history-entries">${entries}</ul>
-      </li>`;
-    })
-    .join("");
+  dom.historyList.innerHTML = sortedCards().map(renderCard).join("");
 }
 
 // ---- Modal openers ----

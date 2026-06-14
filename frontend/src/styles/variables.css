@@ -45,4 +45,21 @@
   --transition-normal: 250ms ease;
   --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-bounce: 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* History "By item" view — surfaces */
+  --panel: #101117;
+  --card: #16171d;
+  --card-hover: #1c1d24;
+
+  /* History — primary accent for constructive actions / undo */
+  --blue: #7cc1f9;
+  --blue-soft: rgba(124, 193, 249, 0.14);
+
+  /* History — event / status colors */
+  --c-added: #46d18a;
+  --c-completed: #56adff;
+  --c-reopened: #f5a93c;
+  --c-deleted: #f4636d;
+  --c-renamed: #c479ef;
+  --c-category: #9a86f5;
 }

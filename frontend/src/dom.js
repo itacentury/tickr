@@ -37,6 +37,8 @@ export const historyBtn = document.getElementById("historyBtn");
 export const historyPanel = document.getElementById("historyPanel");
 export const historyList = document.getElementById("historyList");
 export const closeHistoryBtn = document.getElementById("closeHistoryBtn");
+export const historySort = document.getElementById("historySort");
+export const historyExpandAll = document.getElementById("historyExpandAll");
 
 // List actions
 export const deleteListBtn = document.getElementById("deleteListBtn");
