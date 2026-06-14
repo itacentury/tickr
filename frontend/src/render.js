@@ -304,6 +304,11 @@ export async function fetchHistory(listId) {
   }
 }
 
+/** Look up a rendered history card by item id (for action handlers). */
+export function getHistoryCard(id) {
+  return historyCards.find((c) => c.id === id) ?? null;
+}
+
 /** Set the By-item sort order and re-render. */
 export function setHistorySort(sort) {
   historySort = sort;

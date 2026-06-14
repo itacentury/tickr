@@ -578,6 +578,37 @@ export async function unmarkItemPendingDelete(itemId) {
   await refreshItemCounts();
 }
 
+/**
+ * Restore a soft-deleted item from the history drawer by un-tombstoning it.
+ *
+ * RxDB's upsert resurrects a deleted document: the insert conflicts on the
+ * existing (deleted) primary key, then writes a fresh non-deleted revision.
+ * Replication pushes the `_deleted: 1 → 0` transition, which the server logs
+ * as `item_restored`. The item always returns as active.
+ *
+ * @param {string} itemId - The item ID to restore.
+ * @param {{listId: string, text: string, categoryId?: string|null, createdAt?: string}} fields
+ *   The item fields to reconstruct, derived from its history card.
+ */
+export async function restoreItem(itemId, fields) {
+  try {
+    const timestamp = now();
+    await state.db.items.upsert({
+      id: itemId,
+      listId: fields.listId,
+      text: fields.text,
+      completed: false,
+      categoryId: fields.categoryId ?? null,
+      createdAt: fields.createdAt ?? timestamp,
+      updatedAt: timestamp,
+      completedAt: null,
+    });
+  } catch (error) {
+    reportError("restore item", error);
+    showErrorToast("Failed to restore item");
+  }
+}
+
 // ---- Category draft (transactional staging) ----
 
 /** Sort a category draft array by name, matching subscribeCategories. */

@@ -22,6 +22,7 @@ import {
   markItemPendingDelete,
   commitItemDelete,
   unmarkItemPendingDelete,
+  restoreItem,
   updateSettings,
   selectList,
   discardCategoryDraft,
@@ -37,6 +38,7 @@ import {
   setHistorySort,
   toggleHistoryCard,
   toggleHistoryExpandAll,
+  getHistoryCard,
   renderColorPalette,
   renderEditListCategories,
   renderItemCategoryOptions,
@@ -597,9 +599,17 @@ function wireHistory() {
   // Expand all / Collapse all.
   dom.historyExpandAll.addEventListener("click", toggleHistoryExpandAll);
 
-  // Expand/collapse a single card (click or keyboard on its header).
+  // Card actions (reopen/restore/remove) and expand/collapse on click.
   dom.historyList.addEventListener("click", (event) => {
     const target = /** @type {HTMLElement} */ (event.target);
+    const actBtn = /** @type {HTMLElement} */ (target.closest(".act-btn"));
+    if (actBtn) {
+      // Don't let the action also toggle the card.
+      event.stopPropagation();
+      const card = /** @type {HTMLElement} */ (actBtn.closest(".icard"));
+      handleHistoryAction(actBtn.dataset.action, card.dataset.id);
+      return;
+    }
     const head = target.closest(".icard-head");
     if (head)
       toggleHistoryCard(
@@ -616,6 +626,50 @@ function wireHistory() {
       /** @type {HTMLElement} */ (head.closest(".icard")).dataset.id,
     );
   });
+}
+
+/** Re-fetch and re-render the history drawer for the current list. */
+function refreshDrawer() {
+  if (state.currentListId) fetchHistory(state.currentListId);
+}
+
+/**
+ * Run a status-dependent history card action (reopen/restore). Each is a real
+ * item mutation paired with an undo toast whose undo performs the inverse.
+ *
+ * @param {string} action - "reopen" | "restore" | "remove".
+ * @param {string} id - The item ID.
+ */
+async function handleHistoryAction(action, id) {
+  const card = getHistoryCard(id);
+  if (!card) return;
+
+  if (action === "reopen") {
+    await updateItem(id, { completed: false });
+    showUndoToast(`"${card.name}" reopened`, {
+      onUndo: async () => {
+        await updateItem(id, { completed: true });
+        refreshDrawer();
+      },
+    });
+  } else if (action === "restore") {
+    // The oldest event is the creation; reuse its time to preserve ordering.
+    const createdAt = card.events[card.events.length - 1].timestamp;
+    await restoreItem(id, {
+      listId: state.currentListId,
+      text: card.name,
+      categoryId: card.category?.id ?? null,
+      createdAt,
+    });
+    showUndoToast(`"${card.name}" restored`, {
+      onUndo: async () => {
+        await commitItemDelete(id);
+        refreshDrawer();
+      },
+    });
+  }
+
+  refreshDrawer();
 }
 
 /** Metrics modal: open/close, time-range control, backdrop dismiss. */
