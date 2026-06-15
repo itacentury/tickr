@@ -686,8 +686,11 @@ async function handleHistoryAction(action, id) {
       },
     });
   } else if (action === "restore") {
-    // The oldest event is the creation; reuse its time to preserve ordering.
-    const createdAt = card.events[card.events.length - 1].timestamp;
+    // Prefer the creation event's time; fall back to the oldest visible event
+    // when the creation row was hidden, to preserve ordering.
+    const createdEvent = card.events.find((e) => e.type === "added");
+    const createdAt =
+      createdEvent?.timestamp ?? card.events[card.events.length - 1].timestamp;
     await restoreItem(id, {
       listId,
       text: card.name,
