@@ -63,7 +63,7 @@
 
   .history-panel {
     width: 100%;
-    right: -100%;
+    max-width: 100%;
   }
 
   .toast {
