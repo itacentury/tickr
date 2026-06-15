@@ -64,7 +64,7 @@ function closeAllModals() {
   dom.editItemModal.classList.remove("open");
   dom.settingsModal.classList.remove("open");
   closeMetrics();
-  dom.historyPanel.classList.remove("open");
+  dom.closeHistoryPanel();
   dom.overlay.classList.remove("visible");
   closeDropdown(dom.editItemCategoryDropdown);
   closeDropdown(dom.editListSortDropdown);
@@ -177,7 +177,7 @@ function wireNavigation() {
 
   dom.overlay.addEventListener("click", () => {
     dom.closeMobileMenu();
-    dom.historyPanel.classList.remove("open");
+    dom.closeHistoryPanel();
     dom.overlay.classList.remove("visible");
   });
 }
@@ -583,13 +583,13 @@ function wireHistory() {
   dom.historyBtn.addEventListener("click", () => {
     if (state.currentListId) {
       fetchHistory(state.currentListId);
-      dom.historyPanel.classList.add("open");
+      dom.openHistoryPanel();
       dom.overlay.classList.add("visible");
     }
   });
 
   dom.closeHistoryBtn.addEventListener("click", () => {
-    dom.historyPanel.classList.remove("open");
+    dom.closeHistoryPanel();
     dom.overlay.classList.remove("visible");
   });
 

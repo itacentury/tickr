@@ -199,3 +199,15 @@ export function openMobileMenu() {
   sidebar.classList.add("mobile-open");
   overlay.classList.add("visible");
 }
+
+/** Open the history panel (visual + screen-reader state). */
+export function openHistoryPanel() {
+  historyPanel.classList.add("open");
+  historyPanel.setAttribute("aria-hidden", "false");
+}
+
+/** Close the history panel (visual + screen-reader state). */
+export function closeHistoryPanel() {
+  historyPanel.classList.remove("open");
+  historyPanel.setAttribute("aria-hidden", "true");
+}
