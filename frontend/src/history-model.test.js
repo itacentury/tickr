@@ -199,6 +199,27 @@ describe("groupHistoryByItem", () => {
     expect(change.toCat).toEqual({ name: "gone", color: null });
   });
 
+  it("derives a deleted item's category from the new side of the latest change", () => {
+    const events = [
+      ev("a", "item_category_changed", "c1 → c2", "2026-06-01T10:00:00Z"),
+      ev("a", "item_created", "A", "2026-06-01T09:00:00Z"),
+    ];
+    const cards = groupHistoryByItem(events, [], CATS); // no live doc → history fallback
+    expect(cards[0].status).toBe("deleted");
+    expect(cards[0].category?.name).toBe("Home");
+    expect(cards[0].accent).toBe("#f5934a");
+  });
+
+  it("derives no category for a deleted item whose category was cleared", () => {
+    const events = [
+      ev("a", "item_category_changed", "c1 → ", "2026-06-01T10:00:00Z"),
+      ev("a", "item_created", "A", "2026-06-01T09:00:00Z"),
+    ];
+    const cards = groupHistoryByItem(events, [], CATS);
+    expect(cards[0].category).toBeNull();
+    expect(cards[0].accent).toBeNull();
+  });
+
   it("produces no card for a live item with no visible history", () => {
     const items = [
       {

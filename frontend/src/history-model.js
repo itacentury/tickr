@@ -131,7 +131,10 @@ function deriveCategory(liveItem, rawEvents, categoriesById) {
   let categoryId = liveItem?.categoryId ?? null;
   if (!liveItem) {
     const change = rawEvents.find((e) => e.action === "item_category_changed");
-    categoryId = change?.item_text || null;
+    const text = change?.item_text || "";
+    categoryId = text.includes(RENAME_SEPARATOR)
+      ? text.split(RENAME_SEPARATOR)[1] || null
+      : text || null;
   }
   if (!categoryId) return { category: null, accent: null };
 
