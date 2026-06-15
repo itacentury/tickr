@@ -633,8 +633,16 @@ function wireHistory() {
 }
 
 /** Re-fetch and re-render the history drawer for the current list. */
-function refreshDrawer() {
-  if (state.currentListId) fetchHistory(state.currentListId);
+/**
+ * Re-fetch the history for a list, but only while it is still the visible one.
+ * Deferred undo/commit callbacks pass the list the action started on; if the
+ * user switched lists meanwhile, skip the refresh so we don't overwrite the
+ * now-visible drawer with a list the user already navigated away from.
+ *
+ * @param {string} [listId] - List to refresh; defaults to the current list.
+ */
+function refreshDrawer(listId = state.currentListId) {
+  if (listId && listId === state.currentListId) fetchHistory(listId);
 }
 
 /**
@@ -648,9 +656,12 @@ async function handleHistoryAction(action, id) {
   const card = getHistoryCard(id);
   if (!card) return;
 
+  // Capture once so every deferred callback acts on the list the action started
+  // on, even if the user switches lists during the undo window.
+  const listId = state.currentListId;
+
   if (action === "remove") {
     // Optimistically drop the card; defer the server hide to the undo window.
-    const listId = state.currentListId;
     markHistoryPendingHide(id);
     rerenderHistory();
     showUndoToast(`"${card.name}" removed from history`, {
@@ -660,7 +671,7 @@ async function handleHistoryAction(action, id) {
       },
       onCommit: async () => {
         await commitHistoryHide(id, listId);
-        refreshDrawer();
+        refreshDrawer(listId);
       },
     });
     return;
@@ -671,14 +682,14 @@ async function handleHistoryAction(action, id) {
     showUndoToast(`"${card.name}" reopened`, {
       onUndo: async () => {
         await updateItem(id, { completed: true });
-        refreshDrawer();
+        refreshDrawer(listId);
       },
     });
   } else if (action === "restore") {
     // The oldest event is the creation; reuse its time to preserve ordering.
     const createdAt = card.events[card.events.length - 1].timestamp;
     await restoreItem(id, {
-      listId: state.currentListId,
+      listId,
       text: card.name,
       categoryId: card.category?.id ?? null,
       createdAt,
@@ -686,12 +697,12 @@ async function handleHistoryAction(action, id) {
     showUndoToast(`"${card.name}" restored`, {
       onUndo: async () => {
         await commitItemDelete(id);
-        refreshDrawer();
+        refreshDrawer(listId);
       },
     });
   }
 
-  refreshDrawer();
+  refreshDrawer(listId);
 }
 
 /** Metrics modal: open/close, time-range control, backdrop dismiss. */
