@@ -237,14 +237,27 @@
   height: 18px;
 }
 
-/* Card body (mini-timeline + actions) */
+/* Card body (mini-timeline + actions) — animated collapsible. Uses
+   grid-template-rows 0fr→1fr so the body animates to its exact content height
+   (no max-height overshoot), with the same easing token as the rest of the app. */
 .icard-body {
-  display: none;
-  padding: 0 15px 13px;
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--transition-slow),
+    opacity var(--transition-normal);
 }
 
 .icard.expanded .icard-body {
-  display: block;
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.icard-body-inner {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 15px 13px;
 }
 
 /* Mini-timeline with a vertical rail */

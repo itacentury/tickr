@@ -305,11 +305,37 @@ export function setHistorySort(sort) {
   renderHistory();
 }
 
-/** Toggle a single card's expanded state. */
+/** Sync the "Expand all" / "Collapse all" toggle label to the current state. */
+function updateExpandAllLabel() {
+  if (!dom.historyExpandAll) return;
+  const cards = visibleCards();
+  const allOpen = cards.length > 0 && cards.every((c) => expandedIds.has(c.id));
+  dom.historyExpandAll.textContent = allOpen ? "Collapse all" : "Expand all";
+}
+
+/** Apply the expanded class + aria-expanded to a live .icard node. */
+function applyCardExpansion(el) {
+  const open = expandedIds.has(el.dataset.id);
+  el.classList.toggle("expanded", open);
+  el.querySelector(".icard-head")?.setAttribute("aria-expanded", String(open));
+}
+
+/**
+ * Toggle a single card's expanded state. Mutates the live DOM node instead of
+ * re-rendering so the CSS max-height transition fires.
+ */
 export function toggleHistoryCard(id) {
   if (expandedIds.has(id)) expandedIds.delete(id);
   else expandedIds.add(id);
-  renderHistory();
+  const el = [...dom.historyList.querySelectorAll(".icard")].find(
+    (node) => node.dataset.id === id,
+  );
+  if (!el) {
+    renderHistory();
+    return;
+  }
+  applyCardExpansion(el);
+  updateExpandAllLabel();
 }
 
 /** Expand all cards, or collapse all when every card is already open. */
@@ -318,7 +344,8 @@ export function toggleHistoryExpandAll() {
   const allOpen = cards.length > 0 && cards.every((c) => expandedIds.has(c.id));
   expandedIds.clear();
   if (!allOpen) for (const c of cards) expandedIds.add(c.id);
-  renderHistory();
+  dom.historyList.querySelectorAll(".icard").forEach(applyCardExpansion);
+  updateExpandAllLabel();
 }
 
 /** Re-render the drawer from the current cards without re-fetching. */
@@ -431,8 +458,10 @@ function renderCard(card) {
         </div>
       </div>
       <div class="icard-body">
-        <div class="mini">${events.map(renderEvent).join("")}</div>
-        ${renderActions(card)}
+        <div class="icard-body-inner">
+          <div class="mini">${events.map(renderEvent).join("")}</div>
+          ${renderActions(card)}
+        </div>
       </div>
     </div>`;
 }
@@ -440,11 +469,7 @@ function renderCard(card) {
 /** Render the By-item card list (or the empty state) and sync the controls. */
 function renderHistory() {
   const cards = sortedCards();
-  if (dom.historyExpandAll) {
-    const allOpen =
-      cards.length > 0 && cards.every((c) => expandedIds.has(c.id));
-    dom.historyExpandAll.textContent = allOpen ? "Collapse all" : "Expand all";
-  }
+  updateExpandAllLabel();
   if (dom.historySort) {
     dom.historySort.querySelectorAll(".seg-btn").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.sort === historySort);
