@@ -178,6 +178,7 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--cat-color);
 }
 
 /* Status badge */
@@ -255,7 +256,7 @@
 .mini::before {
   content: "";
   position: absolute;
-  left: 9px;
+  left: 13px;
   top: 14px;
   bottom: 14px;
   width: 2px;
@@ -271,21 +272,15 @@
   padding: 5px 0;
 }
 
+/* Small colored dot on the rail; the verb text carries the meaning. */
 .mini-node {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
+  justify-self: center;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: var(--card);
-  border: 2px solid currentColor;
+  background: currentColor;
+  box-shadow: 0 0 0 3px var(--panel);
   z-index: 1;
-}
-
-.mini-node svg {
-  width: 11px;
-  height: 11px;
 }
 
 .mini-body {
@@ -301,12 +296,51 @@
 }
 
 .mini-transition {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+/* Category before → after pills */
+.cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.cat-pill.old {
+  opacity: 0.7;
+}
+
+.cat-pill.none {
+  color: var(--text-muted);
+}
+
+.cat-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--cat-color);
+}
+
+.cat-pill.none .cat-pill-dot {
+  width: 9px;
+  height: 9px;
+  background: transparent;
+  border: 1.5px dashed var(--text-muted);
+}
+
+.mini-arrow {
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 .mini-time {

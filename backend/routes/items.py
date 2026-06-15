@@ -123,7 +123,12 @@ def update_item(
         if not item_data.undo:
             cursor.execute(
                 "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-                (item["list_id"], item_id, "item_category_changed", item_data.category_id or ""),
+                (
+                    item["list_id"],
+                    item_id,
+                    "item_category_changed",
+                    f"{item['category_id'] or ''} → {item_data.category_id or ''}",
+                ),
             )
 
     if item_data.completed is not None:

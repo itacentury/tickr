@@ -20,7 +20,10 @@
  * @property {string} type - Mapped event type (added/completed/reopened/restored/deleted/renamed/category).
  * @property {string} timestamp - ISO timestamp.
  * @property {string|null} [before] - Previous value (renames only).
- * @property {string|null} [after] - New value (renames and category changes).
+ * @property {string|null} [after] - New value (renames only).
+ * @property {{name: string, color: string|null}|null} [fromCat] - Previous category
+ *   (category events; absent for legacy rows where the "before" is unknown).
+ * @property {{name: string, color: string|null}|null} [toCat] - New category (category events).
  */
 
 /**
@@ -66,10 +69,34 @@ function toTimelineEvent(event, categoriesById) {
     mapped.before = before;
     mapped.after = after;
   } else if (type === "category") {
-    // item_text holds the new category id ("" means "none").
-    mapped.after = text ? (categoriesById.get(text)?.name ?? text) : null;
+    // item_text holds "oldId → newId" (either side empty = "none"). Legacy rows
+    // hold only the new id with no separator — then the "before" is unknown and
+    // fromCat is left absent so the UI renders just the new category.
+    if (text.includes(RENAME_SEPARATOR)) {
+      const [before, after] = text.split(RENAME_SEPARATOR);
+      mapped.fromCat = resolveCategory(before || null, categoriesById);
+      mapped.toCat = resolveCategory(after || null, categoriesById);
+    } else {
+      mapped.toCat = resolveCategory(text || null, categoriesById);
+    }
   }
   return mapped;
+}
+
+/**
+ * Resolve a category id to a {name, color} pill payload, or null for "none".
+ * An id that no longer resolves falls back to the raw id with a neutral color.
+ *
+ * @param {string|null} categoryId
+ * @param {Map<string, {name: string, color: string}>} categoriesById
+ * @returns {{name: string, color: string|null}|null}
+ */
+function resolveCategory(categoryId, categoriesById) {
+  if (!categoryId) return null;
+  const category = categoriesById.get(categoryId);
+  return category
+    ? { name: category.name, color: category.color }
+    : { name: categoryId, color: null };
 }
 
 /**

@@ -256,16 +256,6 @@ const EVENT_VERB = {
   renamed: "Renamed",
   category: "Category",
 };
-const EVENT_ICON = {
-  added: "plus",
-  completed: "check",
-  reopened: "undo",
-  restored: "undo",
-  deleted: "trash",
-  renamed: "pencil",
-  category: "tag",
-};
-
 // View state, local to the By-item drawer.
 let historyCards = [];
 let historySort = "newest"; // "newest" | "oldest"
@@ -357,18 +347,36 @@ function sortedCards() {
   return cards;
 }
 
+/**
+ * Render a category pill (colored dot + name) or a dashed "No category" pill.
+ * The dot color is carried via data-color and applied later by applyCatColors
+ * (inline styles are blocked by the CSP).
+ */
+function catPill(cat, old = false) {
+  const cls = `cat-pill${cat ? "" : " none"}${old ? " old" : ""}`;
+  if (!cat) {
+    return `<span class="${cls}"><span class="cat-pill-dot"></span>No category</span>`;
+  }
+  const dot = cat.color
+    ? `<span class="cat-pill-dot" data-color="${sanitizeHexColor(cat.color)}"></span>`
+    : `<span class="cat-pill-dot"></span>`;
+  return `<span class="${cls}">${dot}${escapeHtml(cat.name)}</span>`;
+}
+
 /** Render one mini-timeline row for a single event. */
 function renderEvent(event) {
-  const icon = uiIcons[EVENT_ICON[event.type]] || "";
   let transition = "";
   if (event.type === "renamed" && event.after !== undefined) {
     transition = `<span class="mini-transition">${escapeHtml(event.before || "")} \u2192 ${escapeHtml(event.after || "")}</span>`;
   } else if (event.type === "category") {
-    const label = event.after ? escapeHtml(event.after) : "None";
-    transition = `<span class="mini-transition">${label}</span>`;
+    const to = catPill(event.toCat ?? null);
+    transition =
+      event.fromCat !== undefined
+        ? `<span class="mini-transition">${catPill(event.fromCat, true)}<span class="mini-arrow">\u2192</span>${to}</span>`
+        : `<span class="mini-transition">${to}</span>`;
   }
   return `<div class="mini-row ${event.type}">
-      <span class="mini-node">${icon}</span>
+      <span class="mini-node"></span>
       <div class="mini-body">
         <span class="mini-verb">${EVENT_VERB[event.type]}</span>
         ${transition}
@@ -403,7 +411,7 @@ function renderCard(card) {
   let categoryTag = "";
   if (card.category) {
     const dot = card.accent
-      ? `<span class="cat-dot" style="background:${sanitizeHexColor(card.accent)}"></span>`
+      ? `<span class="cat-dot" data-color="${sanitizeHexColor(card.accent)}"></span>`
       : "";
     categoryTag = `<span class="icard-divider"></span><span class="cat-tag">${dot}${escapeHtml(card.category.name)}</span>`;
   }
@@ -448,6 +456,7 @@ function renderHistory() {
     return;
   }
   dom.historyList.innerHTML = cards.map(renderCard).join("");
+  applyCatColors(dom.historyList);
 }
 
 // ---- Modal openers ----

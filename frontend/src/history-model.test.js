@@ -156,7 +156,7 @@ describe("groupHistoryByItem", () => {
     expect(cards[0].accent).toBeNull();
   });
 
-  it("treats a cleared category (empty item_text) as none", () => {
+  it("treats a legacy cleared category (empty item_text, no separator) as none", () => {
     const events = [
       ev("a", "item_category_changed", "", "2026-06-01T10:00:00Z"),
       ev("a", "item_created", "A", "2026-06-01T09:00:00Z"),
@@ -164,7 +164,39 @@ describe("groupHistoryByItem", () => {
     const cards = groupHistoryByItem(events, [], CATS);
     expect(cards[0].category).toBeNull();
     const change = cards[0].events.find((e) => e.type === "category");
-    expect(change.after).toBeNull();
+    expect(change.toCat).toBeNull();
+    // No separator → the "before" is unknown, so fromCat is absent.
+    expect(change.fromCat).toBeUndefined();
+  });
+
+  it("resolves a category change to before/after pills", () => {
+    const events = [
+      ev("a", "item_category_changed", "c1 → c2", "2026-06-01T10:00:00Z"),
+      ev("a", "item_created", "A", "2026-06-01T09:00:00Z"),
+    ];
+    const cards = groupHistoryByItem(events, [], CATS);
+    const change = cards[0].events.find((e) => e.type === "category");
+    expect(change.fromCat).toEqual({ name: "Work", color: "#f06363" });
+    expect(change.toCat).toEqual({ name: "Home", color: "#f5934a" });
+  });
+
+  it("treats an empty side of a category change as No category", () => {
+    const events = [
+      ev("a", "item_category_changed", " → c1", "2026-06-01T10:00:00Z"),
+    ];
+    const cards = groupHistoryByItem(events, [], CATS);
+    const change = cards[0].events.find((e) => e.type === "category");
+    expect(change.fromCat).toBeNull();
+    expect(change.toCat).toEqual({ name: "Work", color: "#f06363" });
+  });
+
+  it("falls back to the raw id when a changed category no longer exists", () => {
+    const events = [
+      ev("a", "item_category_changed", "c1 → gone", "2026-06-01T10:00:00Z"),
+    ];
+    const cards = groupHistoryByItem(events, [], CATS);
+    const change = cards[0].events.find((e) => e.type === "category");
+    expect(change.toCat).toEqual({ name: "gone", color: null });
   });
 
   it("produces no card for a live item with no visible history", () => {

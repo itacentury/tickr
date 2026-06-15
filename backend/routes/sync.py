@@ -200,7 +200,13 @@ def _log_item_history(
     old_category: str | None = current.get("category_id")
     new_category: str | None = new_state.get("category_id")
     if old_category != new_category:
-        _insert_history(cursor, list_id, item_id, "item_category_changed", new_category or "")
+        _insert_history(
+            cursor,
+            list_id,
+            item_id,
+            "item_category_changed",
+            f"{old_category or ''} → {new_category or ''}",
+        )
 
 
 COLLECTIONS: dict[str, CollectionSpec] = {
