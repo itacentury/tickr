@@ -276,7 +276,7 @@
   background: rgba(255, 255, 255, 0.07);
 }
 
-.mini-row {
+.mini-event {
   position: relative;
   display: grid;
   grid-template-columns: 28px 1fr auto;
@@ -364,25 +364,25 @@
 }
 
 /* Event-type colors (node border + verb) */
-.mini-row.added {
+.mini-event.added {
   color: var(--c-added);
 }
-.mini-row.completed {
+.mini-event.completed {
   color: var(--c-completed);
 }
-.mini-row.reopened {
+.mini-event.reopened {
   color: var(--c-reopened);
 }
-.mini-row.restored {
+.mini-event.restored {
   color: var(--c-added);
 }
-.mini-row.deleted {
+.mini-event.deleted {
   color: var(--c-deleted);
 }
-.mini-row.renamed {
+.mini-event.renamed {
   color: var(--c-renamed);
 }
-.mini-row.category {
+.mini-event.category {
   color: var(--c-category);
 }
 

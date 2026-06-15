@@ -402,7 +402,7 @@ function renderEvent(event) {
         ? `<span class="mini-transition">${catPill(event.fromCat, true)}<span class="mini-arrow">\u2192</span>${to}</span>`
         : `<span class="mini-transition">${to}</span>`;
   }
-  return `<div class="mini-row ${event.type}">
+  return `<div class="mini-event ${event.type}">
       <span class="mini-node"></span>
       <div class="mini-body">
         <span class="mini-verb">${EVENT_VERB[event.type]}</span>
