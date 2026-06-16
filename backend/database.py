@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS history (
     item_id TEXT,
     action TEXT NOT NULL,
     item_text TEXT,
+    hidden INTEGER DEFAULT 0,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
@@ -70,6 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_items_updated ON items(updated_at, id);
 CREATE INDEX IF NOT EXISTS idx_lists_updated ON lists(updated_at, id);
 CREATE INDEX IF NOT EXISTS idx_categories_list_id ON categories(list_id, _deleted);
 CREATE INDEX IF NOT EXISTS idx_categories_updated ON categories(updated_at, id);
+CREATE INDEX IF NOT EXISTS idx_history_list_id ON history(list_id, hidden, timestamp);
 """
 
 
@@ -137,6 +139,7 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
 
     _ensure_indexes(conn)
     _rename_legacy_history_actions(conn)
+    _ensure_history_hidden_column(conn)
     _ensure_history_item_fk(conn)
 
     # Settings table
@@ -364,6 +367,21 @@ def _rename_legacy_history_actions(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _ensure_history_hidden_column(conn: sqlite3.Connection) -> None:
+    """Add the ``hidden`` column to the history table if it is missing.
+
+    Idempotent — supports "remove from history" by soft-hiding rows rather
+    than deleting them.
+    """
+    cursor: sqlite3.Cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(history)")
+    history_cols: list[str] = [row[1] for row in cursor.fetchall()]
+    if "hidden" not in history_cols:
+        cursor.execute("ALTER TABLE history ADD COLUMN hidden INTEGER DEFAULT 0")
+        logger.info("history_hidden_column_added")
+    conn.commit()
+
+
 def _ensure_history_item_fk(conn: sqlite3.Connection) -> None:
     """Add the ``history.item_id -> items(id) ON DELETE SET NULL`` foreign key.
 
@@ -426,5 +444,8 @@ def _ensure_indexes(conn: sqlite3.Connection) -> None:
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_categories_updated ON categories(updated_at, id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_history_list_id ON history(list_id, hidden, timestamp)"
     )
     conn.commit()

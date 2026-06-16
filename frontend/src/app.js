@@ -23,8 +23,8 @@ export async function initApp() {
   subscribeLists();
   subscribeItemCounts();
 
-  const replications = setupReplication(state.db);
-  registerCleanup(initSyncStatus(replications));
+  state.replications = setupReplication(state.db);
+  registerCleanup(initSyncStatus(state.replications));
 
   setupEventListeners();
 }

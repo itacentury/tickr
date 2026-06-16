@@ -37,6 +37,8 @@ export const historyBtn = document.getElementById("historyBtn");
 export const historyPanel = document.getElementById("historyPanel");
 export const historyList = document.getElementById("historyList");
 export const closeHistoryBtn = document.getElementById("closeHistoryBtn");
+export const historySort = document.getElementById("historySort");
+export const historyExpandAll = document.getElementById("historyExpandAll");
 
 // List actions
 export const deleteListBtn = document.getElementById("deleteListBtn");
@@ -196,4 +198,16 @@ export function closeMobileMenu() {
 export function openMobileMenu() {
   sidebar.classList.add("mobile-open");
   overlay.classList.add("visible");
+}
+
+/** Open the history panel (visual + screen-reader state). */
+export function openHistoryPanel() {
+  historyPanel.classList.add("open");
+  historyPanel.setAttribute("aria-hidden", "false");
+}
+
+/** Close the history panel (visual + screen-reader state). */
+export function closeHistoryPanel() {
+  historyPanel.classList.remove("open");
+  historyPanel.setAttribute("aria-hidden", "true");
 }

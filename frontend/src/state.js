@@ -7,6 +7,10 @@
 
 export const state = {
   db: null,
+  // RxDB replication states ({ listsReplication, itemsReplication, ... }) from
+  // setupReplication(), exposed so refreshDrawer can await pending item pushes
+  // before fetching history (whose rows the server writes during the push).
+  replications: null,
   lists: [],
   currentListId: null,
   items: [],
@@ -28,7 +32,9 @@ export const state = {
   // still open. Their RxDB docs still exist (deletion is deferred until the
   // undo toast expires), so subscriptions filter these out to hide them
   // immediately while keeping the documents — and their history — intact.
-  pendingDeletes: { lists: new Set(), items: new Set() },
+  // `history` holds item IDs whose history card is being removed (hidden);
+  // the server-side hide is deferred until the undo window expires.
+  pendingDeletes: { lists: new Set(), items: new Set(), history: new Set() },
 };
 
 /** Active RxDB subscriptions that may need to be replaced on re-subscribe. */

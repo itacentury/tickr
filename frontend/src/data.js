@@ -578,6 +578,84 @@ export async function unmarkItemPendingDelete(itemId) {
   await refreshItemCounts();
 }
 
+/**
+ * Restore a soft-deleted item from the history drawer by un-tombstoning it.
+ *
+ * RxDB's upsert resurrects a deleted document: the insert conflicts on the
+ * existing (deleted) primary key, then writes a fresh non-deleted revision.
+ * Replication pushes the `_deleted: 1 → 0` transition, which the server logs
+ * as `item_restored`. The item always returns as active.
+ *
+ * @param {string} itemId - The item ID to restore.
+ * @param {{listId: string, text: string, categoryId?: string|null, createdAt?: string}} fields
+ *   The item fields to reconstruct, derived from its history card.
+ * @returns {Promise<boolean>} True on success, false if the restore failed.
+ */
+export async function restoreItem(itemId, fields) {
+  try {
+    const timestamp = now();
+    await state.db.items.upsert({
+      id: itemId,
+      listId: fields.listId,
+      text: fields.text,
+      completed: false,
+      categoryId: fields.categoryId ?? null,
+      createdAt: fields.createdAt ?? timestamp,
+      updatedAt: timestamp,
+      completedAt: null,
+    });
+    return true;
+  } catch (error) {
+    reportError("restore item", error);
+    showErrorToast("Failed to restore item");
+    return false;
+  }
+}
+
+/**
+ * Begin removing an item's card from history: flag it as pending-hidden so the
+ * drawer drops it immediately. The server rows are untouched until commit.
+ *
+ * @param {string} itemId - The item ID whose history card is being removed.
+ */
+export function markHistoryPendingHide(itemId) {
+  state.pendingDeletes.history.add(itemId);
+}
+
+/**
+ * Cancel a deferred history removal (undo): clear the pending flag so the card
+ * reappears. No server call was made.
+ *
+ * @param {string} itemId - The item ID to un-hide.
+ */
+export function unmarkHistoryPendingHide(itemId) {
+  state.pendingDeletes.history.delete(itemId);
+}
+
+/**
+ * Finalize a deferred history removal: soft-hide the item's history rows on the
+ * server. Called when the undo window expires.
+ *
+ * @param {string} itemId - The item ID whose history is being hidden.
+ * @param {string} listId - The list the item belongs to.
+ */
+export async function commitHistoryHide(itemId, listId) {
+  try {
+    const response = await fetch(
+      `/api/v1/lists/${listId}/history/hide?item_id=${encodeURIComponent(itemId)}`,
+      { method: "POST" },
+    );
+    if (!response.ok) {
+      throw new Error(`Hide request failed with status ${response.status}`);
+    }
+  } catch (error) {
+    reportError("hide history", error);
+    showErrorToast("Couldn't remove from history");
+  } finally {
+    state.pendingDeletes.history.delete(itemId);
+  }
+}
+
 // ---- Category draft (transactional staging) ----
 
 /** Sort a category draft array by name, matching subscribeCategories. */
