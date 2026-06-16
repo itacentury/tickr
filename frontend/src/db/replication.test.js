@@ -1,18 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  serverListToClient,
-  clientListToServer,
-  serverItemToClient,
-  clientItemToServer,
-  serverCategoryToClient,
-  clientCategoryToServer,
-} from "./replication.js";
+import { toClient, toServer } from "./replication.js";
 
 describe("list converters", () => {
   it("maps a server list to client camelCase", () => {
     expect(
-      serverListToClient({
+      toClient("lists", {
         id: "l1",
         name: "Work",
         icon: "star",
@@ -35,7 +28,7 @@ describe("list converters", () => {
   });
 
   it("applies defaults for missing icon/item_sort/sort_order", () => {
-    const result = serverListToClient({ id: "l1", name: "Work" });
+    const result = toClient("lists", { id: "l1", name: "Work" });
     expect(result.icon).toBe("list");
     expect(result.itemSort).toBe("alphabetical");
     expect(result.sortOrder).toBe(0);
@@ -43,12 +36,12 @@ describe("list converters", () => {
   });
 
   it("keeps sort_order of 0 instead of falling back (?? not ||)", () => {
-    expect(serverListToClient({ id: "l1", sort_order: 0 }).sortOrder).toBe(0);
+    expect(toClient("lists", { id: "l1", sort_order: 0 }).sortOrder).toBe(0);
   });
 
   it("maps a client list back to server snake_case", () => {
     expect(
-      clientListToServer({
+      toServer("lists", {
         id: "l1",
         name: "Work",
         icon: "star",
@@ -81,14 +74,14 @@ describe("list converters", () => {
       updatedAt: "2026-01-02",
       _deleted: false,
     };
-    expect(serverListToClient(clientListToServer(client))).toEqual(client);
+    expect(toClient("lists", toServer("lists", client))).toEqual(client);
   });
 });
 
 describe("item converters", () => {
   it("maps a server item to client, normalizing booleans", () => {
     expect(
-      serverItemToClient({
+      toClient("items", {
         id: "i1",
         list_id: "l1",
         text: "Buy milk",
@@ -113,7 +106,7 @@ describe("item converters", () => {
   });
 
   it("defaults categoryId and completedAt to null", () => {
-    const result = serverItemToClient({
+    const result = toClient("items", {
       id: "i1",
       list_id: "l1",
       text: "x",
@@ -126,11 +119,10 @@ describe("item converters", () => {
 
   it("maps a client item back to server, encoding completed as 1/0", () => {
     expect(
-      clientItemToServer({ id: "i1", listId: "l1", completed: true }),
+      toServer("items", { id: "i1", listId: "l1", completed: true }),
     ).toMatchObject({ list_id: "l1", completed: 1 });
     expect(
-      clientItemToServer({ id: "i1", listId: "l1", completed: false })
-        .completed,
+      toServer("items", { id: "i1", listId: "l1", completed: false }).completed,
     ).toBe(0);
   });
 
@@ -146,14 +138,14 @@ describe("item converters", () => {
       completedAt: "2026-01-03",
       _deleted: false,
     };
-    expect(serverItemToClient(clientItemToServer(client))).toEqual(client);
+    expect(toClient("items", toServer("items", client))).toEqual(client);
   });
 });
 
 describe("category converters", () => {
   it("maps a server category to client", () => {
     expect(
-      serverCategoryToClient({
+      toClient("categories", {
         id: "c1",
         list_id: "l1",
         name: "Urgent",
@@ -183,7 +175,7 @@ describe("category converters", () => {
       updatedAt: "2026-01-02",
       _deleted: false,
     };
-    expect(serverCategoryToClient(clientCategoryToServer(client))).toEqual(
+    expect(toClient("categories", toServer("categories", client))).toEqual(
       client,
     );
   });

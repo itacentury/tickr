@@ -12,6 +12,7 @@
  */
 
 import * as dom from "./dom.js";
+import { escapeHtml as esc, cssVar } from "./dom.js";
 import { METRICS_POLL_INTERVAL_MS } from "./timing.js";
 
 let pollInterval = null;
@@ -26,25 +27,6 @@ const AXIS_LABELS = {
   86400: ["−24h", "−18h", "−12h", "−6h", "now"],
   604800: ["−7d", "−5d", "−3d", "−1d", "now"],
 };
-
-/**
- * Escape HTML special characters to prevent XSS when inserting into innerHTML.
- *
- * @param {*} str - Raw value to escape.
- * @returns {string} HTML-safe string.
- */
-function esc(str) {
-  const el = document.createElement("span");
-  el.textContent = String(str);
-  return el.innerHTML;
-}
-
-/** Read a CSS custom property from :root, resolved to its computed value. */
-function cssVar(name) {
-  return getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim();
-}
 
 /** Open the metrics modal and start polling. */
 export function openMetrics() {

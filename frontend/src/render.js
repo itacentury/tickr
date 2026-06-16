@@ -10,6 +10,7 @@
 
 import { state } from "./state.js";
 import * as dom from "./dom.js";
+import { escapeHtml } from "./dom.js";
 import { icons, uiIcons } from "./icons.js";
 import { applyIconSelection } from "./icons.js";
 import { groupHistoryByItem, relativeTime } from "./history-model.js";
@@ -44,13 +45,6 @@ export function initRenderSubscriptions() {
  */
 function activeCategories() {
   return state.categoryDraft ?? state.categories;
-}
-
-/** Escape HTML entities to prevent XSS in rendered content. */
-function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 /** Toggle the no-lists CSS class on the app container. */
@@ -228,6 +222,16 @@ function sanitizeHexColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#64748b";
 }
 
+/** Strip anything that isn't a valid CSS class-name character so it can't break out of the class attr. */
+function sanitizeClassName(value) {
+  return String(value).replace(/[^a-zA-Z0-9_\- ]/g, "");
+}
+
+/** Build an empty span carrying a sanitized color in data-color for CSP-safe theming. */
+function renderColoredDot(color, className) {
+  return `<span class="${sanitizeClassName(className)}" data-color="${sanitizeHexColor(color)}"></span>`;
+}
+
 /**
  * CSP-safe color application: set --cat-color via CSSOM from each element's
  * data-color attribute. The CSP forbids inline style attributes, so colors are
@@ -385,7 +389,7 @@ function catPill(cat, old = false) {
     return `<span class="${cls}"><span class="cat-pill-dot"></span>No category</span>`;
   }
   const dot = cat.color
-    ? `<span class="cat-pill-dot" data-color="${sanitizeHexColor(cat.color)}"></span>`
+    ? renderColoredDot(cat.color, "cat-pill-dot")
     : `<span class="cat-pill-dot"></span>`;
   return `<span class="${cls}">${dot}${escapeHtml(cat.name)}</span>`;
 }
@@ -437,9 +441,7 @@ function renderCard(card) {
 
   let categoryTag = "";
   if (card.category) {
-    const dot = card.accent
-      ? `<span class="cat-dot" data-color="${sanitizeHexColor(card.accent)}"></span>`
-      : "";
+    const dot = card.accent ? renderColoredDot(card.accent, "cat-dot") : "";
     categoryTag = `<span class="icard-divider"></span><span class="cat-tag">${dot}${escapeHtml(card.category.name)}</span>`;
   }
 
@@ -519,9 +521,8 @@ export function renderEditListCategories() {
   }
   dom.editListCategoriesList.innerHTML = cats
     .map((cat) => {
-      const color = sanitizeHexColor(cat.color);
       return `<li class="category-row" data-id="${cat.id}">
-        <span class="category-dot" data-color="${color}"></span>
+        ${renderColoredDot(cat.color, "category-dot")}
         <span class="category-name">${escapeHtml(cat.name)}</span>
         <button type="button" class="btn-icon-mini category-edit" title="Edit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -556,7 +557,7 @@ export function renderItemCategoryOptions() {
       const dot =
         e.color === null
           ? '<span class="dropdown-dot dropdown-dot--empty"></span>'
-          : `<span class="dropdown-dot" data-color="${sanitizeHexColor(e.color)}"></span>`;
+          : renderColoredDot(e.color, "dropdown-dot");
       return `<li class="dropdown-item" role="option" data-value="${e.id}">${dot}<span class="dropdown-item-label">${escapeHtml(e.name)}</span></li>`;
     })
     .join("");

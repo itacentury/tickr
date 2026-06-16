@@ -211,3 +211,22 @@ export function closeHistoryPanel() {
   historyPanel.classList.remove("open");
   historyPanel.setAttribute("aria-hidden", "true");
 }
+
+/**
+ * Escape HTML special characters to prevent XSS when inserting into innerHTML.
+ *
+ * @param {*} value - Raw value to escape.
+ * @returns {string} HTML-safe string.
+ */
+export function escapeHtml(value) {
+  const el = document.createElement("span");
+  el.textContent = String(value);
+  return el.innerHTML;
+}
+
+/** Read a CSS custom property from :root, resolved to its computed value. */
+export function cssVar(name) {
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+}

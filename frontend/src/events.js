@@ -134,6 +134,127 @@ function wireQuickFormEnter(input, form, saveBtn, modalSaveBtn) {
   });
 }
 
+/**
+ * Wire an icon picker: the toggle button expands/collapses the options, and
+ * clicking an option reports the chosen icon and refreshes the preview.
+ *
+ * @param {HTMLElement} toggle - The button that opens the options container.
+ * @param {HTMLElement} container - The element holding the `.icon-option`s.
+ * @param {HTMLElement} preview - The element showing the selected icon.
+ * @param {(icon: string) => void} onSelect - Receives the chosen icon name.
+ */
+function wireIconPicker(toggle, container, preview, onSelect) {
+  toggle.addEventListener("click", () => {
+    toggle.classList.toggle("open");
+    container.classList.toggle("expanded");
+  });
+
+  container.addEventListener("click", (e) => {
+    const target = /** @type {HTMLElement} */ (e.target);
+    const option = /** @type {HTMLElement} */ (target.closest(".icon-option"));
+    if (!option) return;
+    const icon = option.dataset.icon;
+    onSelect(icon);
+    applyIconSelection(container, toggle, preview, icon);
+  });
+}
+
+/**
+ * Wire a color swatch grid: clicking a `.color-swatch` writes its color into
+ * the backing input and re-renders the palette to mark the active swatch.
+ *
+ * @param {HTMLElement} container - The element holding the `.color-swatch`es.
+ * @param {HTMLInputElement} valueInput - The hidden input storing the color.
+ */
+function wireColorSwatchPicker(container, valueInput) {
+  container?.addEventListener("click", (e) => {
+    const target = /** @type {HTMLElement} */ (e.target);
+    const swatch = /** @type {HTMLElement} */ (target.closest(".color-swatch"));
+    if (!swatch) return;
+    const color = swatch.dataset.color;
+    valueInput.value = color;
+    renderColorPalette(container, color);
+  });
+}
+
+/**
+ * Populate an expandable category form with name/color, render its palette,
+ * expand it and focus the name input. Shared by the "add new" and "edit
+ * existing" entry points.
+ *
+ * @param {HTMLElement} form
+ * @param {HTMLInputElement} nameInput
+ * @param {HTMLInputElement} colorInput
+ * @param {HTMLElement} swatches
+ * @param {string} name
+ * @param {string} color
+ */
+function fillCategoryForm(form, nameInput, colorInput, swatches, name, color) {
+  nameInput.value = name;
+  colorInput.value = color;
+  renderColorPalette(swatches, color);
+  form.classList.add("expanded");
+  setTimeout(() => nameInput.focus(), 0);
+}
+
+/**
+ * Wire an expandable quick-category form: open (blank, auto-picked color),
+ * cancel, save (validate → persist → collapse), Enter handling and swatch
+ * selection. Per-modal behavior is supplied via callbacks.
+ *
+ * @param {object} cfg
+ * @param {HTMLElement} cfg.form
+ * @param {HTMLInputElement} cfg.nameInput
+ * @param {HTMLInputElement} cfg.colorInput
+ * @param {HTMLElement} cfg.swatches
+ * @param {HTMLElement} cfg.openBtn
+ * @param {HTMLElement} cfg.cancelBtn
+ * @param {HTMLElement} cfg.saveBtn
+ * @param {HTMLElement} cfg.modalSaveBtn - Element to focus after committing via Enter.
+ * @param {() => void} [cfg.onOpen] - Extra setup before the form expands.
+ * @param {(name: string, color: string) => void} cfg.onSave - Persist the category.
+ * @param {() => void} cfg.collapse - Collapse/reset the form.
+ */
+function wireQuickCategoryForm({
+  form,
+  nameInput,
+  colorInput,
+  swatches,
+  openBtn,
+  cancelBtn,
+  saveBtn,
+  modalSaveBtn,
+  onOpen,
+  onSave,
+  collapse,
+}) {
+  wireColorSwatchPicker(swatches, colorInput);
+
+  openBtn?.addEventListener("click", () => {
+    onOpen?.();
+    fillCategoryForm(
+      form,
+      nameInput,
+      colorInput,
+      swatches,
+      "",
+      pickInitialColor(),
+    );
+  });
+
+  cancelBtn?.addEventListener("click", collapse);
+
+  saveBtn?.addEventListener("click", () => {
+    const name = nameInput.value.trim();
+    const color = colorInput.value;
+    if (!name) return;
+    onSave(name, color);
+    collapse();
+  });
+
+  wireQuickFormEnter(nameInput, form, saveBtn, modalSaveBtn);
+}
+
 /** Custom dropdowns, icon pickers, toast listeners, restored sidebar state. */
 function wireInitialUi() {
   // Custom dropdowns (replace native <select>)
@@ -266,15 +387,22 @@ function wireItems() {
 /** New-list and edit-list modals: icon pickers, create, update, delete. */
 function wireListModals() {
   // Icon pickers
-  dom.iconPickerToggle.addEventListener("click", () => {
-    dom.iconPickerToggle.classList.toggle("open");
-    dom.iconOptionsContainer.classList.toggle("expanded");
-  });
-
-  dom.editIconPickerToggle.addEventListener("click", () => {
-    dom.editIconPickerToggle.classList.toggle("open");
-    dom.editIconOptionsContainer.classList.toggle("expanded");
-  });
+  wireIconPicker(
+    dom.iconPickerToggle,
+    dom.iconOptionsContainer,
+    dom.iconPreview,
+    (icon) => {
+      state.selectedIcon = icon;
+    },
+  );
+  wireIconPicker(
+    dom.editIconPickerToggle,
+    dom.editIconOptionsContainer,
+    dom.editIconPreview,
+    (icon) => {
+      state.editSelectedIcon = icon;
+    },
+  );
 
   // Edit list
   dom.editListBtn.addEventListener("click", openEditListModal);
@@ -310,34 +438,6 @@ function wireListModals() {
       state.selectedIcon,
     );
     setTimeout(() => dom.newListName.focus(), MODAL_FOCUS_DELAY_MS);
-  });
-
-  // Icon selection for new list
-  dom.iconOptionsContainer.addEventListener("click", (e) => {
-    const target = /** @type {HTMLElement} */ (e.target);
-    const option = /** @type {HTMLElement} */ (target.closest(".icon-option"));
-    if (!option) return;
-    state.selectedIcon = option.dataset.icon;
-    applyIconSelection(
-      dom.iconOptionsContainer,
-      dom.iconPickerToggle,
-      dom.iconPreview,
-      state.selectedIcon,
-    );
-  });
-
-  // Icon selection for edit list
-  dom.editIconOptionsContainer.addEventListener("click", (e) => {
-    const target = /** @type {HTMLElement} */ (e.target);
-    const option = /** @type {HTMLElement} */ (target.closest(".icon-option"));
-    if (!option) return;
-    state.editSelectedIcon = option.dataset.icon;
-    applyIconSelection(
-      dom.editIconOptionsContainer,
-      dom.editIconPickerToggle,
-      dom.editIconPreview,
-      state.editSelectedIcon,
-    );
   });
 
   // New list form
@@ -473,94 +573,52 @@ function wireItemModal() {
 /** Category quick-create (item modal) and management (list modal). */
 function wireCategories() {
   // ---- Categories: Quick-create from item modal ----
-  dom.editItemCategoryNew?.addEventListener("click", () => {
+  wireQuickCategoryForm({
+    form: dom.editItemCategoryQuickForm,
+    nameInput: dom.editItemCategoryQuickName,
+    colorInput: dom.editItemCategoryQuickColor,
+    swatches: dom.editItemCategoryQuickSwatches,
+    openBtn: dom.editItemCategoryNew,
+    cancelBtn: dom.editItemCategoryQuickCancel,
+    saveBtn: dom.editItemCategoryQuickSave,
+    modalSaveBtn: dom.editItemSave,
     // Entering "create new" mode clears any existing dropdown selection so only
     // one category mode is active at a time.
-    setDropdownValue(dom.editItemCategoryDropdown, "");
-    const initial = pickInitialColor();
-    dom.editItemCategoryQuickName.value = "";
-    dom.editItemCategoryQuickColor.value = initial;
-    renderColorPalette(dom.editItemCategoryQuickSwatches, initial);
-    dom.editItemCategoryQuickForm.classList.add("expanded");
-    setTimeout(() => dom.editItemCategoryQuickName.focus(), 0);
+    onOpen: () => setDropdownValue(dom.editItemCategoryDropdown, ""),
+    onSave: (name, color) => {
+      // Stage the new category in the draft and select it. It is only written
+      // to the DB when the item modal is saved (commitCategoryDraft maps the
+      // temp id to a real one), and discarded if the item modal is cancelled.
+      const entry = draftAddCategory(name, color);
+      dom.editItemCategory.value = entry.id;
+      renderItemCategoryOptions();
+    },
+    collapse: () => dom.editItemCategoryQuickForm.classList.remove("expanded"),
   });
-
-  dom.editItemCategoryQuickCancel?.addEventListener("click", () => {
-    dom.editItemCategoryQuickForm.classList.remove("expanded");
-  });
-
-  dom.editItemCategoryQuickSwatches?.addEventListener("click", (e) => {
-    const target = /** @type {HTMLElement} */ (e.target);
-    const swatch = /** @type {HTMLElement} */ (target.closest(".color-swatch"));
-    if (!swatch) return;
-    const color = swatch.dataset.color;
-    dom.editItemCategoryQuickColor.value = color;
-    renderColorPalette(dom.editItemCategoryQuickSwatches, color);
-  });
-
-  dom.editItemCategoryQuickSave?.addEventListener("click", () => {
-    const name = dom.editItemCategoryQuickName.value.trim();
-    const color = dom.editItemCategoryQuickColor.value;
-    if (!name) return;
-    // Stage the new category in the draft and select it. It is only written to
-    // the DB when the item modal is saved (commitCategoryDraft maps the temp
-    // id to a real one), and discarded if the item modal is cancelled.
-    const entry = draftAddCategory(name, color);
-    dom.editItemCategory.value = entry.id;
-    renderItemCategoryOptions();
-    dom.editItemCategoryQuickForm.classList.remove("expanded");
-  });
-
-  wireQuickFormEnter(
-    dom.editItemCategoryQuickName,
-    dom.editItemCategoryQuickForm,
-    dom.editItemCategoryQuickSave,
-    dom.editItemSave,
-  );
 
   // ---- Categories: Manage from list modal ----
-  dom.editListCategoryAddBtn?.addEventListener("click", () => {
-    state.editingCategoryId = null;
-    const initial = pickInitialColor();
-    dom.editListCategoryName.value = "";
-    dom.editListCategoryColor.value = initial;
-    renderColorPalette(dom.editListCategorySwatches, initial);
-    dom.editListCategoryForm.classList.add("expanded");
-    setTimeout(() => dom.editListCategoryName.focus(), 0);
+  wireQuickCategoryForm({
+    form: dom.editListCategoryForm,
+    nameInput: dom.editListCategoryName,
+    colorInput: dom.editListCategoryColor,
+    swatches: dom.editListCategorySwatches,
+    openBtn: dom.editListCategoryAddBtn,
+    cancelBtn: dom.editListCategoryCancel,
+    saveBtn: dom.editListCategorySave,
+    modalSaveBtn: dom.editListSave,
+    onOpen: () => {
+      state.editingCategoryId = null;
+    },
+    onSave: (name, color) => {
+      if (state.editingCategoryId) {
+        draftUpdateCategory(state.editingCategoryId, { name, color });
+      } else {
+        draftAddCategory(name, color);
+      }
+      renderEditListCategories();
+    },
+    collapse: () => resetCategoryForm(dom.editListCategoryForm),
   });
-
-  dom.editListCategoryCancel?.addEventListener("click", () => {
-    resetCategoryForm(dom.editListCategoryForm);
-  });
-
-  dom.editListCategorySwatches?.addEventListener("click", (e) => {
-    const target = /** @type {HTMLElement} */ (e.target);
-    const swatch = /** @type {HTMLElement} */ (target.closest(".color-swatch"));
-    if (!swatch) return;
-    const color = swatch.dataset.color;
-    dom.editListCategoryColor.value = color;
-    renderColorPalette(dom.editListCategorySwatches, color);
-  });
-
-  dom.editListCategorySave?.addEventListener("click", () => {
-    const name = dom.editListCategoryName.value.trim();
-    const color = dom.editListCategoryColor.value;
-    if (!name) return;
-    if (state.editingCategoryId) {
-      draftUpdateCategory(state.editingCategoryId, { name, color });
-    } else {
-      draftAddCategory(name, color);
-    }
-    renderEditListCategories();
-    resetCategoryForm(dom.editListCategoryForm);
-  });
-
-  wireQuickFormEnter(
-    dom.editListCategoryName,
-    dom.editListCategoryForm,
-    dom.editListCategorySave,
-    dom.editListSave,
-  );
 
   dom.editListCategoriesList?.addEventListener("click", (e) => {
     const target = /** @type {HTMLElement} */ (e.target);
@@ -571,11 +629,14 @@ function wireCategories() {
       const cat = state.categoryDraft?.find((c) => c.id === id);
       if (!cat) return;
       state.editingCategoryId = id;
-      dom.editListCategoryName.value = cat.name;
-      dom.editListCategoryColor.value = cat.color;
-      renderColorPalette(dom.editListCategorySwatches, cat.color);
-      dom.editListCategoryForm.classList.add("expanded");
-      setTimeout(() => dom.editListCategoryName.focus(), 0);
+      fillCategoryForm(
+        dom.editListCategoryForm,
+        dom.editListCategoryName,
+        dom.editListCategoryColor,
+        dom.editListCategorySwatches,
+        cat.name,
+        cat.color,
+      );
     } else if (target.closest(".category-delete")) {
       draftDeleteCategory(id);
       renderEditListCategories();
