@@ -29,7 +29,7 @@ Reihenfolge nach Risiko/Nutzen: 1 → 5 → 2 → 3 → 4.
 - [x] **3.1 Geteilte DOM-Utilities** — `esc()` (in `metrics.js`, dupliziert `escapeHtml()` aus `render.js`) und `cssVar()` nach `frontend/src/dom.js` (oder `utils/dom.js`).
 - [x] **3.2 Event-Wiring-Helfer in `events.js`** — `wireIconPicker(toggle, container)`, `wireColorSwatchPicker(container, valueInput)`, `wireQuickCategoryForm(...)` extrahieren (mehrfach kopierte Add/Reset/Focus- und `closest().dataset`-Muster).
 - [x] **3.3 Generischer Feld-Konverter in `db/replication.js`** — die 6 fast identischen `serverXToClient`/`clientXToServer`-Funktionen durch Feld-Maps + zwei generische Konverter `toClient(collection, doc)` / `toServer(collection, doc)` ersetzen.
-- [ ] **3.4 Farb-Punkt-Helfer in `render.js`** — `renderColoredDot(color, className)` extrahieren (mehrfach inline gebautes `sanitizeHexColor` + `data-color`-Span).
+- [x] **3.4 Farb-Punkt-Helfer in `render.js`** — `renderColoredDot(color, className)` extrahieren (mehrfach inline gebautes `sanitizeHexColor` + `data-color`-Span).
 
 ## Phase 4 — Frontend: Dateien aufteilen (Architektur)
 
