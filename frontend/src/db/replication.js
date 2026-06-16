@@ -395,53 +395,37 @@ function createPushHandler(collection, toServer, toClient) {
 }
 
 /**
+ * Build a bidirectional replication state for one collection, binding the
+ * generic converters to its name so the per-collection config stays a one-liner.
+ *
+ * @param {import('rxdb').RxDatabase} db - The RxDB database instance.
+ * @param {string} name - Collection name (lists, items, categories).
+ * @returns {import('rxdb/plugins/replication').RxReplicationState} Replication state.
+ */
+function createCollectionReplication(db, name) {
+  const toClientFn = (d) => toClient(name, d);
+  const toServerFn = (d) => toServer(name, d);
+  return replicateRxCollection({
+    collection: db[name],
+    replicationIdentifier: `tickr-${name}-sync`,
+    live: true,
+    retryTime: REPLICATION_RETRY_MS,
+    pull: createPullHandler(name, toClientFn),
+    push: createPushHandler(name, toServerFn, toClientFn),
+    autoStart: true,
+  });
+}
+
+/**
  * Set up bidirectional replication for all collections.
  *
  * @param {import('rxdb').RxDatabase} db - The RxDB database instance.
  * @returns {Object} Replication states for lists and items.
  */
 export function setupReplication(db) {
-  const listsReplication = replicateRxCollection({
-    collection: db.lists,
-    replicationIdentifier: "tickr-lists-sync",
-    live: true,
-    retryTime: REPLICATION_RETRY_MS,
-    pull: createPullHandler("lists", (d) => toClient("lists", d)),
-    push: createPushHandler(
-      "lists",
-      (d) => toServer("lists", d),
-      (d) => toClient("lists", d),
-    ),
-    autoStart: true,
-  });
-
-  const itemsReplication = replicateRxCollection({
-    collection: db.items,
-    replicationIdentifier: "tickr-items-sync",
-    live: true,
-    retryTime: REPLICATION_RETRY_MS,
-    pull: createPullHandler("items", (d) => toClient("items", d)),
-    push: createPushHandler(
-      "items",
-      (d) => toServer("items", d),
-      (d) => toClient("items", d),
-    ),
-    autoStart: true,
-  });
-
-  const categoriesReplication = replicateRxCollection({
-    collection: db.categories,
-    replicationIdentifier: "tickr-categories-sync",
-    live: true,
-    retryTime: REPLICATION_RETRY_MS,
-    pull: createPullHandler("categories", (d) => toClient("categories", d)),
-    push: createPushHandler(
-      "categories",
-      (d) => toServer("categories", d),
-      (d) => toClient("categories", d),
-    ),
-    autoStart: true,
-  });
+  const listsReplication = createCollectionReplication(db, "lists");
+  const itemsReplication = createCollectionReplication(db, "items");
+  const categoriesReplication = createCollectionReplication(db, "categories");
 
   window.addEventListener("beforeunload", cleanupSSE);
 
