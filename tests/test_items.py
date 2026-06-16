@@ -182,3 +182,27 @@ class TestDeleteItem:
             (item["id"],),
         ).fetchone()
         assert row["cnt"] == 0
+
+    def test_delete_nonexistent_item_skips_broadcast(self, client, monkeypatch):
+        """Deleting an absent item succeeds idempotently without scheduling any broadcast."""
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            "backend.routes.items.notify_change",
+            lambda *args, **kwargs: calls.append(args),
+        )
+        resp = client.delete("/api/v1/items/does-not-exist")
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        assert calls == []
+
+    def test_delete_existing_item_broadcasts(self, client, create_list, create_item, monkeypatch):
+        """Deleting a real item schedules exactly one items_changed broadcast for its list."""
+        lst = create_list()
+        item = create_item(lst["id"])
+        calls: list[tuple] = []
+        monkeypatch.setattr(
+            "backend.routes.items.notify_change",
+            lambda bg, *args: calls.append(args),
+        )
+        client.delete(f"/api/v1/items/{item['id']}")
+        assert calls == [("items_changed", "items", lst["id"])]

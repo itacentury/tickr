@@ -193,6 +193,7 @@ def delete_item(
     )
     db.commit()
 
-    notify_change(bg, "items_changed", "items", list_id)
+    if item:
+        notify_change(bg, "items_changed", "items", list_id)
     logger.info("item_deleted", item_id=item_id)
     return {"success": True}
