@@ -5,6 +5,7 @@ import sqlite3
 from fastapi import APIRouter, Depends, Query
 
 from ..database import get_db
+from ..errors import AppError, ErrorCode
 from ..models import SuccessResponse
 
 router = APIRouter(prefix="/api/v1")
@@ -38,5 +39,7 @@ def hide_item_history(
         "UPDATE history SET hidden = 1 WHERE list_id = ? AND item_id = ?",
         (list_id, item_id),
     )
+    if cursor.rowcount == 0:
+        raise AppError(ErrorCode.ITEM_NOT_FOUND, "No history found for this item", 404)
     db.commit()
     return {"success": True}

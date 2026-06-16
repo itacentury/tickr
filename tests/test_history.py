@@ -105,3 +105,11 @@ class TestHideItemHistory:
         item_ids = {h["item_id"] for h in client.get(f"/api/v1/lists/{lst['id']}/history").json()}
         assert kept["id"] in item_ids
         assert gone["id"] not in item_ids
+
+    def test_hide_unknown_item_returns_404(self, client, create_list):
+        """Hiding an item with no matching history rows returns 404 ITEM_NOT_FOUND."""
+        lst = create_list()
+
+        resp = client.post(f"/api/v1/lists/{lst['id']}/history/hide?item_id=does-not-exist")
+        assert resp.status_code == 404
+        assert resp.json()["error"]["code"] == "ITEM_NOT_FOUND"
