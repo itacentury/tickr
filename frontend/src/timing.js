@@ -48,6 +48,15 @@ export const REPLICATION_FETCH_TIMEOUT_MS = 15000;
 /** RxDB `retryTime` for failed pull/push on every collection. */
 export const REPLICATION_RETRY_MS = 5000;
 
+/**
+ * Cap on how long a history refresh waits for pending item writes to reach the
+ * server before fetching. The server writes history rows (e.g. `item_restored`)
+ * inside the push request, so we wait for the push to land — but time-box it so
+ * an offline/hung push can't block the drawer. Generous vs. a normal round-trip,
+ * well below `REPLICATION_FETCH_TIMEOUT_MS`.
+ */
+export const HISTORY_SYNC_WAIT_TIMEOUT_MS = 3000;
+
 // --- Polling / background updates ---
 
 /** Refresh interval for the metrics dashboard while its modal is open. */

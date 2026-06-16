@@ -7,6 +7,10 @@
 
 export const state = {
   db: null,
+  // RxDB replication states ({ listsReplication, itemsReplication, ... }) from
+  // setupReplication(), exposed so refreshDrawer can await pending item pushes
+  // before fetching history (whose rows the server writes during the push).
+  replications: null,
   lists: [],
   currentListId: null,
   items: [],

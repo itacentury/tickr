@@ -7,6 +7,7 @@
  * Note: .exec() calls below are RxDB query execution, not shell commands.
  */
 
+import { firstValueFrom } from "rxjs";
 import { state } from "./state.js";
 import * as dom from "./dom.js";
 import { getStorageItem, setStorageItem } from "./storage.js";
@@ -55,7 +56,11 @@ import { parseCategoryTag } from "./category-tag.js";
 import { createCategoryAutocomplete } from "./add-item-autocomplete.js";
 import { openMetrics, closeMetrics, setMetricsWindow } from "./metrics.js";
 import { logout } from "./auth.js";
-import { MODAL_FOCUS_DELAY_MS, LIST_SWIPE_ANIMATION_MS } from "./timing.js";
+import {
+  MODAL_FOCUS_DELAY_MS,
+  LIST_SWIPE_ANIMATION_MS,
+  HISTORY_SYNC_WAIT_TIMEOUT_MS,
+} from "./timing.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
 function closeAllModals() {
@@ -638,10 +643,44 @@ function wireHistory() {
  * user switched lists meanwhile, skip the refresh so we don't overwrite the
  * now-visible drawer with a list the user already navigated away from.
  *
+ * Item mutations (restore/reopen) sync via RxDB, but history is read over a
+ * separate server endpoint, so we first await the items push before fetching —
+ * otherwise the just-written history row would be missed on the first fetch.
+ *
  * @param {string} [listId] - List to refresh; defaults to the current list.
+ * @returns {Promise<void>} Resolves once the refresh has been issued or skipped.
  */
-function refreshDrawer(listId = state.currentListId) {
-  if (listId && listId === state.currentListId) fetchHistory(listId);
+async function refreshDrawer(listId = state.currentListId) {
+  if (!listId || listId !== state.currentListId) return;
+
+  // Wait for pending local item writes (e.g. the restore upsert) to reach the
+  // server before fetching, so the history row the server writes during the
+  // push is already present on the first fetch. Stop waiting as soon as any of:
+  //  - awaitInSync resolves (push landed — the happy path),
+  //  - the push errors (backend unreachable, e.g. VPN off / server down — no
+  //    point waiting, the history fetch will fail too but should fail fast),
+  //  - the timeout fires (slow/hung push — fetch anyway, today's behaviour).
+  // navigator.onLine is only a cheap instant-skip for the clearly-offline case;
+  // it can't tell whether the backend itself is reachable, so error$ carries
+  // that load.
+  const items = state.replications?.itemsReplication;
+  if (items && navigator.onLine) {
+    await Promise.race([
+      items.awaitInSync(),
+      // firstValueFrom rejects if error$ completes without emitting (e.g. the
+      // replication was cancelled); swallow that so the race never throws out
+      // of refreshDrawer.
+      firstValueFrom(items.error$).catch(() => {}),
+      new Promise((resolve) =>
+        setTimeout(resolve, HISTORY_SYNC_WAIT_TIMEOUT_MS),
+      ),
+    ]);
+    // The user may have switched lists while we waited; don't overwrite the
+    // now-visible drawer with the list the action started on.
+    if (listId !== state.currentListId) return;
+  }
+
+  fetchHistory(listId);
 }
 
 /**
