@@ -222,9 +222,14 @@ function sanitizeHexColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#64748b";
 }
 
+/** Strip anything that isn't a valid CSS class-name character so it can't break out of the class attr. */
+function sanitizeClassName(value) {
+  return String(value).replace(/[^a-zA-Z0-9_\- ]/g, "");
+}
+
 /** Build an empty span carrying a sanitized color in data-color for CSP-safe theming. */
 function renderColoredDot(color, className) {
-  return `<span class="${className}" data-color="${sanitizeHexColor(color)}"></span>`;
+  return `<span class="${sanitizeClassName(className)}" data-color="${sanitizeHexColor(color)}"></span>`;
 }
 
 /**
