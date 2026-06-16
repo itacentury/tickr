@@ -12,18 +12,20 @@ router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/settings")
-def get_settings(db: sqlite3.Connection = Depends(get_db)):
+def get_settings(db: sqlite3.Connection = Depends(get_db)) -> dict[str, str]:
     """Return all app settings."""
-    cursor = db.cursor()
+    cursor: sqlite3.Cursor = db.cursor()
     cursor.execute("SELECT key, value FROM settings")
-    rows = cursor.fetchall()
+    rows: list[sqlite3.Row] = cursor.fetchall()
     return {row["key"]: row["value"] for row in rows}
 
 
 @router.put("/settings", response_model=SuccessResponse)
-def update_settings(settings_data: SettingsUpdate, db: sqlite3.Connection = Depends(get_db)):
+def update_settings(
+    settings_data: SettingsUpdate, db: sqlite3.Connection = Depends(get_db)
+) -> dict:
     """Update app settings."""
-    cursor = db.cursor()
+    cursor: sqlite3.Cursor = db.cursor()
 
     if settings_data.list_sort is not None:
         if settings_data.list_sort not in VALID_LIST_SORT_OPTIONS:

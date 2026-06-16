@@ -237,10 +237,28 @@ VALID_LIST_SORT_OPTIONS: list[str] = [
     "custom",
 ]
 
-# Sort option to SQL ORDER BY mapping
+# Sort option to SQL ORDER BY mapping for items
 SORT_SQL: dict[str, str] = {
     "alphabetical": "text COLLATE NOCASE ASC",
     "alphabetical_desc": "text COLLATE NOCASE DESC",
     "created_desc": "created_at DESC",
     "created_asc": "created_at ASC",
 }
+
+# Sort option to SQL ORDER BY mapping for lists (aliased as `l` in the join query)
+LIST_SORT_SQL: dict[str, str] = {
+    "alphabetical": "l.name COLLATE NOCASE ASC",
+    "alphabetical_desc": "l.name COLLATE NOCASE DESC",
+    "created_desc": "l.created_at DESC",
+    "created_asc": "l.created_at ASC",
+    "custom": "l.sort_order, l.created_at",
+}
+
+
+def resolve_sort_sql(option: str | None, mapping: dict[str, str]) -> str:
+    """Return the ORDER BY clause for ``option``, falling back to alphabetical.
+
+    Only values from ``mapping`` are ever returned, so the result is safe to
+    interpolate into a SQL string.
+    """
+    return mapping.get(option or "", mapping["alphabetical"])

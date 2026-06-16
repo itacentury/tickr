@@ -11,9 +11,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
 from ..config import SSE_HEARTBEAT_INTERVAL, TOMBSTONE_RETAIN_DAYS
-from ..database import get_db, now
+from ..database import get_db, log_history, now
 from ..errors import AppError, ErrorCode
-from ..events import broadcast_sync, broadcast_update, sync_broadcaster
+from ..events import notify_change, sync_broadcaster
 from ..logging_config import get_logger
 from ..metrics import sync_metrics
 from ..models import SyncCategoryState, SyncChange, SyncItemState, SyncListState
@@ -121,11 +121,12 @@ def _insert_history(
     action: str,
     item_text: str | None,
 ) -> None:
-    """Append one history row; timestamp defaults to CURRENT_TIMESTAMP."""
-    cursor.execute(
-        "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-        (list_id, item_id, action, item_text),
-    )
+    """Append one history row; timestamp defaults to CURRENT_TIMESTAMP.
+
+    Thin adapter that keeps the sync-local (list_id, item_id, ...) argument order
+    while delegating the actual insert to the shared ``log_history`` helper.
+    """
+    log_history(cursor, list_id, action, item_text, item_id)
 
 
 def _log_list_history(
@@ -491,8 +492,7 @@ def sync_push(
     sync_metrics.record_push(len(changes), len(conflicts))
 
     if wrote_any:
-        bg.add_task(broadcast_update, spec.broadcast_event)
-        bg.add_task(broadcast_sync, collection)
+        notify_change(bg, spec.broadcast_event, collection)
 
     return conflicts
 

@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 
 from ..database import get_db, new_uuid, now
 from ..errors import AppError, ErrorCode
-from ..events import broadcast_sync, broadcast_update
+from ..events import notify_change
 from ..logging_config import get_logger
 from ..models import CategoryCreate, CategoryResponse, CategoryUpdate, SuccessResponse
 
@@ -56,8 +56,7 @@ def create_category(
     )
     db.commit()
 
-    bg.add_task(broadcast_update, "categories_changed", list_id)
-    bg.add_task(broadcast_sync, "categories")
+    notify_change(bg, "categories_changed", "categories", list_id)
     logger.info("category_created", category_id=category_id, list_id=list_id, name=data.name[:50])
     return {
         "id": category_id,
@@ -97,8 +96,7 @@ def update_category(
     cursor.execute(f"UPDATE categories SET {', '.join(updates)} WHERE id = ?", values)
     db.commit()
 
-    bg.add_task(broadcast_update, "categories_changed", row["list_id"])
-    bg.add_task(broadcast_sync, "categories")
+    notify_change(bg, "categories_changed", "categories", row["list_id"])
     logger.info("category_updated", category_id=category_id)
     return {"success": True}
 
@@ -131,9 +129,7 @@ def delete_category(
             (timestamp, category_id),
         )
 
-    bg.add_task(broadcast_update, "categories_changed", list_id)
-    bg.add_task(broadcast_update, "items_changed", list_id)
-    bg.add_task(broadcast_sync, "categories")
-    bg.add_task(broadcast_sync, "items")
+    notify_change(bg, "categories_changed", "categories", list_id)
+    notify_change(bg, "items_changed", "items", list_id)
     logger.info("category_deleted", category_id=category_id)
     return {"success": True}

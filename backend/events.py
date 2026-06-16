@@ -13,6 +13,8 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import suppress
 
+from fastapi import BackgroundTasks
+
 from .config import MAX_SSE_CLIENTS, SSE_HEARTBEAT_INTERVAL
 from .errors import AppError, ErrorCode
 from .logging_config import get_logger
@@ -161,6 +163,14 @@ def broadcast_sync(collection: str) -> None:
     sync_broadcaster.broadcast(json.dumps({"collection": collection}))
 
 
+def notify_change(
+    bg: BackgroundTasks, event_type: str, collection: str, list_id: str | None = None
+) -> None:
+    """Schedule the paired legacy + sync broadcasts that follow a data change."""
+    bg.add_task(broadcast_update, event_type, list_id)
+    bg.add_task(broadcast_sync, collection)
+
+
 def bind_loop(loop: asyncio.AbstractEventLoop) -> None:
     """Bind the running event loop to every broadcaster (call once at startup)."""
     legacy_broadcaster.bind_loop(loop)
@@ -207,6 +217,7 @@ __all__ = [
     "get_connection_counts",
     "initiate_shutdown",
     "legacy_broadcaster",
+    "notify_change",
     "shutdown_event",
     "sync_broadcaster",
 ]

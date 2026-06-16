@@ -4,11 +4,18 @@ import sqlite3
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 
-from ..database import get_db, new_uuid, now
+from ..database import get_db, log_history, new_uuid, now
 from ..errors import AppError, ErrorCode
-from ..events import broadcast_sync, broadcast_update
+from ..events import notify_change
 from ..logging_config import get_logger
-from ..models import SORT_SQL, ItemCreate, ItemResponse, ItemUpdate, SuccessResponse
+from ..models import (
+    SORT_SQL,
+    ItemCreate,
+    ItemResponse,
+    ItemUpdate,
+    SuccessResponse,
+    resolve_sort_sql,
+)
 
 logger = get_logger(__name__)
 
@@ -26,9 +33,7 @@ def get_items(
     row: sqlite3.Row | None = cursor.fetchone()
     if row is None:
         raise AppError(ErrorCode.LIST_NOT_FOUND, "List not found", 404)
-    sort_option: str = row["item_sort"] if row["item_sort"] else "alphabetical"
-    order_by: str = SORT_SQL.get(sort_option, SORT_SQL["alphabetical"])
-    assert order_by in SORT_SQL.values(), "order_by must come from SORT_SQL whitelist"
+    order_by: str = resolve_sort_sql(row["item_sort"], SORT_SQL)
 
     if include_completed:
         cursor.execute(
@@ -65,14 +70,10 @@ def create_item(
     )
 
     if not item_data.undo:
-        cursor.execute(
-            "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-            (list_id, item_id, "item_created", item_data.text),
-        )
+        log_history(cursor, list_id, "item_created", item_data.text, item_id)
 
     db.commit()
-    bg.add_task(broadcast_update, "items_changed", list_id)
-    bg.add_task(broadcast_sync, "items")
+    notify_change(bg, "items_changed", "items", list_id)
     logger.info("item_created", item_id=item_id, list_id=list_id, text=item_data.text[:50])
     return {
         "id": item_id,
@@ -111,9 +112,12 @@ def update_item(
         values.append(item_data.text)
 
         if not item_data.undo:
-            cursor.execute(
-                "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-                (item["list_id"], item_id, "item_renamed", f"{item['text']} → {item_data.text}"),
+            log_history(
+                cursor,
+                item["list_id"],
+                "item_renamed",
+                f"{item['text']} → {item_data.text}",
+                item_id,
             )
 
     if "category_id" in item_data.model_fields_set and item_data.category_id != item["category_id"]:
@@ -121,14 +125,12 @@ def update_item(
         values.append(item_data.category_id)
 
         if not item_data.undo:
-            cursor.execute(
-                "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-                (
-                    item["list_id"],
-                    item_id,
-                    "item_category_changed",
-                    f"{item['category_id'] or ''} → {item_data.category_id or ''}",
-                ),
+            log_history(
+                cursor,
+                item["list_id"],
+                "item_category_changed",
+                f"{item['category_id'] or ''} → {item_data.category_id or ''}",
+                item_id,
             )
 
     if item_data.completed is not None:
@@ -139,29 +141,29 @@ def update_item(
             values.append(timestamp)
 
             if not item_data.undo:
-                cursor.execute(
-                    "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-                    (item["list_id"], item_id, "item_completed", item_data.text or item["text"]),
+                log_history(
+                    cursor,
+                    item["list_id"],
+                    "item_completed",
+                    item_data.text or item["text"],
+                    item_id,
                 )
         else:
             updates.append("completed_at = NULL")
 
             if not item_data.undo:
-                cursor.execute(
-                    "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-                    (
-                        item["list_id"],
-                        item_id,
-                        "item_uncompleted",
-                        item_data.text or item["text"],
-                    ),
+                log_history(
+                    cursor,
+                    item["list_id"],
+                    "item_uncompleted",
+                    item_data.text or item["text"],
+                    item_id,
                 )
 
     values.append(item_id)
     cursor.execute(f"UPDATE items SET {', '.join(updates)} WHERE id = ?", values)
     db.commit()
-    bg.add_task(broadcast_update, "items_changed", item["list_id"])
-    bg.add_task(broadcast_sync, "items")
+    notify_change(bg, "items_changed", "items", item["list_id"])
     logger.info("item_updated", item_id=item_id)
 
     return {"success": True}
@@ -183,10 +185,7 @@ def delete_item(
     list_id: str | None = item["list_id"] if item else None
 
     if item and not undo:
-        cursor.execute(
-            "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
-            (item["list_id"], item_id, "item_deleted", item["text"]),
-        )
+        log_history(cursor, item["list_id"], "item_deleted", item["text"], item_id)
 
     cursor.execute(
         "UPDATE items SET _deleted = 1, updated_at = ? WHERE id = ?",
@@ -194,8 +193,6 @@ def delete_item(
     )
     db.commit()
 
-    if list_id:
-        bg.add_task(broadcast_update, "items_changed", list_id)
-    bg.add_task(broadcast_sync, "items")
+    notify_change(bg, "items_changed", "items", list_id)
     logger.info("item_deleted", item_id=item_id)
     return {"success": True}
