@@ -376,7 +376,7 @@ def sync_push(
                     elif _states_match(current_dict, assumed):
                         _update_doc(cursor, spec, new_state, current_dict)
                         if spec.log_history is not None:
-                            spec.log_history(cursor, current_dict, new_state)
+                            spec.log_history(cursor, current_dict, {**current_dict, **new_state})
                     else:
                         conflicts.append(current_dict)
                         continue

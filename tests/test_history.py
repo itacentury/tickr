@@ -78,6 +78,38 @@ class TestRestoreHistory:
         assert "item_restored" in actions
 
 
+class TestPartialPushHistory:
+    """Tests that a partial sync push does not produce spurious diffs."""
+
+    def test_completion_only_push_omitting_text_logs_no_rename(
+        self, client, create_list, create_item
+    ):
+        """A push that toggles only ``completed`` (no ``text``) must not log a rename.
+
+        ``newDocumentState`` carries just the changed fields, so ``text`` is absent.
+        The sync caller must merge the partial push onto the stored row before
+        diffing; otherwise the missing ``text`` reads as ``None`` and the diff
+        records a bogus ``item_renamed: "<text> → None"``.
+        """
+        lst = create_list()
+        item = create_item(lst["id"], text="Keep this text")
+
+        pull = client.get("/api/v1/sync/items/pull").json()
+        current = next(d for d in pull["documents"] if d["id"] == item["id"])
+
+        partial = {
+            "id": item["id"],
+            "list_id": lst["id"],
+            "completed": 1,
+            "updated_at": "2099-01-01T00:00:00",
+        }
+        assert _push_item(client, partial, current).json() == []
+
+        actions = [h["action"] for h in client.get(f"/api/v1/lists/{lst['id']}/history").json()]
+        assert "item_completed" in actions
+        assert "item_renamed" not in actions
+
+
 class TestHideItemHistory:
     """Tests for POST /api/v1/lists/{list_id}/history/hide."""
 
