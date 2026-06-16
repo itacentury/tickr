@@ -650,7 +650,7 @@ export async function commitHistoryHide(itemId, listId) {
     }
   } catch (error) {
     reportError("hide history", error);
-    showErrorToast("Couldn't remove from history — item restored");
+    showErrorToast("Couldn't remove from history");
   } finally {
     state.pendingDeletes.history.delete(itemId);
   }
