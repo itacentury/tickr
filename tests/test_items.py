@@ -151,6 +151,50 @@ class TestUpdateItem:
         assert updated["completed"] == 0
         assert updated["completed_at"] is None
 
+    def test_update_item_recomplete_is_noop(self, client, create_list, create_item, db):
+        """A second completed=True PUT logs no new item_completed row and keeps completed_at."""
+        lst = create_list()
+        item = create_item(lst["id"])
+
+        client.put(f"/api/v1/items/{item['id']}", json={"completed": True})
+        items = client.get(f"/api/v1/lists/{lst['id']}/items?include_completed=true").json()
+        first = next(i for i in items if i["id"] == item["id"])
+        first_completed_at = first["completed_at"]
+        first_updated_at = first["updated_at"]
+        assert first_completed_at is not None
+
+        def completed_rows() -> int:
+            row = db.execute(
+                "SELECT COUNT(*) AS cnt FROM history WHERE item_id = ? AND action = 'item_completed'",
+                (item["id"],),
+            ).fetchone()
+            return row["cnt"]
+
+        assert completed_rows() == 1
+
+        resp = client.put(f"/api/v1/items/{item['id']}", json={"completed": True})
+        assert resp.status_code == 200
+
+        assert completed_rows() == 1  # no new history row
+
+        items = client.get(f"/api/v1/lists/{lst['id']}/items?include_completed=true").json()
+        second = next(i for i in items if i["id"] == item["id"])
+        assert second["completed_at"] == first_completed_at  # completed_at unchanged
+        assert second["updated_at"] == first_updated_at  # no-op does not bump updated_at
+
+    def test_update_item_same_text_is_noop(self, client, create_list, create_item):
+        """PUTting the identical text is a no-op and does not bump updated_at."""
+        lst = create_list()
+        item = create_item(lst["id"], text="Same text")
+        original_updated_at = item["updated_at"]
+
+        resp = client.put(f"/api/v1/items/{item['id']}", json={"text": "Same text"})
+        assert resp.status_code == 200
+
+        items = client.get(f"/api/v1/lists/{lst['id']}/items").json()
+        updated = next(i for i in items if i["id"] == item["id"])
+        assert updated["updated_at"] == original_updated_at
+
     def test_update_item_not_found(self, client):
         """Updating a nonexistent item returns 404 ITEM_NOT_FOUND."""
         resp = client.put(
