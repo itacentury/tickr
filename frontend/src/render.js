@@ -443,7 +443,7 @@ function renderCard(card) {
     categoryTag = `<span class="icard-divider"></span><span class="cat-tag">${dot}${escapeHtml(card.category.name)}</span>`;
   }
 
-  return `<div class="icard ${card.status}${open ? " expanded" : ""}" data-id="${escapeHtml(card.id)}">
+  return `<div class="icard ${card.status}${open ? " expanded" : ""}" role="listitem" data-id="${escapeHtml(card.id)}">
       <div class="icard-head" role="button" tabindex="0" aria-expanded="${open}">
         <div class="icard-main">
           <div class="icard-name">${escapeHtml(card.name)}</div>
