@@ -20,7 +20,7 @@ Reihenfolge nach Risiko/Nutzen: 1 → 5 → 2 → 3 → 4.
 ## Phase 2 — Backend: update_item entschachteln & History vereinheitlichen
 
 - [x] **2.1 `update_item` entschachteln** (`backend/routes/items.py`) — 78 Zeilen mit bis zu 4 Verschachtelungsebenen; pro Feld dupliziertes History-Logging. Je Feld eine kleine Helferfunktion (`_apply_text`, `_apply_category`, `_apply_completed`), die `(updates, values)` füllt und via `log_history` protokolliert. `update_item` wird zur flachen Sequenz dieser Aufrufe.
-- [ ] **2.2 Vereinheitlichtes diff-basiertes History-Logging (sync ↔ REST)** — gemeinsame Logik in neues Modul `backend/history.py`: `log_item_diff(cursor, old_row, new_values, *, undo=False)` und Listen-Pendant. Sowohl `update_item` als auch die Sync-Push-Pfade nutzen denselben Code.
+- [x] **2.2 Vereinheitlichtes diff-basiertes History-Logging (sync ↔ REST)** — gemeinsame Logik in neues Modul `backend/history.py`: `log_item_diff(cursor, old_row, new_values, *, undo=False)` und Listen-Pendant. Sowohl `update_item` als auch die Sync-Push-Pfade nutzen denselben Code.
   > ⚠️ Achtung Verhaltensdifferenz: REST loggt `item_completed` + aktualisiert `completed_at` auch bei `completed=true` auf ein bereits erledigtes Item (No-op), während der Sync-Pfad diff-basiert nur bei echter Änderung loggt. Vor der Vereinheitlichung entscheiden, welche Semantik kanonisch ist (und ggf. Tests anpassen).
 
 ## Phase 3 — Frontend: Dedup & wiederverwendbare Utilities
