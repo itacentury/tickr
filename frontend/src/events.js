@@ -704,6 +704,9 @@ async function handleHistoryAction(action, id) {
     });
   }
 
+  // Shared refresh for the reopen/restore branches; the remove branch returns
+  // early above because it already rerenders optimistically and only touches
+  // the drawer on commit, so falling through here would refresh twice.
   refreshDrawer(listId);
 }
 
