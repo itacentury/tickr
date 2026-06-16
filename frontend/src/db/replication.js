@@ -194,100 +194,91 @@ function cleanupSSE() {
   activeReplications = [];
 }
 
+// Per-field value transforms. Plain key renames use `identity`; the rest carry
+// the defaults and bool/int coercions the server and RxDB schemas expect.
+const identity = (v) => v;
+const orDefault = (d) => (v) => v || d; // falsy default (icon, item_sort)
+const orNullish = (d) => (v) => v ?? d; // nullish default, keeps 0 (sort_order)
+const orNull = (v) => v || null; // categoryId, completedAt
+const toBool = (v) => !!v; // _deleted/completed -> client boolean
+const toIntBool = (v) => (v ? 1 : 0); // completed -> server 1/0
+const orFalse = (v) => v || false; // _deleted -> server
+
 /**
- * Convert a server-side list document to RxDB format (snake_case -> camelCase).
+ * Field maps per collection: `[clientKey, serverKey, toClientFn?, toServerFn?]`.
+ * A missing transform defaults to `identity`. Single source of truth for the
+ * snake_case <-> camelCase mapping shared by the generic converters below.
  */
-export function serverListToClient(doc) {
-  return {
-    id: doc.id,
-    name: doc.name,
-    icon: doc.icon || "list",
-    itemSort: doc.item_sort || "alphabetical",
-    sortOrder: doc.sort_order ?? 0,
-    createdAt: doc.created_at,
-    updatedAt: doc.updated_at,
-    _deleted: !!doc._deleted,
-  };
+const FIELD_MAPS = {
+  lists: [
+    ["id", "id"],
+    ["name", "name"],
+    ["icon", "icon", orDefault("list"), orDefault("list")],
+    [
+      "itemSort",
+      "item_sort",
+      orDefault("alphabetical"),
+      orDefault("alphabetical"),
+    ],
+    ["sortOrder", "sort_order", orNullish(0), orNullish(0)],
+    ["createdAt", "created_at"],
+    ["updatedAt", "updated_at"],
+    ["_deleted", "_deleted", toBool, orFalse],
+  ],
+  items: [
+    ["id", "id"],
+    ["listId", "list_id"],
+    ["text", "text"],
+    ["completed", "completed", toBool, toIntBool],
+    ["categoryId", "category_id", orNull, orNull],
+    ["createdAt", "created_at"],
+    ["updatedAt", "updated_at"],
+    ["completedAt", "completed_at", orNull, orNull],
+    ["_deleted", "_deleted", toBool, orFalse],
+  ],
+  categories: [
+    ["id", "id"],
+    ["listId", "list_id"],
+    ["name", "name"],
+    ["color", "color"],
+    ["createdAt", "created_at"],
+    ["updatedAt", "updated_at"],
+    ["_deleted", "_deleted", toBool, orFalse],
+  ],
+};
+
+/**
+ * Convert a server document to RxDB (client) format for the given collection.
+ *
+ * @param {string} collection - Collection name (lists, items, categories).
+ * @param {Object} doc - Server-side document (snake_case).
+ * @returns {Object} Client-side document (camelCase).
+ */
+export function toClient(collection, doc) {
+  const result = {};
+  for (const [clientKey, serverKey, toClientFn = identity] of FIELD_MAPS[
+    collection
+  ]) {
+    result[clientKey] = toClientFn(doc[serverKey]);
+  }
+  return result;
 }
 
 /**
- * Convert a client-side list document to server format (camelCase -> snake_case).
+ * Convert an RxDB (client) document to server format for the given collection.
+ *
+ * @param {string} collection - Collection name (lists, items, categories).
+ * @param {Object} doc - Client-side document (camelCase).
+ * @returns {Object} Server-side document (snake_case).
  */
-export function clientListToServer(doc) {
-  return {
-    id: doc.id,
-    name: doc.name,
-    icon: doc.icon || "list",
-    item_sort: doc.itemSort || "alphabetical",
-    sort_order: doc.sortOrder ?? 0,
-    created_at: doc.createdAt,
-    updated_at: doc.updatedAt,
-    _deleted: doc._deleted || false,
-  };
-}
-
-/**
- * Convert a server-side item document to RxDB format.
- */
-export function serverItemToClient(doc) {
-  return {
-    id: doc.id,
-    listId: doc.list_id,
-    text: doc.text,
-    completed: !!doc.completed,
-    categoryId: doc.category_id || null,
-    createdAt: doc.created_at,
-    updatedAt: doc.updated_at,
-    completedAt: doc.completed_at || null,
-    _deleted: !!doc._deleted,
-  };
-}
-
-/**
- * Convert a client-side item document to server format.
- */
-export function clientItemToServer(doc) {
-  return {
-    id: doc.id,
-    list_id: doc.listId,
-    text: doc.text,
-    completed: doc.completed ? 1 : 0,
-    category_id: doc.categoryId || null,
-    created_at: doc.createdAt,
-    updated_at: doc.updatedAt,
-    completed_at: doc.completedAt || null,
-    _deleted: doc._deleted || false,
-  };
-}
-
-/**
- * Convert a server-side category document to RxDB format.
- */
-export function serverCategoryToClient(doc) {
-  return {
-    id: doc.id,
-    listId: doc.list_id,
-    name: doc.name,
-    color: doc.color,
-    createdAt: doc.created_at,
-    updatedAt: doc.updated_at,
-    _deleted: !!doc._deleted,
-  };
-}
-
-/**
- * Convert a client-side category document to server format.
- */
-export function clientCategoryToServer(doc) {
-  return {
-    id: doc.id,
-    list_id: doc.listId,
-    name: doc.name,
-    color: doc.color,
-    created_at: doc.createdAt,
-    updated_at: doc.updatedAt,
-    _deleted: doc._deleted || false,
-  };
+export function toServer(collection, doc) {
+  const result = {};
+  for (const [clientKey, serverKey, , toServerFn = identity] of FIELD_MAPS[
+    collection
+  ]) {
+    result[serverKey] = toServerFn(doc[clientKey]);
+  }
+  return result;
 }
 
 /**
@@ -397,8 +388,12 @@ export function setupReplication(db) {
     replicationIdentifier: "tickr-lists-sync",
     live: true,
     retryTime: REPLICATION_RETRY_MS,
-    pull: createPullHandler("lists", serverListToClient),
-    push: createPushHandler("lists", clientListToServer, serverListToClient),
+    pull: createPullHandler("lists", (d) => toClient("lists", d)),
+    push: createPushHandler(
+      "lists",
+      (d) => toServer("lists", d),
+      (d) => toClient("lists", d),
+    ),
     autoStart: true,
   });
 
@@ -407,8 +402,12 @@ export function setupReplication(db) {
     replicationIdentifier: "tickr-items-sync",
     live: true,
     retryTime: REPLICATION_RETRY_MS,
-    pull: createPullHandler("items", serverItemToClient),
-    push: createPushHandler("items", clientItemToServer, serverItemToClient),
+    pull: createPullHandler("items", (d) => toClient("items", d)),
+    push: createPushHandler(
+      "items",
+      (d) => toServer("items", d),
+      (d) => toClient("items", d),
+    ),
     autoStart: true,
   });
 
@@ -417,11 +416,11 @@ export function setupReplication(db) {
     replicationIdentifier: "tickr-categories-sync",
     live: true,
     retryTime: REPLICATION_RETRY_MS,
-    pull: createPullHandler("categories", serverCategoryToClient),
+    pull: createPullHandler("categories", (d) => toClient("categories", d)),
     push: createPushHandler(
       "categories",
-      clientCategoryToServer,
-      serverCategoryToClient,
+      (d) => toServer("categories", d),
+      (d) => toClient("categories", d),
     ),
     autoStart: true,
   });

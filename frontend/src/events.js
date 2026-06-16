@@ -232,7 +232,14 @@ function wireQuickCategoryForm({
 
   openBtn?.addEventListener("click", () => {
     onOpen?.();
-    fillCategoryForm(form, nameInput, colorInput, swatches, "", pickInitialColor());
+    fillCategoryForm(
+      form,
+      nameInput,
+      colorInput,
+      swatches,
+      "",
+      pickInitialColor(),
+    );
   });
 
   cancelBtn?.addEventListener("click", collapse);
