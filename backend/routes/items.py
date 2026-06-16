@@ -127,10 +127,11 @@ def update_item(
 
     timestamp: str = now()
     changes: dict[str, Any] = _staged_item_changes(item, item_data, timestamp)
+    if not changes:
+        return {"success": True}
 
-    if changes:
-        new_values: dict[str, Any] = {**dict(item), **changes, "updated_at": timestamp}
-        log_item_diff(cursor, dict(item), new_values, undo=item_data.undo)
+    new_values: dict[str, Any] = {**dict(item), **changes, "updated_at": timestamp}
+    log_item_diff(cursor, dict(item), new_values, undo=item_data.undo)
 
     changes["updated_at"] = timestamp
     assignments: str = ", ".join(f"{column} = ?" for column in changes)
