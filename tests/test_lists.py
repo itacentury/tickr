@@ -160,9 +160,7 @@ class TestReorderLists:
     def test_reorder_lists_enqueues_broadcasts(self, client, create_list, monkeypatch):
         """Reordering notifies clients of the lists change via notify_change."""
         calls: list[tuple] = []
-        monkeypatch.setattr(
-            lists_module, "notify_change", lambda _bg, *a, **_k: calls.append(a)
-        )
+        monkeypatch.setattr(lists_module, "notify_change", lambda _bg, *a, **_k: calls.append(a))
 
         a = create_list(name="A")
         b = create_list(name="B")

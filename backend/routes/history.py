@@ -13,9 +13,7 @@ router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/lists/{list_id}/history")
-def get_history(
-    list_id: str, db: sqlite3.Connection = Depends(get_db)
-) -> list[dict[str, Any]]:
+def get_history(list_id: str, db: sqlite3.Connection = Depends(get_db)) -> list[dict[str, Any]]:
     """Return all visible history entries for a list."""
     cursor: sqlite3.Cursor = db.cursor()
     cursor.execute(
