@@ -6,7 +6,7 @@ from typing import Any
 
 from .database import log_history
 
-ARROW: str = "→"  # →
+ARROW: str = "→"
 
 
 def log_list_diff(
