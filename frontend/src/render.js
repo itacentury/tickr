@@ -10,6 +10,7 @@
 
 import { state } from "./state.js";
 import * as dom from "./dom.js";
+import { escapeHtml } from "./dom.js";
 import { icons, uiIcons } from "./icons.js";
 import { applyIconSelection } from "./icons.js";
 import { groupHistoryByItem, relativeTime } from "./history-model.js";
@@ -44,13 +45,6 @@ export function initRenderSubscriptions() {
  */
 function activeCategories() {
   return state.categoryDraft ?? state.categories;
-}
-
-/** Escape HTML entities to prevent XSS in rendered content. */
-function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 /** Toggle the no-lists CSS class on the app container. */
