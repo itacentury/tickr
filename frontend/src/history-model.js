@@ -211,7 +211,8 @@ export function groupHistoryByItem(events, items, categories, options = {}) {
 
 /**
  * Format a timestamp relative to now: "just now", "23m ago", "2h ago", or an
- * absolute "30 May" once older than 24 hours.
+ * absolute "30 May" once older than 24 hours. The year is appended ("30 May
+ * 2024") only when the timestamp falls in a different year than now.
  *
  * @param {string} timestamp - ISO timestamp.
  * @param {number} [nowMs] - Reference time in ms (defaults to Date.now()), for testing.
@@ -227,8 +228,11 @@ export function relativeTime(timestamp, nowMs = Date.now()) {
   const diffHour = Math.floor(diffMin / 60);
   if (diffHour < 24) return `${diffHour}h ago`;
 
-  return new Date(timestamp).toLocaleDateString("en-GB", {
+  const date = new Date(timestamp);
+  const showYear = date.getFullYear() !== new Date(nowMs).getFullYear();
+  return date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
+    year: showYear ? "numeric" : undefined,
   });
 }

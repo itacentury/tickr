@@ -261,4 +261,8 @@ describe("relativeTime", () => {
   it("returns an absolute day/month once older than 24h", () => {
     expect(relativeTime("2026-05-30T12:00:00Z", now)).toBe("30 May");
   });
+
+  it("includes the year when the timestamp is from a different year", () => {
+    expect(relativeTime("2024-05-30T12:00:00Z", now)).toBe("30 May 2024");
+  });
 });
