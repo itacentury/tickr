@@ -248,17 +248,34 @@ const FIELD_MAPS = {
 };
 
 /**
+ * Look up the field map for a collection, throwing a descriptive error for
+ * unknown names instead of failing later with a cryptic "not iterable".
+ *
+ * @param {string} collection - Collection name (lists, items, categories).
+ * @returns {Array} The field map for the collection.
+ * @throws {Error} If the collection has no field map.
+ */
+function getFieldMap(collection) {
+  const map = FIELD_MAPS[collection];
+  if (!map) {
+    throw new Error(`Unknown collection: ${collection}`);
+  }
+  return map;
+}
+
+/**
  * Convert a server document to RxDB (client) format for the given collection.
  *
  * @param {string} collection - Collection name (lists, items, categories).
  * @param {Object} doc - Server-side document (snake_case).
  * @returns {Object} Client-side document (camelCase).
+ * @throws {Error} If the collection has no field map.
  */
 export function toClient(collection, doc) {
   const result = {};
-  for (const [clientKey, serverKey, toClientFn = identity] of FIELD_MAPS[
-    collection
-  ]) {
+  for (const [clientKey, serverKey, toClientFn = identity] of getFieldMap(
+    collection,
+  )) {
     result[clientKey] = toClientFn(doc[serverKey]);
   }
   return result;
@@ -270,12 +287,13 @@ export function toClient(collection, doc) {
  * @param {string} collection - Collection name (lists, items, categories).
  * @param {Object} doc - Client-side document (camelCase).
  * @returns {Object} Server-side document (snake_case).
+ * @throws {Error} If the collection has no field map.
  */
 export function toServer(collection, doc) {
   const result = {};
-  for (const [clientKey, serverKey, , toServerFn = identity] of FIELD_MAPS[
-    collection
-  ]) {
+  for (const [clientKey, serverKey, , toServerFn = identity] of getFieldMap(
+    collection,
+  )) {
     result[serverKey] = toServerFn(doc[clientKey]);
   }
   return result;
