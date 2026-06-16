@@ -632,7 +632,6 @@ function wireHistory() {
   });
 }
 
-/** Re-fetch and re-render the history drawer for the current list. */
 /**
  * Re-fetch the history for a list, but only while it is still the visible one.
  * Deferred undo/commit callbacks pass the list the action started on; if the
