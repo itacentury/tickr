@@ -583,20 +583,18 @@ class TestSyncPushBroadcast:
     """Push must broadcast whenever at least one write committed (B1)."""
 
     def _patch_broadcasts(self, monkeypatch):
-        """Replace the broadcast callables in the sync module with spies."""
+        """Replace the change-notification helper in the sync module with a spy."""
         import unittest.mock as mock
 
         from backend.routes import sync
 
-        update_spy = mock.Mock(name="broadcast_update")
-        sync_spy = mock.Mock(name="broadcast_sync")
-        monkeypatch.setattr(sync, "broadcast_update", update_spy)
-        monkeypatch.setattr(sync, "broadcast_sync", sync_spy)
-        return update_spy, sync_spy
+        notify_spy = mock.Mock(name="notify_change")
+        monkeypatch.setattr(sync, "notify_change", notify_spy)
+        return notify_spy
 
     def test_mixed_batch_broadcasts_despite_conflict(self, client, create_list, monkeypatch):
         """A batch with one write and one conflict still notifies other clients."""
-        update_spy, sync_spy = self._patch_broadcasts(monkeypatch)
+        notify_spy = self._patch_broadcasts(monkeypatch)
 
         existing = create_list(name="Already Here")
         pull = client.get("/api/v1/sync/lists/pull").json()
@@ -611,12 +609,11 @@ class TestSyncPushBroadcast:
         resp = client.post("/api/v1/sync/lists/push", json=changes)
 
         assert len(resp.json()) == 1
-        update_spy.assert_called_once()
-        sync_spy.assert_called_once()
+        notify_spy.assert_called_once()
 
     def test_pure_conflict_batch_does_not_broadcast(self, client, create_list, monkeypatch):
         """A batch where every change conflicts writes nothing and stays silent."""
-        update_spy, sync_spy = self._patch_broadcasts(monkeypatch)
+        notify_spy = self._patch_broadcasts(monkeypatch)
 
         existing = create_list(name="Only Conflict")
         pull = client.get("/api/v1/sync/lists/pull").json()
@@ -626,5 +623,4 @@ class TestSyncPushBroadcast:
         resp = client.post("/api/v1/sync/lists/push", json=changes)
 
         assert len(resp.json()) == 1
-        update_spy.assert_not_called()
-        sync_spy.assert_not_called()
+        notify_spy.assert_not_called()

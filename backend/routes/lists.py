@@ -4,17 +4,19 @@ import sqlite3
 
 from fastapi import APIRouter, BackgroundTasks, Depends
 
-from ..database import get_db, new_uuid, now
+from ..database import get_db, log_history, new_uuid, now
 from ..errors import AppError, ErrorCode
-from ..events import broadcast_sync, broadcast_update
+from ..events import broadcast_sync, notify_change
 from ..logging_config import get_logger
 from ..models import (
+    LIST_SORT_SQL,
     VALID_SORT_OPTIONS,
     ListCreate,
     ListReorder,
     ListResponse,
     ListUpdate,
     SuccessResponse,
+    resolve_sort_sql,
 )
 
 logger = get_logger(__name__)
@@ -29,17 +31,7 @@ def get_lists(db: sqlite3.Connection = Depends(get_db)) -> list[dict]:
 
     cursor.execute("SELECT value FROM settings WHERE key = 'list_sort'")
     row: sqlite3.Row | None = cursor.fetchone()
-    list_sort: str = row["value"] if row else "alphabetical"
-
-    list_sort_sql: dict[str, str] = {
-        "alphabetical": "l.name COLLATE NOCASE ASC",
-        "alphabetical_desc": "l.name COLLATE NOCASE DESC",
-        "created_desc": "l.created_at DESC",
-        "created_asc": "l.created_at ASC",
-        "custom": "l.sort_order, l.created_at",
-    }
-    order_by: str = list_sort_sql.get(list_sort, list_sort_sql["alphabetical"])
-    assert order_by in list_sort_sql.values(), "order_by must come from list_sort_sql whitelist"
+    order_by: str = resolve_sort_sql(row["value"] if row else None, LIST_SORT_SQL)
 
     cursor.execute(f"""
         SELECT l.*,
@@ -84,14 +76,10 @@ def create_list(
     )
 
     if not list_data.undo:
-        cursor.execute(
-            "INSERT INTO history (list_id, action, item_text) VALUES (?, ?, ?)",
-            (list_id, "list_created", list_data.name),
-        )
+        log_history(cursor, list_id, "list_created", list_data.name)
 
     db.commit()
-    bg.add_task(broadcast_update, "lists_changed")
-    bg.add_task(broadcast_sync, "lists")
+    notify_change(bg, "lists_changed", "lists")
     logger.info("list_created", list_id=list_id, name=list_data.name[:50])
     return {
         "id": list_id,
@@ -136,8 +124,7 @@ def update_list(
     values.append(list_id)
     cursor.execute(f"UPDATE lists SET {', '.join(updates)} WHERE id = ?", values)
     db.commit()
-    bg.add_task(broadcast_update, "lists_changed", list_id)
-    bg.add_task(broadcast_sync, "lists")
+    notify_change(bg, "lists_changed", "lists", list_id)
     logger.info("list_updated", list_id=list_id)
 
     return {"success": True}
@@ -163,8 +150,7 @@ def delete_list(
             (timestamp, list_id),
         )
 
-    bg.add_task(broadcast_update, "lists_changed")
-    bg.add_task(broadcast_sync, "lists")
+    notify_change(bg, "lists_changed", "lists")
     bg.add_task(broadcast_sync, "items")
     logger.info("list_deleted", list_id=list_id)
     return {"success": True}
@@ -187,6 +173,5 @@ def reorder_lists(
         )
 
     db.commit()
-    bg.add_task(broadcast_update, "lists_changed")
-    bg.add_task(broadcast_sync, "lists")
+    notify_change(bg, "lists_changed", "lists")
     return {"success": True}

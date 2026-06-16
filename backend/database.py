@@ -97,6 +97,20 @@ def new_uuid() -> str:
     return str(uuid.uuid4())
 
 
+def log_history(
+    cursor: sqlite3.Cursor,
+    list_id: str | None,
+    action: str,
+    item_text: str | None,
+    item_id: str | None = None,
+) -> None:
+    """Insert a single history entry; ``item_id`` is NULL for list-level actions."""
+    cursor.execute(
+        "INSERT INTO history (list_id, item_id, action, item_text) VALUES (?, ?, ?, ?)",
+        (list_id, item_id, action, item_text),
+    )
+
+
 def init_db(conn: sqlite3.Connection | None = None) -> None:
     """Create database tables and run migrations for UUID primary keys.
 

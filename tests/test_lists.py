@@ -158,22 +158,16 @@ class TestReorderLists:
     """Tests for POST /api/v1/lists/reorder."""
 
     def test_reorder_lists_enqueues_broadcasts(self, client, create_list, monkeypatch):
-        """Reordering schedules broadcast_update + broadcast_sync via BackgroundTasks."""
-        calls: list[tuple[str, tuple]] = []
-        monkeypatch.setattr(
-            lists_module, "broadcast_update", lambda *a, **_k: calls.append(("update", a))
-        )
-        monkeypatch.setattr(
-            lists_module, "broadcast_sync", lambda *a, **_k: calls.append(("sync", a))
-        )
+        """Reordering notifies clients of the lists change via notify_change."""
+        calls: list[tuple] = []
+        monkeypatch.setattr(lists_module, "notify_change", lambda _bg, *a, **_k: calls.append(a))
 
         a = create_list(name="A")
         b = create_list(name="B")
         resp = client.post("/api/v1/lists/reorder", json={"list_ids": [b["id"], a["id"]]})
         assert resp.status_code == 200
 
-        kinds = [kind for kind, _ in calls]
-        assert "update" in kinds and "sync" in kinds
+        assert ("lists_changed", "lists") in calls
 
     def test_reorder_lists(self, client, create_list, db):
         """Reordering updates sort_order for each list."""

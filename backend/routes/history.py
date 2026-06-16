@@ -1,6 +1,7 @@
 """History endpoints."""
 
 import sqlite3
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
@@ -12,9 +13,9 @@ router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/lists/{list_id}/history")
-def get_history(list_id: str, db: sqlite3.Connection = Depends(get_db)):
+def get_history(list_id: str, db: sqlite3.Connection = Depends(get_db)) -> list[dict[str, Any]]:
     """Return all visible history entries for a list."""
-    cursor = db.cursor()
+    cursor: sqlite3.Cursor = db.cursor()
     cursor.execute(
         """
         SELECT * FROM history
@@ -23,7 +24,7 @@ def get_history(list_id: str, db: sqlite3.Connection = Depends(get_db)):
     """,
         (list_id,),
     )
-    rows = cursor.fetchall()
+    rows: list[sqlite3.Row] = cursor.fetchall()
     return [dict(row) for row in rows]
 
 
@@ -34,7 +35,7 @@ def hide_item_history(
     db: sqlite3.Connection = Depends(get_db),
 ) -> dict:
     """Soft-hide every history entry for one item ("remove from history")."""
-    cursor = db.cursor()
+    cursor: sqlite3.Cursor = db.cursor()
     cursor.execute(
         "UPDATE history SET hidden = 1 WHERE list_id = ? AND item_id = ?",
         (list_id, item_id),
