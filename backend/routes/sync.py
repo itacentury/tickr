@@ -11,9 +11,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
 from ..config import SSE_HEARTBEAT_INTERVAL, TOMBSTONE_RETAIN_DAYS
-from ..database import get_db, log_history, now
+from ..database import get_db, now
 from ..errors import AppError, ErrorCode
 from ..events import notify_change, sync_broadcaster
+from ..history import log_item_diff, log_list_diff
 from ..logging_config import get_logger
 from ..metrics import sync_metrics
 from ..models import SyncCategoryState, SyncChange, SyncItemState, SyncListState
@@ -114,102 +115,6 @@ def _category_defaults() -> dict[str, Any]:
     }
 
 
-def _insert_history(
-    cursor: sqlite3.Cursor,
-    list_id: str | None,
-    item_id: str | None,
-    action: str,
-    item_text: str | None,
-) -> None:
-    """Append one history row; timestamp defaults to CURRENT_TIMESTAMP.
-
-    Thin adapter that keeps the sync-local (list_id, item_id, ...) argument order
-    while delegating the actual insert to the shared ``log_history`` helper.
-    """
-    log_history(cursor, list_id, action, item_text, item_id)
-
-
-def _log_list_history(
-    cursor: sqlite3.Cursor,
-    current: dict[str, Any] | None,
-    new_state: dict[str, Any],
-) -> None:
-    """Log list lifecycle events derived from the diff between current and new state.
-
-    Reorder-only updates (``sort_order`` changes) are intentionally ignored — they
-    reflect UI preference, not a meaningful list change.
-    """
-    if current is None:
-        if not new_state.get("_deleted"):
-            _insert_history(cursor, new_state["id"], None, "list_created", new_state.get("name"))
-        return
-
-    if not current.get("_deleted") and new_state.get("_deleted"):
-        return
-
-    list_id: str = new_state["id"]
-
-    old_name: str | None = current.get("name")
-    new_name: str | None = new_state.get("name")
-    if new_name is not None and old_name != new_name:
-        _insert_history(cursor, list_id, None, "list_renamed", f"{old_name} → {new_name}")
-
-    old_icon: str | None = current.get("icon")
-    new_icon: str | None = new_state.get("icon")
-    if new_icon is not None and old_icon != new_icon:
-        _insert_history(cursor, list_id, None, "list_icon_changed", f"{old_icon} → {new_icon}")
-
-    old_sort: str | None = current.get("item_sort")
-    new_sort: str | None = new_state.get("item_sort")
-    if new_sort is not None and old_sort != new_sort:
-        _insert_history(cursor, list_id, None, "list_sort_changed", f"{old_sort} → {new_sort}")
-
-
-def _log_item_history(
-    cursor: sqlite3.Cursor,
-    current: dict[str, Any] | None,
-    new_state: dict[str, Any],
-) -> None:
-    """Log item lifecycle events derived from the diff between current and new state."""
-    list_id: str | None = new_state.get("list_id") or (current or {}).get("list_id")
-    item_id: str = new_state["id"]
-
-    if current is None:
-        if not new_state.get("_deleted"):
-            _insert_history(cursor, list_id, item_id, "item_created", new_state.get("text"))
-        return
-
-    if not current.get("_deleted") and new_state.get("_deleted"):
-        _insert_history(cursor, list_id, item_id, "item_deleted", current.get("text"))
-        return
-
-    if current.get("_deleted") and not new_state.get("_deleted"):
-        _insert_history(cursor, list_id, item_id, "item_restored", new_state.get("text"))
-        return
-
-    old_text: str | None = current.get("text")
-    new_text: str | None = new_state.get("text")
-    if old_text != new_text:
-        _insert_history(cursor, list_id, item_id, "item_renamed", f"{old_text} \u2192 {new_text}")
-
-    old_completed: bool = bool(current.get("completed"))
-    new_completed: bool = bool(new_state.get("completed"))
-    if old_completed != new_completed:
-        action: str = "item_completed" if new_completed else "item_uncompleted"
-        _insert_history(cursor, list_id, item_id, action, new_text)
-
-    old_category: str | None = current.get("category_id")
-    new_category: str | None = new_state.get("category_id")
-    if old_category != new_category:
-        _insert_history(
-            cursor,
-            list_id,
-            item_id,
-            "item_category_changed",
-            f"{old_category or ''} → {new_category or ''}",
-        )
-
-
 COLLECTIONS: dict[str, CollectionSpec] = {
     "lists": CollectionSpec(
         table="lists",
@@ -234,7 +139,7 @@ COLLECTIONS: dict[str, CollectionSpec] = {
         defaults=_list_defaults,
         broadcast_event="lists_changed",
         document_model=SyncListState,
-        log_history=_log_list_history,
+        log_history=log_list_diff,
     ),
     "items": CollectionSpec(
         table="items",
@@ -261,7 +166,7 @@ COLLECTIONS: dict[str, CollectionSpec] = {
         defaults=_item_defaults,
         broadcast_event="items_changed",
         document_model=SyncItemState,
-        log_history=_log_item_history,
+        log_history=log_item_diff,
     ),
     "categories": CollectionSpec(
         table="categories",
