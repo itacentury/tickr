@@ -71,6 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_items_updated ON items(updated_at, id);
 CREATE INDEX IF NOT EXISTS idx_lists_updated ON lists(updated_at, id);
 CREATE INDEX IF NOT EXISTS idx_categories_list_id ON categories(list_id, _deleted);
 CREATE INDEX IF NOT EXISTS idx_categories_updated ON categories(updated_at, id);
+CREATE INDEX IF NOT EXISTS idx_history_list_id ON history(list_id, hidden, timestamp);
 """
 
 
@@ -443,5 +444,8 @@ def _ensure_indexes(conn: sqlite3.Connection) -> None:
     )
     cursor.execute(
         "CREATE INDEX IF NOT EXISTS idx_categories_updated ON categories(updated_at, id)"
+    )
+    cursor.execute(
+        "CREATE INDEX IF NOT EXISTS idx_history_list_id ON history(list_id, hidden, timestamp)"
     )
     conn.commit()
