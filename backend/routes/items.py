@@ -87,6 +87,83 @@ def create_item(
     }
 
 
+def _apply_text(
+    cursor: sqlite3.Cursor,
+    item: sqlite3.Row,
+    item_data: ItemUpdate,
+    updates: list[str],
+    values: list[str | int | bool | None],
+) -> None:
+    """Stage a text change and log a rename when the text actually differs."""
+    if item_data.text is None or item_data.text == item["text"]:
+        return
+    updates.append("text = ?")
+    values.append(item_data.text)
+    if not item_data.undo:
+        log_history(
+            cursor,
+            item["list_id"],
+            "item_renamed",
+            f"{item['text']} → {item_data.text}",
+            item["id"],
+        )
+
+
+def _apply_category(
+    cursor: sqlite3.Cursor,
+    item: sqlite3.Row,
+    item_data: ItemUpdate,
+    updates: list[str],
+    values: list[str | int | bool | None],
+) -> None:
+    """Stage a category change; uses model_fields_set so clearing (None) is honored."""
+    if (
+        "category_id" not in item_data.model_fields_set
+        or item_data.category_id == item["category_id"]
+    ):
+        return
+    updates.append("category_id = ?")
+    values.append(item_data.category_id)
+    if not item_data.undo:
+        log_history(
+            cursor,
+            item["list_id"],
+            "item_category_changed",
+            f"{item['category_id'] or ''} → {item_data.category_id or ''}",
+            item["id"],
+        )
+
+
+def _apply_completed(
+    cursor: sqlite3.Cursor,
+    item: sqlite3.Row,
+    item_data: ItemUpdate,
+    updates: list[str],
+    values: list[str | int | bool | None],
+    timestamp: str,
+) -> None:
+    """Stage completion toggle (no diff — matches existing REST semantics) and log it."""
+    if item_data.completed is None:
+        return
+    updates.append("completed = ?")
+    values.append(item_data.completed)
+    if item_data.completed:
+        updates.append("completed_at = ?")
+        values.append(timestamp)
+        action: str = "item_completed"
+    else:
+        updates.append("completed_at = NULL")
+        action = "item_uncompleted"
+    if not item_data.undo:
+        log_history(
+            cursor,
+            item["list_id"],
+            action,
+            item_data.text or item["text"],
+            item["id"],
+        )
+
+
 @router.put("/items/{item_id}", response_model=SuccessResponse)
 def update_item(
     item_id: str,
@@ -107,58 +184,9 @@ def update_item(
     updates: list[str] = ["updated_at = ?"]
     values: list[str | int | bool | None] = [timestamp]
 
-    if item_data.text is not None and item_data.text != item["text"]:
-        updates.append("text = ?")
-        values.append(item_data.text)
-
-        if not item_data.undo:
-            log_history(
-                cursor,
-                item["list_id"],
-                "item_renamed",
-                f"{item['text']} → {item_data.text}",
-                item_id,
-            )
-
-    if "category_id" in item_data.model_fields_set and item_data.category_id != item["category_id"]:
-        updates.append("category_id = ?")
-        values.append(item_data.category_id)
-
-        if not item_data.undo:
-            log_history(
-                cursor,
-                item["list_id"],
-                "item_category_changed",
-                f"{item['category_id'] or ''} → {item_data.category_id or ''}",
-                item_id,
-            )
-
-    if item_data.completed is not None:
-        updates.append("completed = ?")
-        values.append(item_data.completed)
-        if item_data.completed:
-            updates.append("completed_at = ?")
-            values.append(timestamp)
-
-            if not item_data.undo:
-                log_history(
-                    cursor,
-                    item["list_id"],
-                    "item_completed",
-                    item_data.text or item["text"],
-                    item_id,
-                )
-        else:
-            updates.append("completed_at = NULL")
-
-            if not item_data.undo:
-                log_history(
-                    cursor,
-                    item["list_id"],
-                    "item_uncompleted",
-                    item_data.text or item["text"],
-                    item_id,
-                )
+    _apply_text(cursor, item, item_data, updates, values)
+    _apply_category(cursor, item, item_data, updates, values)
+    _apply_completed(cursor, item, item_data, updates, values, timestamp)
 
     values.append(item_id)
     cursor.execute(f"UPDATE items SET {', '.join(updates)} WHERE id = ?", values)
