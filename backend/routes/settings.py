@@ -23,7 +23,7 @@ def get_settings(db: sqlite3.Connection = Depends(get_db)) -> dict[str, str]:
 @router.put("/settings", response_model=SuccessResponse)
 def update_settings(
     settings_data: SettingsUpdate, db: sqlite3.Connection = Depends(get_db)
-) -> dict:
+) -> dict[str, bool]:
     """Update app settings."""
     cursor: sqlite3.Cursor = db.cursor()
 
