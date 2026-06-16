@@ -690,12 +690,15 @@ async function handleHistoryAction(action, id) {
     const createdEvent = card.events.find((e) => e.type === "added");
     const createdAt =
       createdEvent?.timestamp ?? card.events[card.events.length - 1].timestamp;
-    await restoreItem(id, {
+    const restored = await restoreItem(id, {
       listId,
       text: card.name,
       categoryId: card.category?.id ?? null,
       createdAt,
     });
+    // restoreItem already surfaced its own error toast; skip the success toast
+    // (and the shared refresh below) so the user doesn't see contradictory toasts.
+    if (!restored) return;
     showUndoToast(`"${card.name}" restored`, {
       onUndo: async () => {
         await commitItemDelete(id);

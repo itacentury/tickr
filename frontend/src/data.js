@@ -589,6 +589,7 @@ export async function unmarkItemPendingDelete(itemId) {
  * @param {string} itemId - The item ID to restore.
  * @param {{listId: string, text: string, categoryId?: string|null, createdAt?: string}} fields
  *   The item fields to reconstruct, derived from its history card.
+ * @returns {Promise<boolean>} True on success, false if the restore failed.
  */
 export async function restoreItem(itemId, fields) {
   try {
@@ -603,9 +604,11 @@ export async function restoreItem(itemId, fields) {
       updatedAt: timestamp,
       completedAt: null,
     });
+    return true;
   } catch (error) {
     reportError("restore item", error);
     showErrorToast("Failed to restore item");
+    return false;
   }
 }
 
