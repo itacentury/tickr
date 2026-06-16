@@ -31,7 +31,7 @@
  * @property {string} id
  * @property {string} name
  * @property {"active"|"done"|"deleted"} status
- * @property {{name: string, color: string}|null} category
+ * @property {{id: string, name: string, color: string}|null} category
  * @property {string|null} accent - Category color, or null when none/unknown.
  * @property {string} lastChanged - ISO timestamp of the most recent event.
  * @property {TimelineEvent[]} events - Newest-first.
@@ -124,8 +124,8 @@ function deriveName(liveItem, rawEvents) {
  *
  * @param {Object|undefined} liveItem
  * @param {HistoryEvent[]} rawEvents - This item's raw history rows, newest-first.
- * @param {Map<string, {name: string, color: string}>} categoriesById
- * @returns {{category: {name: string, color: string}|null, accent: string|null}}
+ * @param {Map<string, {id: string, name: string, color: string}>} categoriesById
+ * @returns {{category: {id: string, name: string, color: string}|null, accent: string|null}}
  */
 function deriveCategory(liveItem, rawEvents, categoriesById) {
   let categoryId = liveItem?.categoryId ?? null;
