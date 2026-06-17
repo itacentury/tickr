@@ -80,7 +80,7 @@ def verify_session_token(token: str, max_age_seconds: int) -> bool:
 
 def is_authenticated(request: Request) -> bool:
     """Return whether the request carries a valid session cookie."""
-    token = request.cookies.get(SESSION_COOKIE_NAME)
+    token: str | None = request.cookies.get(SESSION_COOKIE_NAME)
     if not token:
         return False
     return verify_session_token(token, config.SESSION_DAYS_DEFAULT * 86400)

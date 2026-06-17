@@ -29,6 +29,7 @@ class SseBroadcaster:
     """Owns a pool of SSE client queues plus the shared event generator."""
 
     def __init__(self, name: str, max_clients: int, queue_size: int = 100) -> None:
+        """Initialize the broadcaster with its name and client/queue limits."""
         self._name = name
         self._max_clients = max_clients
         self._queue_size = queue_size

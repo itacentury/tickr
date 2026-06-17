@@ -166,10 +166,10 @@ def reorder_lists(
     cursor: sqlite3.Cursor = db.cursor()
     timestamp: str = now()
 
-    for idx, list_id in enumerate(reorder_data.list_ids):
+    for index, list_id in enumerate(reorder_data.list_ids):
         cursor.execute(
             "UPDATE lists SET sort_order = ?, updated_at = ? WHERE id = ?",
-            (idx, timestamp, list_id),
+            (index, timestamp, list_id),
         )
 
     db.commit()

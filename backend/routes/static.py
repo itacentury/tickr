@@ -45,8 +45,9 @@ def mount_static(app) -> None:
 
 
 @router.get("/")
-def read_root():
+def read_root() -> FileResponse:
     """Serve the main HTML page from Vite build or legacy templates."""
+    response: FileResponse
     if (DIST_DIR / "index.html").exists():
         response = FileResponse(str(DIST_DIR / "index.html"))
     else:
@@ -58,8 +59,9 @@ def read_root():
 
 
 @router.get("/manifest.json")
-def manifest():
+def manifest() -> FileResponse:
     """Serve the PWA manifest file."""
+    response: FileResponse
     if (DIST_DIR / "manifest.json").exists():
         response = FileResponse(str(DIST_DIR / "manifest.json"))
     else:
@@ -69,8 +71,9 @@ def manifest():
 
 
 @router.get("/sw.js")
-def service_worker():
+def service_worker() -> FileResponse:
     """Serve the service worker script."""
+    response: FileResponse
     if (DIST_DIR / "sw.js").exists():
         response = FileResponse(str(DIST_DIR / "sw.js"), media_type="application/javascript")
     else:
@@ -82,8 +85,9 @@ def service_worker():
 
 
 @router.get("/circuit-breaker.js")
-def circuit_breaker():
+def circuit_breaker() -> FileResponse:
     """Serve the reload-loop circuit breaker script."""
+    response: FileResponse
     if (DIST_DIR / "circuit-breaker.js").exists():
         response = FileResponse(
             str(DIST_DIR / "circuit-breaker.js"), media_type="application/javascript"
@@ -97,9 +101,9 @@ def circuit_breaker():
 
 
 @router.get("/icons/{file_path:path}")
-def serve_icon(file_path: str):
+def serve_icon(file_path: str) -> FileResponse:
     """Serve icon files via the cached index built at first request."""
-    path = _icon_index().get(file_path)
+    path: Path | None = _icon_index().get(file_path)
     if path is None:
         raise AppError(ErrorCode.ICON_NOT_FOUND, "Icon not found", 404)
     return FileResponse(str(path))

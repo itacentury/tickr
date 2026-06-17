@@ -29,6 +29,8 @@ class LoginRequest(BaseModel):
 
 
 class _CookieAttrs(TypedDict):
+    """Typed attributes for the session cookie."""
+
     httponly: bool
     secure: bool
     samesite: Literal["lax", "strict", "none"]
@@ -88,5 +90,5 @@ def me(request: Request) -> dict[str, bool]:
     console errors. When auth is disabled the user is always considered authed.
     ``enabled`` lets the client decide whether to show a logout control.
     """
-    authed = not config.AUTH_ENABLED or is_authenticated(request)
+    authed: bool = not config.AUTH_ENABLED or is_authenticated(request)
     return {"authed": authed, "enabled": config.AUTH_ENABLED}

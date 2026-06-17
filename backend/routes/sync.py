@@ -48,14 +48,14 @@ class CollectionSpec:
     @property
     def insert_sql(self) -> str:
         """SQL for inserting a document by positional insert_fields."""
-        cols = ", ".join(self.insert_fields)
-        placeholders = ", ".join("?" * len(self.insert_fields))
+        cols: str = ", ".join(self.insert_fields)
+        placeholders: str = ", ".join("?" * len(self.insert_fields))
         return f"INSERT INTO {self.table} ({cols}) VALUES ({placeholders})"
 
     @property
     def update_sql(self) -> str:
         """SQL for updating a document by positional update_fields, keyed on id."""
-        assignments = ", ".join(f"{f}=?" for f in self.update_fields)
+        assignments: str = ", ".join(f"{f}=?" for f in self.update_fields)
         return f"UPDATE {self.table} SET {assignments} WHERE id=?"
 
     @property
