@@ -42,7 +42,7 @@ dist/
 .vscode/
 
 # Database
-data/
+/data/
 
 # OS
 .DS_Store
