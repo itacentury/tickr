@@ -35,7 +35,7 @@ Reihenfolge nach Risiko/Nutzen: 1 → 5 → 2 → 3 → 4.
 Reine Move-Operationen + Barrel-Re-Exports, damit Importe stabil bleiben. Keine Logikänderung. Ziel: jede Datei ~150–250 LOC.
 
 - [x] **`data.js` (851 LOC)** → `data/subscriptions.js`, `data/crud.js`, `data/category-draft.js`, `data/sorting.js`; `data.js` bleibt schlanker Barrel.
-- [ ] **`events.js` (952 LOC)** → `events/modals.js`, `events/categories.js`, `events/history.js`, `events/gestures.js`.
+- [x] **`events.js` (952 LOC)** → `events/modals.js`, `events/categories.js`, `events/history.js`, `events/gestures.js`.
 - [ ] **`metrics.js` (620 LOC)** → `metrics/dashboard.js`, `metrics/charts.js`, `metrics/formatters.js`.
 
 ---
