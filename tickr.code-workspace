@@ -38,7 +38,8 @@
 			"**/*.pyc": true,
 			"**/.venv": true,
 			"**/node_modules": true,
-			"static/dist": true
+			"static/dist": true,
+			".pytest_cache": true
 		},
 		"search.exclude": {
 			"**/__pycache__": true,
@@ -47,7 +48,8 @@
 			"**/*.pyc": true,
 			"**/.venv": true,
 			"**/node_modules": true,
-			"static/dist": true
+			"static/dist": true,
+			".pytest_cache": true
 		}
 	},
 	"tasks": {
