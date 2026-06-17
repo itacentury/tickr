@@ -1,6 +1,8 @@
 """Tests for the SSE broadcaster abstraction."""
 
 import asyncio
+from collections.abc import AsyncGenerator, Coroutine, Iterator
+from typing import Any, cast
 
 import pytest
 
@@ -8,23 +10,24 @@ from backend.errors import AppError, ErrorCode
 from backend.events import SseBroadcaster, shutdown_event
 
 
-def _run(coro):
+def _run(coro: Coroutine[Any, Any, Any]) -> Any:
     """Run an async coroutine on a fresh event loop without pytest-asyncio."""
     return asyncio.run(coro)
 
 
 @pytest.fixture(autouse=True)
-def _reset_shutdown():
+def _reset_shutdown() -> Iterator[None]:
     """Ensure the shutdown flag doesn't leak between tests."""
     shutdown_event.clear()
     yield
     shutdown_event.clear()
 
 
-def test_register_returns_queue():
+def test_register_returns_queue() -> None:
     """Register yields a fresh asyncio queue and increments the client count."""
 
-    async def _test():
+    async def _test() -> None:
+        """Run the async assertions for this test on a fresh event loop."""
         bc = SseBroadcaster("test", max_clients=3, queue_size=4)
         bc.bind_loop(asyncio.get_running_loop())
         queue = await bc.register()
@@ -36,10 +39,11 @@ def test_register_returns_queue():
     _run(_test())
 
 
-def test_register_rejects_over_capacity():
+def test_register_rejects_over_capacity() -> None:
     """Past max_clients the broadcaster raises an AppError with 429 status."""
 
-    async def _test():
+    async def _test() -> None:
+        """Run the async assertions for this test on a fresh event loop."""
         bc = SseBroadcaster("test", max_clients=3, queue_size=4)
         bc.bind_loop(asyncio.get_running_loop())
         for _ in range(3):
@@ -52,10 +56,11 @@ def test_register_rejects_over_capacity():
     _run(_test())
 
 
-def test_broadcast_fans_out_to_all_clients():
+def test_broadcast_fans_out_to_all_clients() -> None:
     """A broadcast message reaches every registered client's queue."""
 
-    async def _test():
+    async def _test() -> None:
+        """Run the async assertions for this test on a fresh event loop."""
         bc = SseBroadcaster("test", max_clients=3, queue_size=4)
         bc.bind_loop(asyncio.get_running_loop())
         q1 = await bc.register()
@@ -68,10 +73,11 @@ def test_broadcast_fans_out_to_all_clients():
     _run(_test())
 
 
-def test_broadcast_drops_when_queue_full():
+def test_broadcast_drops_when_queue_full() -> None:
     """Full client queues silently drop messages instead of blocking publishers."""
 
-    async def _test():
+    async def _test() -> None:
+        """Run the async assertions for this test on a fresh event loop."""
         bc = SseBroadcaster("test", max_clients=3, queue_size=4)
         bc.bind_loop(asyncio.get_running_loop())
         q = await bc.register()
@@ -84,14 +90,15 @@ def test_broadcast_drops_when_queue_full():
     _run(_test())
 
 
-def test_stream_emits_heartbeat_on_timeout():
+def test_stream_emits_heartbeat_on_timeout() -> None:
     """When no message arrives within the heartbeat window, a named heartbeat event is yielded."""
 
-    async def _test():
+    async def _test() -> None:
+        """Run the async assertions for this test on a fresh event loop."""
         bc = SseBroadcaster("test", max_clients=3, queue_size=4)
         bc.bind_loop(asyncio.get_running_loop())
         q = await bc.register()
-        gen = bc.stream(q, heartbeat=0.05)
+        gen = cast(AsyncGenerator[str], bc.stream(q, heartbeat=0.05))
         frame = await asyncio.wait_for(gen.__anext__(), timeout=1.0)
         assert frame == "event: heartbeat\ndata: {}\n\n"
         await gen.aclose()
@@ -99,14 +106,15 @@ def test_stream_emits_heartbeat_on_timeout():
     _run(_test())
 
 
-def test_stream_delivers_broadcast_message():
+def test_stream_delivers_broadcast_message() -> None:
     """A broadcast message surfaces in the stream as an SSE data frame."""
 
-    async def _test():
+    async def _test() -> None:
+        """Run the async assertions for this test on a fresh event loop."""
         bc = SseBroadcaster("test", max_clients=3, queue_size=4)
         bc.bind_loop(asyncio.get_running_loop())
         q = await bc.register()
-        gen = bc.stream(q, heartbeat=5.0)
+        gen = cast(AsyncGenerator[str], bc.stream(q, heartbeat=5.0))
         bc.broadcast("payload")
         await asyncio.sleep(0)
         frame = await asyncio.wait_for(gen.__anext__(), timeout=1.0)

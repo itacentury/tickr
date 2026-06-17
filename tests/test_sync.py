@@ -1,9 +1,10 @@
 """Tests for RxDB-compatible sync pull/push endpoints."""
 
 import uuid
+from typing import Any
 
 
-def _uuid():
+def _uuid() -> str:
     """Generate a random UUID string for test documents."""
     return str(uuid.uuid4())
 
@@ -11,7 +12,7 @@ def _uuid():
 class TestSyncPull:
     """Tests for GET /api/v1/sync/{collection}/pull."""
 
-    def test_pull_empty(self, client):
+    def test_pull_empty(self, client) -> None:
         """Empty database returns empty documents and null checkpoint."""
         resp = client.get("/api/v1/sync/lists/pull")
         assert resp.status_code == 200
@@ -19,14 +20,14 @@ class TestSyncPull:
         assert data["documents"] == []
         assert data["checkpoint"] is None
 
-    def test_pull_returns_documents(self, client, create_list):
+    def test_pull_returns_documents(self, client, create_list) -> None:
         """After creating a list, pull returns it as a document."""
         lst = create_list(name="Sync Test")
         resp = client.get("/api/v1/sync/lists/pull")
         docs = resp.json()["documents"]
         assert any(d["id"] == lst["id"] for d in docs)
 
-    def test_pull_with_checkpoint(self, client, create_list, db):
+    def test_pull_with_checkpoint(self, client, create_list, db) -> None:
         """Only documents newer than the checkpoint are returned."""
         lst1 = create_list(name="Old")
 
@@ -45,20 +46,20 @@ class TestSyncPull:
         assert lst2["id"] in ids
         assert lst1["id"] not in ids
 
-    def test_pull_limit(self, client, create_list):
+    def test_pull_limit(self, client, create_list) -> None:
         """Pull respects the limit parameter."""
         for i in range(5):
             create_list(name=f"List {i}")
         resp = client.get("/api/v1/sync/lists/pull?limit=2")
         assert len(resp.json()["documents"]) == 2
 
-    def test_pull_limit_rejects_out_of_range(self, client):
+    def test_pull_limit_rejects_out_of_range(self, client) -> None:
         """Limit outside [1, 1000] is rejected with 422 before touching the DB."""
         assert client.get("/api/v1/sync/lists/pull?limit=0").status_code == 422
         assert client.get("/api/v1/sync/lists/pull?limit=9999999").status_code == 422
         assert client.get("/api/v1/sync/lists/pull?limit=-5").status_code == 422
 
-    def test_pull_invalid_collection(self, client):
+    def test_pull_invalid_collection(self, client) -> None:
         """Invalid collection name returns 400 INVALID_COLLECTION."""
         resp = client.get("/api/v1/sync/bogus/pull")
         assert resp.status_code == 400
@@ -68,7 +69,7 @@ class TestSyncPull:
 class TestSyncPush:
     """Tests for POST /api/v1/sync/{collection}/push."""
 
-    def test_push_insert_new(self, client, create_list):
+    def test_push_insert_new(self, client, create_list) -> None:
         """Pushing a new document inserts it with empty conflicts."""
         # Need an existing list for foreign key when pushing items
         lst = create_list()
@@ -92,7 +93,7 @@ class TestSyncPush:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_push_update_existing(self, client, create_list, db):
+    def test_push_update_existing(self, client, create_list, db) -> None:
         """Matching assumedMasterState allows update with no conflicts."""
         lst = create_list(name="Original")
         # Get the current document state
@@ -113,7 +114,7 @@ class TestSyncPush:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_push_conflict_stale_state(self, client, create_list):
+    def test_push_conflict_stale_state(self, client, create_list) -> None:
         """Stale assumedMasterState produces a conflict."""
         lst = create_list(name="Conflict Test")
         pull = client.get("/api/v1/sync/lists/pull").json()
@@ -137,7 +138,7 @@ class TestSyncPush:
         assert len(conflicts) == 1
         assert conflicts[0]["name"] == "Server Update"
 
-    def test_push_conflict_same_timestamp_different_content(self, client, create_list, db):
+    def test_push_conflict_same_timestamp_different_content(self, client, create_list, db) -> None:
         """A server change that keeps updated_at unchanged is still a conflict (B2).
 
         Simulates two writes that coincidentally share a millisecond-precision
@@ -167,7 +168,7 @@ class TestSyncPush:
         assert len(conflicts) == 1
         assert conflicts[0]["name"] == "Server Edit"
 
-    def test_push_insert_conflict_exists(self, client, create_list):
+    def test_push_insert_conflict_exists(self, client, create_list) -> None:
         """Insert when document already exists returns conflict."""
         lst = create_list(name="Existing")
         pull = client.get("/api/v1/sync/lists/pull").json()
@@ -183,19 +184,19 @@ class TestSyncPush:
         conflicts = resp.json()
         assert len(conflicts) == 1
 
-    def test_push_invalid_collection(self, client):
+    def test_push_invalid_collection(self, client) -> None:
         """Invalid collection returns 400."""
         resp = client.post("/api/v1/sync/bogus/push", json=[])
         assert resp.status_code == 400
         assert resp.json()["error"]["code"] == "INVALID_COLLECTION"
 
-    def test_push_malformed_change_missing_new_state(self, client):
+    def test_push_malformed_change_missing_new_state(self, client) -> None:
         """Change without newDocumentState is rejected with 422."""
         resp = client.post("/api/v1/sync/lists/push", json=[{}])
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
-    def test_push_missing_id_in_document_state(self, client):
+    def test_push_missing_id_in_document_state(self, client) -> None:
         """newDocumentState without id returns 422."""
         resp = client.post(
             "/api/v1/sync/lists/push",
@@ -204,7 +205,7 @@ class TestSyncPush:
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
-    def test_push_rejects_oversized_item_text(self, client, create_list):
+    def test_push_rejects_oversized_item_text(self, client, create_list) -> None:
         """Item text beyond TEXT_MAX (500) chars is rejected with 422 (mirrors REST limit)."""
         lst = create_list()
         resp = client.post(
@@ -228,7 +229,7 @@ class TestSyncPush:
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
-    def test_push_rejects_oversized_list_name(self, client):
+    def test_push_rejects_oversized_list_name(self, client) -> None:
         """List name beyond 200 chars is rejected with 422."""
         resp = client.post(
             "/api/v1/sync/lists/push",
@@ -251,7 +252,7 @@ class TestSyncPush:
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
-    def test_push_rejects_oversized_icon(self, client):
+    def test_push_rejects_oversized_icon(self, client) -> None:
         """Icon beyond 50 chars is rejected with 422."""
         resp = client.post(
             "/api/v1/sync/lists/push",
@@ -270,7 +271,7 @@ class TestSyncPush:
         assert resp.status_code == 422
         assert resp.json()["error"]["code"] == "VALIDATION_ERROR"
 
-    def test_push_ignores_unknown_fields(self, client, create_list):
+    def test_push_ignores_unknown_fields(self, client, create_list) -> None:
         """Unknown keys in newDocumentState are silently dropped (no regression)."""
         lst = create_list()
         resp = client.post(
@@ -295,7 +296,7 @@ class TestSyncPush:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_push_partial_insert_uses_defaults(self, client, create_list):
+    def test_push_partial_insert_uses_defaults(self, client, create_list) -> None:
         """Sparse newDocumentState still inserts successfully via collection defaults."""
         lst = create_list()
         item_id = _uuid()
@@ -321,7 +322,7 @@ class TestSyncPush:
         assert inserted["created_at"] is not None
         assert inserted["updated_at"] is not None
 
-    def test_push_partial_update_preserves_existing_values(self, client, create_list):
+    def test_push_partial_update_preserves_existing_values(self, client, create_list) -> None:
         """A partial update keeps omitted fields at their stored value, not defaults."""
         lst = create_list()
         item_id = _uuid()
@@ -374,7 +375,7 @@ class TestSyncPush:
         assert updated["list_id"] == lst["id"]
 
 
-def _push_item(client, *, new_state, assumed=None):
+def _push_item(client, *, new_state, assumed=None) -> tuple[int, Any]:
     """Send a single items push and return (status, conflicts)."""
     resp = client.post(
         "/api/v1/sync/items/push",
@@ -383,7 +384,7 @@ def _push_item(client, *, new_state, assumed=None):
     return resp.status_code, resp.json()
 
 
-def _push_list(client, *, new_state, assumed=None):
+def _push_list(client, *, new_state, assumed=None) -> tuple[int, Any]:
     """Send a single lists push and return (status, conflicts)."""
     resp = client.post(
         "/api/v1/sync/lists/push",
@@ -395,7 +396,7 @@ def _push_list(client, *, new_state, assumed=None):
 class TestSyncHistory:
     """Sync push must derive history entries from the state diff."""
 
-    def test_list_insert_logs_list_created(self, client):
+    def test_list_insert_logs_list_created(self, client) -> None:
         """Inserting a new list via sync push logs list_created."""
         list_id = _uuid()
         _push_list(
@@ -415,7 +416,7 @@ class TestSyncHistory:
         assert [h["action"] for h in history] == ["list_created"]
         assert history[0]["item_text"] == "Synced List"
 
-    def test_item_insert_logs_item_created(self, client, create_list):
+    def test_item_insert_logs_item_created(self, client, create_list) -> None:
         """Inserting a new item via sync push logs item_created."""
         lst = create_list(undo=True)
         item_id = _uuid()
@@ -436,7 +437,7 @@ class TestSyncHistory:
         assert [h["action"] for h in history] == ["item_created"]
         assert history[0]["item_text"] == "Buy milk"
 
-    def test_item_completion_toggle_logs_both_directions(self, client, create_list):
+    def test_item_completion_toggle_logs_both_directions(self, client, create_list) -> None:
         """Completing then uncompleting logs item_completed and item_uncompleted."""
         lst = create_list(undo=True)
         item_id = _uuid()
@@ -462,7 +463,7 @@ class TestSyncHistory:
         actions = {h["action"] for h in client.get(f"/api/v1/lists/{lst['id']}/history").json()}
         assert actions == {"item_created", "item_completed", "item_uncompleted"}
 
-    def test_item_text_change_logs_item_renamed(self, client, create_list):
+    def test_item_text_change_logs_item_renamed(self, client, create_list) -> None:
         """Changing text logs item_renamed with 'old → new' format."""
         lst = create_list(undo=True)
         item_id = _uuid()
@@ -486,7 +487,7 @@ class TestSyncHistory:
         edit = next(h for h in history if h["action"] == "item_renamed")
         assert edit["item_text"] == "Old text \u2192 New text"
 
-    def test_item_soft_delete_logs_item_deleted(self, client, create_list):
+    def test_item_soft_delete_logs_item_deleted(self, client, create_list) -> None:
         """Setting _deleted=1 logs item_deleted with the pre-delete text."""
         lst = create_list(undo=True)
         item_id = _uuid()
@@ -510,7 +511,7 @@ class TestSyncHistory:
         deleted_entry = next(h for h in history if h["action"] == "item_deleted")
         assert deleted_entry["item_text"] == "Doomed"
 
-    def test_list_rename_logs_list_renamed(self, client, create_list):
+    def test_list_rename_logs_list_renamed(self, client, create_list) -> None:
         """Renaming a list via sync logs list_renamed with 'old → new' format."""
         lst = create_list(name="Original", undo=True)
         pull = client.get("/api/v1/sync/lists/pull").json()
@@ -524,7 +525,7 @@ class TestSyncHistory:
         assert entry["item_text"] == "Original → Renamed"
         assert entry["item_id"] is None
 
-    def test_list_icon_and_sort_change_log_history(self, client, create_list):
+    def test_list_icon_and_sort_change_log_history(self, client, create_list) -> None:
         """Icon and item_sort changes each produce their own history row."""
         lst = create_list(undo=True)
         pull = client.get("/api/v1/sync/lists/pull").json()
@@ -543,7 +544,7 @@ class TestSyncHistory:
         assert "list_icon_changed" in actions
         assert "list_sort_changed" in actions
 
-    def test_list_sort_order_change_does_not_log(self, client, create_list):
+    def test_list_sort_order_change_does_not_log(self, client, create_list) -> None:
         """Reordering lists (sort_order only) produces no history rows."""
         lst = create_list(undo=True)
         pull = client.get("/api/v1/sync/lists/pull").json()
@@ -555,7 +556,7 @@ class TestSyncHistory:
         history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
         assert history == []
 
-    def test_push_batch_size_limit(self, client):
+    def test_push_batch_size_limit(self, client) -> None:
         """Pushing more than 500 changes in one request is rejected."""
         changes = [
             {"newDocumentState": {"id": _uuid(), "name": "x"}, "assumedMasterState": None}
@@ -565,7 +566,7 @@ class TestSyncHistory:
         assert resp.status_code == 422
 
 
-def _new_list_state(list_id):
+def _new_list_state(list_id) -> dict[str, Any]:
     """Build a complete, valid list document state for sync push."""
     return {
         "id": list_id,
@@ -582,7 +583,7 @@ def _new_list_state(list_id):
 class TestSyncPushBroadcast:
     """Push must broadcast whenever at least one write committed (B1)."""
 
-    def _patch_broadcasts(self, monkeypatch):
+    def _patch_broadcasts(self, monkeypatch) -> Any:
         """Replace the change-notification helper in the sync module with a spy."""
         import unittest.mock as mock
 
@@ -592,7 +593,9 @@ class TestSyncPushBroadcast:
         monkeypatch.setattr(sync, "notify_change", notify_spy)
         return notify_spy
 
-    def test_mixed_batch_broadcasts_despite_conflict(self, client, create_list, monkeypatch):
+    def test_mixed_batch_broadcasts_despite_conflict(
+        self, client, create_list, monkeypatch
+    ) -> None:
         """A batch with one write and one conflict still notifies other clients."""
         notify_spy = self._patch_broadcasts(monkeypatch)
 
@@ -611,7 +614,7 @@ class TestSyncPushBroadcast:
         assert len(resp.json()) == 1
         notify_spy.assert_called_once()
 
-    def test_pure_conflict_batch_does_not_broadcast(self, client, create_list, monkeypatch):
+    def test_pure_conflict_batch_does_not_broadcast(self, client, create_list, monkeypatch) -> None:
         """A batch where every change conflicts writes nothing and stays silent."""
         notify_spy = self._patch_broadcasts(monkeypatch)
 

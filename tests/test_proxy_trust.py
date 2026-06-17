@@ -6,7 +6,7 @@ import importlib
 class TestTrustedProxiesConfig:
     """Tests for TICKR_TRUSTED_PROXIES handling in backend.config."""
 
-    def test_default_is_loopback(self, monkeypatch):
+    def test_default_is_loopback(self, monkeypatch) -> None:
         """When the env var is unset, the default is 127.0.0.1."""
         monkeypatch.delenv("TICKR_TRUSTED_PROXIES", raising=False)
         import backend.config as config_module
@@ -14,7 +14,7 @@ class TestTrustedProxiesConfig:
         reloaded = importlib.reload(config_module)
         assert reloaded.TRUSTED_PROXIES == "127.0.0.1"
 
-    def test_env_override_is_read(self, monkeypatch):
+    def test_env_override_is_read(self, monkeypatch) -> None:
         """An explicit env value replaces the default."""
         monkeypatch.setenv("TICKR_TRUSTED_PROXIES", "10.0.0.1,10.0.0.2")
         import backend.config as config_module
@@ -25,7 +25,7 @@ class TestTrustedProxiesConfig:
         monkeypatch.delenv("TICKR_TRUSTED_PROXIES", raising=False)
         importlib.reload(config_module)
 
-    def test_forwarded_header_not_trusted_in_testclient(self, client):
+    def test_forwarded_header_not_trusted_in_testclient(self, client) -> None:
         """TestClient bypasses uvicorn flags, so a forged X-Forwarded-For is ignored.
 
         Documents the limitation that we cannot exercise `--proxy-headers`

@@ -6,13 +6,13 @@ from backend.routes import lists as lists_module
 class TestGetLists:
     """Tests for GET /api/v1/lists."""
 
-    def test_get_lists_empty(self, client):
+    def test_get_lists_empty(self, client) -> None:
         """Empty database returns an empty list."""
         resp = client.get("/api/v1/lists")
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_create_list_appears_in_get(self, client, create_list):
+    def test_create_list_appears_in_get(self, client, create_list) -> None:
         """A created list appears in the GET /lists response."""
         created = create_list(name="Groceries")
         resp = client.get("/api/v1/lists")
@@ -20,7 +20,7 @@ class TestGetLists:
         assert "Groceries" in names
         assert any(lst["id"] == created["id"] for lst in resp.json())
 
-    def test_get_lists_with_item_counts(self, client, create_list, create_item):
+    def test_get_lists_with_item_counts(self, client, create_list, create_item) -> None:
         """GET /lists includes correct total_items and completed_items counts."""
         lst = create_list()
         create_item(lst["id"], text="Item 1")
@@ -32,7 +32,7 @@ class TestGetLists:
         assert result["total_items"] == 2
         assert result["completed_items"] == 1
 
-    def test_get_lists_excludes_deleted(self, client, create_list):
+    def test_get_lists_excludes_deleted(self, client, create_list) -> None:
         """Soft-deleted lists are hidden from GET /lists."""
         lst = create_list()
         client.delete(f"/api/v1/lists/{lst['id']}")
@@ -43,7 +43,7 @@ class TestGetLists:
 class TestCreateList:
     """Tests for POST /api/v1/lists."""
 
-    def test_create_list(self, client):
+    def test_create_list(self, client) -> None:
         """Creating a list returns id, name, and icon."""
         resp = client.post("/api/v1/lists", json={"name": "My List"})
         assert resp.status_code == 200
@@ -52,12 +52,12 @@ class TestCreateList:
         assert data["name"] == "My List"
         assert data["icon"] == "list"
 
-    def test_create_list_custom_icon(self, client):
+    def test_create_list_custom_icon(self, client) -> None:
         """Custom icon field is persisted and returned."""
         resp = client.post("/api/v1/lists", json={"name": "Work", "icon": "briefcase"})
         assert resp.json()["icon"] == "briefcase"
 
-    def test_create_list_undo_skips_history(self, client, db):
+    def test_create_list_undo_skips_history(self, client, db) -> None:
         """Creating with undo=True produces no history entry."""
         resp = client.post("/api/v1/lists", json={"name": "Undo List", "undo": True})
         list_id = resp.json()["id"]
@@ -66,33 +66,33 @@ class TestCreateList:
         ).fetchone()
         assert row["cnt"] == 0
 
-    def test_create_list_validation_name_required(self, client):
+    def test_create_list_validation_name_required(self, client) -> None:
         """Missing name field returns 422."""
         resp = client.post("/api/v1/lists", json={"icon": "star"})
         assert resp.status_code == 422
 
-    def test_create_list_validation_name_too_long(self, client):
+    def test_create_list_validation_name_too_long(self, client) -> None:
         """Name exceeding 200 characters returns 422."""
         resp = client.post("/api/v1/lists", json={"name": "x" * 201})
         assert resp.status_code == 422
 
-    def test_create_list_rejects_empty_name(self, client):
+    def test_create_list_rejects_empty_name(self, client) -> None:
         """Empty string name returns 422 via min_length=1."""
         resp = client.post("/api/v1/lists", json={"name": ""})
         assert resp.status_code == 422
 
-    def test_create_list_rejects_whitespace_name(self, client):
+    def test_create_list_rejects_whitespace_name(self, client) -> None:
         """Whitespace-only name is stripped to empty and rejected."""
         resp = client.post("/api/v1/lists", json={"name": "   "})
         assert resp.status_code == 422
 
-    def test_create_list_strips_whitespace(self, client):
+    def test_create_list_strips_whitespace(self, client) -> None:
         """Surrounding whitespace is stripped from the stored name."""
         resp = client.post("/api/v1/lists", json={"name": "  Padded  "})
         assert resp.status_code == 200
         assert resp.json()["name"] == "Padded"
 
-    def test_response_omits_deleted_field(self, client, create_list):
+    def test_response_omits_deleted_field(self, client, create_list) -> None:
         """The `_deleted` column must not leak through GET /lists."""
         create_list()
         resp = client.get("/api/v1/lists")
@@ -103,7 +103,7 @@ class TestCreateList:
 class TestUpdateList:
     """Tests for PUT /api/v1/lists/{list_id}."""
 
-    def test_update_list_name(self, client, create_list):
+    def test_update_list_name(self, client, create_list) -> None:
         """PUT updates the list name."""
         lst = create_list(name="Old Name")
         resp = client.put(f"/api/v1/lists/{lst['id']}", json={"name": "New Name"})
@@ -113,7 +113,7 @@ class TestUpdateList:
         updated = next(entry for entry in lists if entry["id"] == lst["id"])
         assert updated["name"] == "New Name"
 
-    def test_update_list_icon(self, client, create_list):
+    def test_update_list_icon(self, client, create_list) -> None:
         """PUT updates the list icon."""
         lst = create_list()
         client.put(f"/api/v1/lists/{lst['id']}", json={"icon": "star"})
@@ -122,7 +122,7 @@ class TestUpdateList:
         updated = next(entry for entry in lists if entry["id"] == lst["id"])
         assert updated["icon"] == "star"
 
-    def test_update_list_item_sort(self, client, create_list):
+    def test_update_list_item_sort(self, client, create_list) -> None:
         """PUT updates the item_sort preference."""
         lst = create_list()
         client.put(f"/api/v1/lists/{lst['id']}", json={"item_sort": "created_desc"})
@@ -131,7 +131,7 @@ class TestUpdateList:
         updated = next(entry for entry in lists if entry["id"] == lst["id"])
         assert updated["item_sort"] == "created_desc"
 
-    def test_update_list_invalid_sort(self, client, create_list):
+    def test_update_list_invalid_sort(self, client, create_list) -> None:
         """Invalid item_sort returns 400 INVALID_SORT_OPTION."""
         lst = create_list()
         resp = client.put(f"/api/v1/lists/{lst['id']}", json={"item_sort": "bogus"})
@@ -142,7 +142,7 @@ class TestUpdateList:
 class TestDeleteList:
     """Tests for DELETE /api/v1/lists/{list_id}."""
 
-    def test_delete_list_soft_deletes(self, client, create_list, create_item):
+    def test_delete_list_soft_deletes(self, client, create_list, create_item) -> None:
         """Soft-deleting a list hides both the list and its items."""
         lst = create_list()
         create_item(lst["id"])
@@ -157,7 +157,7 @@ class TestDeleteList:
 class TestReorderLists:
     """Tests for POST /api/v1/lists/reorder."""
 
-    def test_reorder_lists_enqueues_broadcasts(self, client, create_list, monkeypatch):
+    def test_reorder_lists_enqueues_broadcasts(self, client, create_list, monkeypatch) -> None:
         """Reordering notifies clients of the lists change via notify_change."""
         calls: list[tuple] = []
         monkeypatch.setattr(lists_module, "notify_change", lambda _bg, *a, **_k: calls.append(a))
@@ -169,7 +169,7 @@ class TestReorderLists:
 
         assert ("lists_changed", "lists") in calls
 
-    def test_reorder_lists(self, client, create_list, db):
+    def test_reorder_lists(self, client, create_list, db) -> None:
         """Reordering updates sort_order for each list."""
         a = create_list(name="A")
         b = create_list(name="B")

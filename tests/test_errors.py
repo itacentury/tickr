@@ -6,7 +6,7 @@ import logging
 class TestReportError:
     """Tests for POST /api/v1/errors."""
 
-    def test_report_error(self, client):
+    def test_report_error(self, client) -> None:
         """Full error report with all fields returns 204."""
         resp = client.post(
             "/api/v1/errors",
@@ -20,7 +20,7 @@ class TestReportError:
         )
         assert resp.status_code == 204
 
-    def test_report_error_minimal(self, client):
+    def test_report_error_minimal(self, client) -> None:
         """Minimal report with only required fields (message, action) returns 204."""
         resp = client.post(
             "/api/v1/errors",
@@ -28,12 +28,12 @@ class TestReportError:
         )
         assert resp.status_code == 204
 
-    def test_report_error_validation(self, client):
+    def test_report_error_validation(self, client) -> None:
         """Missing required fields returns 422."""
         resp = client.post("/api/v1/errors", json={"message": "no action"})
         assert resp.status_code == 422
 
-    def test_report_error_rejects_oversized_stack(self, client):
+    def test_report_error_rejects_oversized_stack(self, client) -> None:
         """Stack exceeding the 2000-char limit is rejected to prevent log flooding."""
         resp = client.post(
             "/api/v1/errors",
@@ -45,7 +45,7 @@ class TestReportError:
         )
         assert resp.status_code == 422
 
-    def test_report_error_accepts_max_stack(self, client):
+    def test_report_error_accepts_max_stack(self, client) -> None:
         """Stack at exactly the 2000-char limit is accepted."""
         resp = client.post(
             "/api/v1/errors",
@@ -57,7 +57,7 @@ class TestReportError:
         )
         assert resp.status_code == 204
 
-    def test_report_error_logs_at_warning_level(self, client, caplog):
+    def test_report_error_logs_at_warning_level(self, client, caplog) -> None:
         """Frontend error reports log at WARNING to avoid flooding ERROR pipelines."""
         with caplog.at_level(logging.WARNING, logger="backend.routes.errors"):
             client.post(

@@ -7,23 +7,26 @@ from backend.main import app
 
 
 @pytest.fixture()
-def unauth_client(auth_enabled):
+def unauth_client(auth_enabled) -> TestClient:
     """Auth enabled, but no session cookie."""
     return TestClient(app, raise_server_exceptions=False)
 
 
-def test_protected_route_requires_session(unauth_client):
+def test_protected_route_requires_session(unauth_client) -> None:
+    """A protected API route returns 401 UNAUTHORIZED without a session."""
     resp = unauth_client.get("/api/v1/lists")
     assert resp.status_code == 401
     assert resp.json()["error"]["code"] == "UNAUTHORIZED"
 
 
-def test_metrics_is_protected(unauth_client):
+def test_metrics_is_protected(unauth_client) -> None:
+    """The metrics endpoint is gated and returns 401 without a session."""
     resp = unauth_client.get("/api/v1/metrics")
     assert resp.status_code == 401
 
 
-def test_metrics_reachable_with_session(authed_client):
+def test_metrics_reachable_with_session(authed_client) -> None:
+    """The metrics endpoint is reachable for an authenticated client."""
     resp = authed_client.get("/api/v1/metrics")
     assert resp.status_code == 200
 
@@ -39,13 +42,15 @@ def test_metrics_reachable_with_session(authed_client):
         "/icons/favicon.ico",
     ],
 )
-def test_public_paths_are_not_blocked(unauth_client, path):
+def test_public_paths_are_not_blocked(unauth_client, path) -> None:
+    """Public asset and health paths are never gated by the auth middleware."""
     # The file may or may not exist in the test env, but it must never be a 401.
     resp = unauth_client.get(path)
     assert resp.status_code != 401
 
 
-def test_login_endpoint_reachable_without_session(unauth_client):
+def test_login_endpoint_reachable_without_session(unauth_client) -> None:
+    """The login endpoint itself is exempt from the middleware."""
     # A correct password must succeed even without a prior session, proving the
     # login endpoint itself is exempt from the middleware.
     from tests.conftest import TEST_PASSWORD
@@ -54,7 +59,8 @@ def test_login_endpoint_reachable_without_session(unauth_client):
     assert ok.status_code == 200
 
 
-def test_routes_open_when_auth_disabled(client):
+def test_routes_open_when_auth_disabled(client) -> None:
+    """All routes are open when auth is globally disabled."""
     # Default config: AUTH_ENABLED is false → no gating.
     resp = client.get("/api/v1/lists")
     assert resp.status_code == 200
