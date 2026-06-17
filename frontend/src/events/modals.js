@@ -1,10 +1,9 @@
 /**
- * Modal, navigation, item-list and settings event wiring.
+ * Modal, navigation and item-list event wiring.
  *
- * Holds the general UI wiring that is not specific to categories, history or
- * gestures: modal open/close lifecycle, sidebar/navigation, the item checkbox/
- * add-item flow, the new/edit-list and edit-item modals, and the metrics and
- * settings modals.
+ * Holds the general UI wiring that is not specific to categories, history,
+ * gestures, metrics or settings: modal open/close lifecycle, sidebar/navigation,
+ * the item checkbox/add-item flow, and the new/edit-list and edit-item modals.
  *
  * Note: .exec() calls below are RxDB query execution, not shell commands.
  */
@@ -24,18 +23,21 @@ import {
   markItemPendingDelete,
   commitItemDelete,
   unmarkItemPendingDelete,
-  updateSettings,
   selectList,
   discardCategoryDraft,
   commitCategoryDraft,
 } from "../data.js";
-import { openEditListModal, openEditItemModal, resetCategoryForm } from "../render.js";
+import {
+  openEditListModal,
+  openEditItemModal,
+  resetCategoryForm,
+} from "../render.js";
 import { initDropdown, setDropdownValue, closeDropdown } from "../dropdown.js";
 import { showUndoToast, showErrorToast, initToastListeners } from "../toast.js";
 import { parseCategoryTag } from "../category-tag.js";
 import { createCategoryAutocomplete } from "../add-item-autocomplete.js";
-import { openMetrics, closeMetrics, setMetricsWindow } from "../metrics.js";
-import { logout } from "../auth.js";
+import { closeMetrics } from "../metrics.js";
+import { makeBackdropDismiss } from "./modal-helpers.js";
 import { MODAL_FOCUS_DELAY_MS } from "../timing.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
@@ -58,21 +60,6 @@ export function closeAllModals() {
     dom.editListCategoryForm.classList.remove("expanded");
   if (dom.editItemCategoryQuickForm)
     dom.editItemCategoryQuickForm.classList.remove("expanded");
-}
-
-/**
- * Wire backdrop-click dismissal for a modal. onClose (if provided) runs
- * after removing `open`, so transient state (e.g. editingItemId) can reset.
- *
- * @param {HTMLElement} modal
- * @param {() => void} [onClose]
- */
-function makeBackdropDismiss(modal, onClose) {
-  modal.addEventListener("click", (e) => {
-    if (e.target !== modal) return;
-    modal.classList.remove("open");
-    onClose?.();
-  });
 }
 
 /**
@@ -413,74 +400,4 @@ export function wireItemModal() {
     discardCategoryDraft();
     state.editingItemId = null;
   });
-}
-
-/** Metrics modal: open/close, time-range control, backdrop dismiss. */
-export function wireMetrics() {
-  dom.metricsBtn.addEventListener("click", () => {
-    openMetrics();
-    dom.closeMobileMenu();
-  });
-
-  dom.closeMetricsBtn.addEventListener("click", closeMetrics);
-
-  // Time-range segmented control: switch window and refresh.
-  dom.metricsRange.addEventListener("click", (event) => {
-    const target = /** @type {HTMLElement} */ (event.target);
-    const btn = /** @type {HTMLElement} */ (
-      target.closest("button[data-window]")
-    );
-    if (!btn) return;
-    for (const b of dom.metricsRange.querySelectorAll("button")) {
-      b.classList.toggle("active", b === btn);
-    }
-    setMetricsWindow(Number(btn.dataset.window));
-  });
-
-  makeBackdropDismiss(dom.metricsModal, closeMetrics);
-}
-
-/** Settings modal: open/save, clear cache, sign out, backdrop dismiss. */
-export function wireSettings() {
-  dom.settingsBtn.addEventListener("click", () => {
-    setDropdownValue(
-      dom.listSortSettingDropdown,
-      state.appSettings.list_sort || "alphabetical",
-    );
-    dom.settingsModal.classList.add("open");
-    dom.closeMobileMenu();
-  });
-
-  dom.cancelSettings.addEventListener("click", () =>
-    dom.settingsModal.classList.remove("open"),
-  );
-
-  dom.saveSettings.addEventListener("click", async () => {
-    const newListSort = dom.listSortSetting.value;
-    await updateSettings({ list_sort: newListSort });
-    dom.settingsModal.classList.remove("open");
-  });
-
-  dom.clearCacheBtn.addEventListener("click", async () => {
-    if (state.db) {
-      await state.db.remove();
-    }
-    if ("caches" in window) {
-      const cacheNames = await caches.keys();
-      await Promise.all(cacheNames.map((name) => caches.delete(name)));
-    }
-    if ("serviceWorker" in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map((reg) => reg.unregister()));
-    }
-    location.reload();
-  });
-
-  // Sign out: clear the server session, then reload so the auth gate re-renders.
-  dom.logoutBtn?.addEventListener("click", async () => {
-    await logout();
-    location.reload();
-  });
-
-  makeBackdropDismiss(dom.settingsModal);
 }

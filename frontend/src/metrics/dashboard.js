@@ -14,7 +14,12 @@
 import * as dom from "../dom.js";
 import { escapeHtml as esc, cssVar } from "../dom.js";
 import { METRICS_POLL_INTERVAL_MS } from "../timing.js";
-import { buildSpark, buildTraffic, buildHistogram, buildDonut } from "./charts.js";
+import {
+  buildSpark,
+  buildTraffic,
+  buildHistogram,
+  buildDonut,
+} from "./charts.js";
 import {
   statusBuckets,
   formatUptime,

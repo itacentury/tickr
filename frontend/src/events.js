@@ -12,9 +12,9 @@ import {
   wireItems,
   wireListModals,
   wireItemModal,
-  wireMetrics,
-  wireSettings,
 } from "./events/modals.js";
+import { wireMetrics } from "./events/metrics.js";
+import { wireSettings } from "./events/settings.js";
 import { wireCategories } from "./events/categories.js";
 import { wireHistory } from "./events/history.js";
 import {
