@@ -44,6 +44,7 @@ class AppError(Exception):
     status_code: int
 
     def __init__(self, code: ErrorCode, message: str, status_code: int) -> None:
+        """Initialize the error with its code, message, and HTTP status."""
         self.code = code
         self.message = message
         self.status_code = status_code

@@ -4,11 +4,15 @@ import uuid
 
 
 def _uuid() -> str:
+    """Generate a random UUID string for test documents."""
     return str(uuid.uuid4())
 
 
 class TestCategoryCRUD:
-    def test_create_and_list(self, client, create_list):
+    """Category create, list, update, and delete endpoints."""
+
+    def test_create_and_list(self, client, create_list) -> None:
+        """Creating a category returns it and it appears in the list endpoint."""
         lst = create_list()
         resp = client.post(
             f"/api/v1/lists/{lst['id']}/categories",
@@ -24,7 +28,8 @@ class TestCategoryCRUD:
         assert listing.status_code == 200
         assert len(listing.json()) == 1
 
-    def test_create_rejects_invalid_color(self, client, create_list):
+    def test_create_rejects_invalid_color(self, client, create_list) -> None:
+        """Creating a category with a malformed color is rejected with 422."""
         lst = create_list()
         for bad in ["red", "#abc", "#GGGGGG", "#1234567"]:
             resp = client.post(
@@ -33,14 +38,16 @@ class TestCategoryCRUD:
             )
             assert resp.status_code == 422, f"expected 422 for {bad}"
 
-    def test_create_rejects_unknown_list(self, client):
+    def test_create_rejects_unknown_list(self, client) -> None:
+        """Creating a category under a non-existent list returns 404."""
         resp = client.post(
             f"/api/v1/lists/{_uuid()}/categories",
             json={"name": "X", "color": "#3b82f6"},
         )
         assert resp.status_code == 404
 
-    def test_update_category(self, client, create_list):
+    def test_update_category(self, client, create_list) -> None:
+        """Updating a category changes its name and color."""
         lst = create_list()
         created = client.post(
             f"/api/v1/lists/{lst['id']}/categories",
@@ -57,7 +64,8 @@ class TestCategoryCRUD:
         assert listing[0]["name"] == "Errands"
         assert listing[0]["color"] == "#10b981"
 
-    def test_delete_category_clears_items(self, client, create_list, create_item):
+    def test_delete_category_clears_items(self, client, create_list, create_item) -> None:
+        """Deleting a category removes it and clears category_id on its items."""
         lst = create_list()
         cat = client.post(
             f"/api/v1/lists/{lst['id']}/categories",
@@ -80,7 +88,10 @@ class TestCategoryCRUD:
 
 
 class TestItemCategoryAssignment:
-    def test_create_item_with_category(self, client, create_list):
+    """Assigning and clearing an item's category via the item endpoints."""
+
+    def test_create_item_with_category(self, client, create_list) -> None:
+        """Creating an item with a category_id persists the assignment."""
         lst = create_list()
         cat = client.post(
             f"/api/v1/lists/{lst['id']}/categories",
@@ -93,7 +104,8 @@ class TestItemCategoryAssignment:
         assert resp.status_code == 200
         assert resp.json()["category_id"] == cat["id"]
 
-    def test_clear_item_category_via_update(self, client, create_list, create_item):
+    def test_clear_item_category_via_update(self, client, create_list, create_item) -> None:
+        """Updating an item with category_id=None clears its category."""
         lst = create_list()
         cat = client.post(
             f"/api/v1/lists/{lst['id']}/categories",
@@ -109,7 +121,10 @@ class TestItemCategoryAssignment:
 
 
 class TestCategorySync:
-    def test_push_pull_category(self, client, create_list):
+    """Category push/pull over the RxDB sync endpoints."""
+
+    def test_push_pull_category(self, client, create_list) -> None:
+        """A pushed category round-trips back through the pull endpoint."""
         lst = create_list()
         cat_id = _uuid()
         resp = client.post(
@@ -136,7 +151,8 @@ class TestCategorySync:
         assert len(pull["documents"]) == 1
         assert pull["documents"][0]["id"] == cat_id
 
-    def test_push_rejects_invalid_color(self, client, create_list):
+    def test_push_rejects_invalid_color(self, client, create_list) -> None:
+        """A category push with a malformed color is rejected with 422."""
         lst = create_list()
         resp = client.post(
             "/api/v1/sync/categories/push",
@@ -157,7 +173,8 @@ class TestCategorySync:
         )
         assert resp.status_code == 422
 
-    def test_item_sync_carries_category_id(self, client, create_list):
+    def test_item_sync_carries_category_id(self, client, create_list) -> None:
+        """An item pushed with a category_id keeps it through a pull."""
         lst = create_list()
         cat_id = _uuid()
         client.post(
@@ -205,7 +222,10 @@ class TestCategorySync:
 
 
 class TestCategoryListCascade:
-    def test_list_delete_soft_deletes_categories_via_sync(self, client, create_list):
+    """List deletion behavior with respect to its categories."""
+
+    def test_list_delete_soft_deletes_categories_via_sync(self, client, create_list) -> None:
+        """Deleting a list leaves its category rows intact for remote clients."""
         # Listen-Delete soft-deletet die Liste und kaskadiert via FK auf categories?
         # Eigentlich nicht: SQL-FK feuert nur bei DELETE, nicht UPDATE _deleted=1.
         # Wir testen, dass die Listen-Delete-Route die Kategorien NICHT mitnimmt;

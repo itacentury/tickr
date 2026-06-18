@@ -20,7 +20,7 @@ def _uuid() -> str:
 
 
 @pytest.mark.parametrize("collection", ["lists", "items"])
-def test_spec_sql_matches_table(collection):
+def test_spec_sql_matches_table(collection) -> None:
     """Generated SQL references the spec's table name and uses positional placeholders."""
     spec = COLLECTIONS[collection]
     assert spec.table == collection
@@ -32,7 +32,7 @@ def test_spec_sql_matches_table(collection):
     assert spec.update_sql.count("?") == len(spec.update_fields) + 1  # +1 for WHERE id=?
 
 
-def test_require_spec_rejects_unknown_collection():
+def test_require_spec_rejects_unknown_collection() -> None:
     """Unknown collection names raise an AppError with 400 status."""
     from backend.errors import AppError, ErrorCode
 
@@ -42,7 +42,7 @@ def test_require_spec_rejects_unknown_collection():
     assert exc.value.status_code == 400
 
 
-def test_insert_and_select_list_via_spec(db):
+def test_insert_and_select_list_via_spec(db) -> None:
     """A minimal list doc round-trips through _insert_doc and _select_doc."""
     spec = COLLECTIONS["lists"]
     doc = {"id": _uuid(), "name": "Spec Test"}
@@ -59,7 +59,7 @@ def test_insert_and_select_list_via_spec(db):
     assert row["_deleted"] == 0
 
 
-def test_insert_and_select_item_via_spec(db, create_list):
+def test_insert_and_select_item_via_spec(db, create_list) -> None:
     """A minimal item doc round-trips through _insert_doc and _select_doc."""
     parent = create_list(name="Parent")
     spec = COLLECTIONS["items"]
@@ -76,23 +76,26 @@ def test_insert_and_select_item_via_spec(db, create_list):
     assert row["completed_at"] is None
 
 
-def test_update_doc_rewrites_fields(db):
+def test_update_doc_rewrites_fields(db) -> None:
     """_update_doc overwrites update_fields and keys by id."""
     spec = COLLECTIONS["lists"]
     doc_id = _uuid()
     cursor = db.cursor()
 
     _insert_doc(cursor, spec, {"id": doc_id, "name": "Before"})
-    current = dict(_select_doc(cursor, spec, doc_id))
+    inserted = _select_doc(cursor, spec, doc_id)
+    assert inserted is not None
+    current = dict(inserted)
     _update_doc(cursor, spec, {"id": doc_id, "name": "After", "icon": "star"}, current)
     db.commit()
 
     row = _select_doc(cursor, spec, doc_id)
+    assert row is not None
     assert row["name"] == "After"
     assert row["icon"] == "star"
 
 
-def test_pull_docs_without_checkpoint_respects_limit(db):
+def test_pull_docs_without_checkpoint_respects_limit(db) -> None:
     """_pull_docs returns at most ``limit`` rows when no checkpoint is given."""
     spec = COLLECTIONS["lists"]
     cursor = db.cursor()
@@ -104,7 +107,7 @@ def test_pull_docs_without_checkpoint_respects_limit(db):
     assert len(rows) == 2
 
 
-def test_push_endpoint_still_routes_through_spec(client, create_list):
+def test_push_endpoint_still_routes_through_spec(client, create_list) -> None:
     """The refactored sync_push keeps its end-to-end contract on both collections."""
     lst = create_list(name="Integration")
     resp = client.post(

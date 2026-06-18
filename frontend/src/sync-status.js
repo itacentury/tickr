@@ -18,7 +18,7 @@ export function initSyncStatus(replications) {
   const syncIndicator = document.getElementById("syncIndicator");
   let syncShowTimeout = null;
 
-  function updateSyncUI(syncing) {
+  const updateSyncUI = (syncing) => {
     if (!syncIndicator) return;
     if (syncing) {
       if (!syncShowTimeout) {
@@ -31,7 +31,7 @@ export function initSyncStatus(replications) {
       syncShowTimeout = null;
       syncIndicator.classList.remove("visible");
     }
-  }
+  };
 
   const subscription = new Subscription();
   for (const rep of Object.values(replications)) {

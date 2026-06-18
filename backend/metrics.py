@@ -94,8 +94,8 @@ class _Bucket:
 def _percentile(sorted_samples: list[float], pct: int) -> float:
     """Return the ``pct`` percentile of an already-sorted, non-empty sample list."""
     n: int = len(sorted_samples)
-    idx: int = max(0, min(n - 1, n * pct // 100 - (1 if pct >= 95 else 0)))
-    return round(sorted_samples[idx], 2)
+    index: int = max(0, min(n - 1, n * pct // 100 - (1 if pct >= 95 else 0)))
+    return round(sorted_samples[index], 2)
 
 
 class MetricsCollector:
@@ -107,6 +107,7 @@ class MetricsCollector:
     """
 
     def __init__(self, max_samples: int = 10_000) -> None:
+        """Initialize the collector with its sample cap and empty state."""
         self._lock: Lock = Lock()
         self._started_at: float = time.time()
         self.total_requests: int = 0
@@ -221,7 +222,7 @@ class MetricsCollector:
     def _windowed_samples_locked(self, window_seconds: int) -> list[float]:
         """Return response-time samples within the window; caller holds the lock."""
         cutoff: float = time.time() - window_seconds
-        return [d for timestamp, d in self._response_times if timestamp > cutoff]
+        return [duration for timestamp, duration in self._response_times if timestamp > cutoff]
 
     def _compute_percentiles_locked(self, window_seconds: int) -> dict[str, Any]:
         """Compute percentile snapshot; caller must hold ``self._lock``."""
@@ -267,8 +268,8 @@ class MetricsCollector:
         width: float = hi / _HISTOGRAM_BINS if hi > 0 else 1.0
         bins: list[int] = [0] * _HISTOGRAM_BINS
         for value in samples:
-            idx: int = min(_HISTOGRAM_BINS - 1, int(value / width))
-            bins[idx] += 1
+            index: int = min(_HISTOGRAM_BINS - 1, int(value / width))
+            bins[index] += 1
         return {"bins": bins, "tail_from": _HISTOGRAM_BINS - _HISTOGRAM_TAIL_BINS}
 
     # ------------------------------------------------------------------ buckets
@@ -301,8 +302,8 @@ class MetricsCollector:
             if not (first <= minute <= last):
                 continue
             ts: float = minute * _BUCKET_SECONDS
-            idx: int = min(points - 1, max(0, int((ts - start) / slot)))
-            series[idx] += bucket.count
+            index: int = min(points - 1, max(0, int((ts - start) / slot)))
+            series[index] += bucket.count
         return series
 
     def _latency_series_locked(self, start: float, end: float, points: int) -> list[float]:
@@ -317,9 +318,9 @@ class MetricsCollector:
             if not (first <= minute <= last) or bucket.latency_count == 0:
                 continue
             ts: float = minute * _BUCKET_SECONDS
-            idx: int = min(points - 1, max(0, int((ts - start) / slot)))
-            sums[idx] += bucket.latency_sum
-            counts[idx] += bucket.latency_count
+            index: int = min(points - 1, max(0, int((ts - start) / slot)))
+            sums[index] += bucket.latency_sum
+            counts[index] += bucket.latency_count
         return [round(sums[i] / counts[i], 2) if counts[i] else 0.0 for i in range(points)]
 
     @staticmethod
@@ -407,13 +408,15 @@ class MetricsCollector:
             spark_latency: list[float] = self._latency_series_locked(cur_start, now, _SPARK_POINTS)
             last_error: dict[str, Any] | None = dict(self._last_error) if self._last_error else None
 
-        cur_avg: float = current.latency_sum / current.latency_count if current.latency_count else 0
-        prev_avg: float = (
-            previous.latency_sum / previous.latency_count if previous.latency_count else 0
+        cur_avg: float = (
+            current.latency_sum / current.latency_count if current.latency_count else 0.0
         )
-        cur_err_rate: float = current.errors / current.count * 100 if current.count else 0
-        prev_err_rate: float = previous.errors / previous.count * 100 if previous.count else 0
-        throughput: float = current.count / window_seconds if window_seconds else 0
+        prev_avg: float = 0.0
+        if previous.latency_count:
+            prev_avg = previous.latency_sum / previous.latency_count
+        cur_err_rate: float = current.errors / current.count * 100 if current.count else 0.0
+        prev_err_rate: float = previous.errors / previous.count * 100 if previous.count else 0.0
+        throughput: float = current.count / window_seconds if window_seconds else 0.0
 
         peak_value: int = max(traffic_points) if traffic_points else 0
         peak_index: int = traffic_points.index(peak_value) if peak_value else 0
@@ -476,6 +479,7 @@ class SyncMetrics:
     """Thread-safe counters for RxDB replication activity (pull/push/conflicts)."""
 
     def __init__(self) -> None:
+        """Initialize the sync metrics counters at zero."""
         self._lock: Lock = Lock()
         self.items_pulled: int = 0
         self.items_pushed: int = 0

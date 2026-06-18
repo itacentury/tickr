@@ -4,7 +4,7 @@
 class TestValidationErrorFormat:
     """Tests for 422 validation error structure."""
 
-    def test_validation_error_format(self, client):
+    def test_validation_error_format(self, client) -> None:
         """422 responses have code=VALIDATION_ERROR and a details array."""
         resp = client.post("/api/v1/lists", json={})
         assert resp.status_code == 422
@@ -14,7 +14,7 @@ class TestValidationErrorFormat:
         assert isinstance(error["details"], list)
         assert len(error["details"]) > 0
 
-    def test_validation_error_detail_fields(self, client):
+    def test_validation_error_detail_fields(self, client) -> None:
         """Each validation detail has field, message, and type."""
         resp = client.post("/api/v1/lists", json={})
         detail = resp.json()["error"]["details"][0]
@@ -26,7 +26,7 @@ class TestValidationErrorFormat:
 class TestAppErrorFormat:
     """Tests for application-level error structure."""
 
-    def test_app_error_format(self, client):
+    def test_app_error_format(self, client) -> None:
         """400/404 errors have code, message, and status in the error object."""
         resp = client.put(
             "/api/v1/items/00000000-0000-0000-0000-000000000000",
@@ -42,7 +42,7 @@ class TestAppErrorFormat:
 class TestUnknownRoute:
     """Tests for requests to nonexistent paths."""
 
-    def test_unknown_route(self, client):
+    def test_unknown_route(self, client) -> None:
         """Nonexistent API path returns 404."""
         resp = client.get("/api/v1/nonexistent")
         assert resp.status_code == 404

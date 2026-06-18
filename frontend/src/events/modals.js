@@ -252,6 +252,8 @@ export function wireListModals() {
     // Deferred delete: hide the list now, finalize when the undo window
     // expires. Undo is a pure revert, so the list keeps its ID and history.
     const itemIds = await markListPendingDelete(listId);
+    // Failure already surfaced its own error toast; don't claim "deleted".
+    if (itemIds === null) return;
     showUndoToast(`"${listName}" deleted`, {
       onUndo: () => unmarkListPendingDelete(listId, itemIds),
       onCommit: () => commitListDelete(listId, itemIds),
@@ -389,7 +391,9 @@ export function wireItemModal() {
     // Deferred delete: hide the item now, finalize when the undo window
     // expires. Undo reverts in place, preserving completion, category and
     // original timestamps.
-    await markItemPendingDelete(itemId);
+    const ok = await markItemPendingDelete(itemId);
+    // Failure already surfaced its own error toast; don't claim "deleted".
+    if (!ok) return;
     showUndoToast(`"${itemText}" deleted`, {
       onUndo: () => unmarkItemPendingDelete(itemId),
       onCommit: () => commitItemDelete(itemId),

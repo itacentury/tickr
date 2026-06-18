@@ -28,10 +28,15 @@ export function now() {
 
 /** Get the count of non-completed items for a list. */
 export async function getItemCount(listId) {
-  const allItems = await state.db.items
-    .find({ selector: { listId, completed: false } })
-    .exec();
-  return { remaining: allItems.length };
+  try {
+    const allItems = await state.db.items
+      .find({ selector: { listId, completed: false } })
+      .exec();
+    return { remaining: allItems.length };
+  } catch (error) {
+    reportError("count items", error);
+    return { remaining: 0 };
+  }
 }
 
 // ---- List CRUD ----
@@ -100,23 +105,41 @@ export async function updateList(listId, name, icon, itemSort) {
  * documents — and their history — stay intact, so an undo is a no-op revert.
  *
  * @param {string} listId - The list ID to delete.
- * @returns {Promise<string[]>} The IDs of the list's items, needed by
- *   commit/unmark to resolve the deferred deletion.
+ * @returns {Promise<string[] | null>} The IDs of the list's items, needed by
+ *   commit/unmark to resolve the deferred deletion. `null` signals failure;
+ *   `[]` is a successful delete of a list that has no items.
  */
 export async function markListPendingDelete(listId) {
-  const listItems = await state.db.items.find({ selector: { listId } }).exec();
-  const itemIds = listItems.map((d) => d.id);
+  let itemIds = [];
+  try {
+    const listItems = await state.db.items
+      .find({ selector: { listId } })
+      .exec();
+    itemIds = listItems.map((d) => d.id);
 
-  state.pendingDeletes.lists.add(listId);
-  for (const id of itemIds) state.pendingDeletes.items.add(id);
+    // These item IDs live in the same Set as individually-deleted items, and the
+    // symmetric clears below remove them in bulk. That is safe: a pending list
+    // hides its items and navigates away, so they can never be individually marked
+    // in parallel — and on commit their documents are removed regardless.
+    state.pendingDeletes.lists.add(listId);
+    for (const id of itemIds) state.pendingDeletes.items.add(id);
 
-  // refreshLists() re-renders without the hidden list and, since it is the
-  // current list, navigates away (or clears to "No Lists") via its built-in
-  // selection-reconciliation logic.
-  await refreshLists();
-  await refreshItemCounts();
+    // refreshLists() re-renders without the hidden list and, since it is the
+    // current list, navigates away (or clears to "No Lists") via its built-in
+    // selection-reconciliation logic.
+    await refreshLists();
+    await refreshItemCounts();
 
-  return itemIds;
+    return itemIds;
+  } catch (error) {
+    // Roll back the flags we set so a failed refresh never leaves the list
+    // hidden with no undo toast and no commit/undo callbacks registered.
+    state.pendingDeletes.lists.delete(listId);
+    for (const id of itemIds) state.pendingDeletes.items.delete(id);
+    reportError("delete list", error);
+    showErrorToast("Failed to delete list");
+    return null;
+  }
 }
 
 /**
@@ -157,9 +180,14 @@ export async function unmarkListPendingDelete(listId, itemIds) {
   state.pendingDeletes.lists.delete(listId);
   for (const id of itemIds) state.pendingDeletes.items.delete(id);
 
-  await refreshLists();
-  await refreshItemCounts();
-  selectList(listId);
+  try {
+    await refreshLists();
+    await refreshItemCounts();
+    selectList(listId);
+  } catch (error) {
+    reportError("restore list", error);
+    showErrorToast("Failed to restore list");
+  }
 }
 
 // ---- Item CRUD ----
@@ -223,11 +251,21 @@ export async function updateItem(itemId, data) {
  * fields (completed, category, createdAt), so an undo restores it verbatim.
  *
  * @param {string} itemId - The item ID to delete.
+ * @returns {Promise<boolean>} `true` on success; `false` on failure, with the
+ *   pending flag rolled back so the item is not left hidden.
  */
 export async function markItemPendingDelete(itemId) {
   state.pendingDeletes.items.add(itemId);
-  await refreshCurrentItems();
-  await refreshItemCounts();
+  try {
+    await refreshCurrentItems();
+    await refreshItemCounts();
+    return true;
+  } catch (error) {
+    state.pendingDeletes.items.delete(itemId);
+    reportError("delete item", error);
+    showErrorToast("Failed to delete item");
+    return false;
+  }
 }
 
 /**
@@ -256,8 +294,13 @@ export async function commitItemDelete(itemId) {
  */
 export async function unmarkItemPendingDelete(itemId) {
   state.pendingDeletes.items.delete(itemId);
-  await refreshCurrentItems();
-  await refreshItemCounts();
+  try {
+    await refreshCurrentItems();
+    await refreshItemCounts();
+  } catch (error) {
+    reportError("restore item", error);
+    showErrorToast("Failed to restore item");
+  }
 }
 
 /**

@@ -12,12 +12,12 @@ from backend.main import RATE_LIMIT_REQUESTS, app, rate_limit_store
 class TestRateLimit:
     """Tests for the rate_limit_middleware in backend.main."""
 
-    def test_rate_limit_allows_normal_traffic(self, client):
+    def test_rate_limit_allows_normal_traffic(self, client) -> None:
         """Requests under the limit succeed with 200."""
         resp = client.get("/api/v1/settings")
         assert resp.status_code == 200
 
-    def test_rate_limit_returns_429(self, client):
+    def test_rate_limit_returns_429(self, client) -> None:
         """Exceeding the limit returns 429 with RATE_LIMITED error code."""
         # Fill the store with timestamps all within the current window
         now = time.time()
@@ -27,7 +27,7 @@ class TestRateLimit:
         assert resp.status_code == 429
         assert resp.json()["error"]["code"] == "RATE_LIMITED"
 
-    def test_rate_limit_excludes_sse_paths(self):
+    def test_rate_limit_excludes_sse_paths(self) -> None:
         """SSE, health, and metrics paths bypass rate limiting."""
         now = time.time()
         rate_limit_store.clear()
@@ -39,7 +39,7 @@ class TestRateLimit:
             # These should NOT be 429 since they're exempt
             assert resp.status_code != 429, f"{path} should be exempt from rate limiting"
 
-    def test_rate_limit_excludes_static_shell(self):
+    def test_rate_limit_excludes_static_shell(self) -> None:
         """The app shell and PWA assets stay reachable even when rate limited."""
         now = time.time()
         rate_limit_store.clear()
@@ -50,7 +50,7 @@ class TestRateLimit:
             resp = c.get(path)
             assert resp.status_code != 429, f"{path} should be exempt from rate limiting"
 
-    def test_rate_limit_retry_after_header(self, client):
+    def test_rate_limit_retry_after_header(self, client) -> None:
         """429 response includes a Retry-After header."""
         now = time.time()
         rate_limit_store["testclient"] = [now] * RATE_LIMIT_REQUESTS
@@ -59,7 +59,7 @@ class TestRateLimit:
         assert resp.status_code == 429
         assert "retry-after" in resp.headers
 
-    def test_store_evicts_stale_entries_when_over_max(self, client, monkeypatch):
+    def test_store_evicts_stale_entries_when_over_max(self, client, monkeypatch) -> None:
         """Stale IPs are removed when the store exceeds the max size."""
         monkeypatch.setattr(main_module, "RATE_LIMIT_MAX_IPS", 3)
         rate_limit_store.clear()
@@ -73,7 +73,7 @@ class TestRateLimit:
         # Stale entries should be evicted; only the requesting client remains
         assert len(rate_limit_store) <= 3
 
-    def test_store_evicts_oldest_when_all_active(self, client, monkeypatch):
+    def test_store_evicts_oldest_when_all_active(self, client, monkeypatch) -> None:
         """When all IPs are active, the oldest are evicted to stay under the cap."""
         monkeypatch.setattr(main_module, "RATE_LIMIT_MAX_IPS", 3)
         rate_limit_store.clear()
@@ -86,7 +86,7 @@ class TestRateLimit:
         assert resp.status_code == 200
         assert len(rate_limit_store) <= 3
 
-    def test_request_tracked_when_eviction_triggered(self, client, monkeypatch):
+    def test_request_tracked_when_eviction_triggered(self, client, monkeypatch) -> None:
         """Regression: the current client's request must be tracked even when its
         filtered timestamps are empty and eviction runs in the same request."""
         monkeypatch.setattr(main_module, "RATE_LIMIT_MAX_IPS", 3)
@@ -105,7 +105,7 @@ class TestRateLimit:
         assert "testclient" in rate_limit_store
         assert len(rate_limit_store["testclient"]) == 1
 
-    def test_store_no_eviction_under_max(self, client, monkeypatch):
+    def test_store_no_eviction_under_max(self, client, monkeypatch) -> None:
         """No eviction occurs when the store is under the max size."""
         monkeypatch.setattr(main_module, "RATE_LIMIT_MAX_IPS", 100)
         rate_limit_store.clear()
@@ -123,7 +123,7 @@ class TestRateLimit:
 class TestAccessLog:
     """Tests for the merged access_log_and_metrics_middleware."""
 
-    def test_rate_limited_requests_are_access_logged(self, client, caplog):
+    def test_rate_limited_requests_are_access_logged(self, client, caplog) -> None:
         """A 429 from the rate limiter must still appear in the access log."""
         now = time.time()
         rate_limit_store["testclient"] = [now] * RATE_LIMIT_REQUESTS
@@ -141,7 +141,7 @@ class TestAccessLog:
         ]
         assert matching, "Expected a backend.main log record for the 429 response"
 
-    def test_successful_requests_are_access_logged(self, client, caplog):
+    def test_successful_requests_are_access_logged(self, client, caplog) -> None:
         """Normal 2xx traffic is logged with method, path, status, and duration."""
         with caplog.at_level(logging.INFO, logger="backend.main"):
             resp = client.get("/api/v1/settings")
@@ -160,7 +160,7 @@ class TestAccessLog:
 class TestSecurityHeaders:
     """Tests for the security_headers_middleware in backend.main."""
 
-    def test_security_headers_present(self, client):
+    def test_security_headers_present(self, client) -> None:
         """Every response includes required security headers."""
         resp = client.get("/api/v1/settings")
         assert "content-security-policy" in resp.headers
@@ -169,12 +169,12 @@ class TestSecurityHeaders:
         assert "referrer-policy" in resp.headers
         assert "permissions-policy" in resp.headers
 
-    def test_hsts_absent_on_http(self, client):
+    def test_hsts_absent_on_http(self, client) -> None:
         """HSTS must not be emitted over plain HTTP."""
         resp = client.get("/api/v1/settings")
         assert "strict-transport-security" not in resp.headers
 
-    def test_hsts_present_on_https(self):
+    def test_hsts_present_on_https(self) -> None:
         """HSTS is emitted when the request arrives over HTTPS."""
         https_client = TestClient(app, base_url="https://testserver", raise_server_exceptions=False)
         resp = https_client.get("/api/v1/settings")

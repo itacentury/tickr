@@ -1,5 +1,7 @@
 """Legacy SSE endpoint for real-time updates."""
 
+import asyncio
+
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
@@ -15,7 +17,7 @@ router = APIRouter(prefix="/api/v1")
 @router.get("/events")
 async def sse_events() -> StreamingResponse:
     """SSE endpoint for real-time updates to connected clients (legacy)."""
-    queue = await legacy_broadcaster.register()
+    queue: asyncio.Queue[str] = await legacy_broadcaster.register()
     return StreamingResponse(
         legacy_broadcaster.stream(queue, heartbeat=SSE_HEARTBEAT_INTERVAL),
         media_type="text/event-stream",

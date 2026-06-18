@@ -1,17 +1,19 @@
 """Tests for history endpoints."""
 
+from typing import Any
+
 
 class TestGetHistory:
     """Tests for GET /api/v1/lists/{list_id}/history."""
 
-    def test_get_history_empty(self, client, create_list):
+    def test_get_history_empty(self, client, create_list) -> None:
         """A fresh list with no actions returns empty history."""
         lst = create_list(undo=True)  # undo=True skips the creation history entry
         resp = client.get(f"/api/v1/lists/{lst['id']}/history")
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_get_history_after_actions(self, client, create_list, create_item):
+    def test_get_history_after_actions(self, client, create_list, create_item) -> None:
         """Creating a list and completing an item produce history entries."""
         lst = create_list(name="History Test")
         item = create_item(lst["id"], text="Test item")
@@ -23,7 +25,7 @@ class TestGetHistory:
         assert "item_created" in actions
         assert "item_completed" in actions
 
-    def test_get_history_excludes_undo_actions(self, client, create_list, db):
+    def test_get_history_excludes_undo_actions(self, client, create_list, db) -> None:
         """History entries with undo_ prefix are filtered out."""
         lst = create_list()
         db.execute(
@@ -35,7 +37,7 @@ class TestGetHistory:
         history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
         assert all(not h["action"].startswith("undo_") for h in history)
 
-    def test_get_history_excludes_hidden_entries(self, client, create_list, db):
+    def test_get_history_excludes_hidden_entries(self, client, create_list, db) -> None:
         """History rows flagged hidden = 1 are not returned."""
         lst = create_list()
         db.execute(
@@ -48,7 +50,7 @@ class TestGetHistory:
         assert all(h["item_text"] != "hidden item" for h in history)
 
 
-def _push_item(client, item_state, assumed):
+def _push_item(client, item_state, assumed) -> Any:
     """Push a single item change through the sync endpoint and return the response."""
     return client.post(
         "/api/v1/sync/items/push",
@@ -59,7 +61,7 @@ def _push_item(client, item_state, assumed):
 class TestRestoreHistory:
     """Tests for item_restored logging on the sync un-tombstone path."""
 
-    def test_restore_logs_item_restored(self, client, create_list, create_item):
+    def test_restore_logs_item_restored(self, client, create_list, create_item) -> None:
         """Un-tombstoning an item via sync records an item_restored event."""
         lst = create_list()
         item = create_item(lst["id"], text="Restore me")
@@ -83,7 +85,7 @@ class TestPartialPushHistory:
 
     def test_completion_only_push_omitting_text_logs_no_rename(
         self, client, create_list, create_item
-    ):
+    ) -> None:
         """A push that toggles only ``completed`` (no ``text``) must not log a rename.
 
         ``newDocumentState`` carries just the changed fields, so ``text`` is absent.
@@ -113,7 +115,7 @@ class TestPartialPushHistory:
 class TestHideItemHistory:
     """Tests for POST /api/v1/lists/{list_id}/history/hide."""
 
-    def test_hide_removes_item_entries_from_view(self, client, create_list, create_item):
+    def test_hide_removes_item_entries_from_view(self, client, create_list, create_item) -> None:
         """Hiding an item drops all of its history rows from the list view."""
         lst = create_list()
         item = create_item(lst["id"], text="Bye")
@@ -126,7 +128,7 @@ class TestHideItemHistory:
         history = client.get(f"/api/v1/lists/{lst['id']}/history").json()
         assert all(h["item_id"] != item["id"] for h in history)
 
-    def test_hide_keeps_other_items(self, client, create_list, create_item):
+    def test_hide_keeps_other_items(self, client, create_list, create_item) -> None:
         """Hiding one item leaves another item's history untouched."""
         lst = create_list()
         kept = create_item(lst["id"], text="Keep")
@@ -138,7 +140,7 @@ class TestHideItemHistory:
         assert kept["id"] in item_ids
         assert gone["id"] not in item_ids
 
-    def test_hide_unknown_item_returns_404(self, client, create_list):
+    def test_hide_unknown_item_returns_404(self, client, create_list) -> None:
         """Hiding an item with no matching history rows returns 404 ITEM_NOT_FOUND."""
         lst = create_list()
 

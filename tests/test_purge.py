@@ -40,7 +40,7 @@ def _insert_item(conn: sqlite3.Connection, item_id: str, list_id: str, deleted: 
 class TestTombstoneCutoff:
     """Tests for the cutoff timestamp formatting."""
 
-    def test_cutoff_matches_now_format(self):
+    def test_cutoff_matches_now_format(self) -> None:
         """Cutoff is the same lexicographically comparable format as now()."""
         cutoff: str = tombstone_cutoff(30)
         assert cutoff.endswith("Z")
@@ -52,7 +52,7 @@ class TestTombstoneCutoff:
 class TestPurgeTombstones:
     """Tests for purge_tombstones over the in-memory schema."""
 
-    def test_purges_old_tombstones(self, db_connection):
+    def test_purges_old_tombstones(self, db_connection) -> None:
         """A tombstone older than the window is deleted and counted."""
         old_id = _insert_list(db_connection, "old", deleted=1, updated_at=_days_ago(40))
 
@@ -62,7 +62,7 @@ class TestPurgeTombstones:
         row = db_connection.execute("SELECT 1 FROM lists WHERE id = ?", (old_id,)).fetchone()
         assert row is None
 
-    def test_keeps_recent_tombstones(self, db_connection):
+    def test_keeps_recent_tombstones(self, db_connection) -> None:
         """A tombstone newer than the window survives."""
         recent_id = _insert_list(db_connection, "recent", deleted=1, updated_at=_days_ago(5))
 
@@ -72,7 +72,7 @@ class TestPurgeTombstones:
         row = db_connection.execute("SELECT 1 FROM lists WHERE id = ?", (recent_id,)).fetchone()
         assert row is not None
 
-    def test_keeps_live_documents(self, db_connection):
+    def test_keeps_live_documents(self, db_connection) -> None:
         """A live (non-deleted) row is never purged, even when old."""
         live_id = _insert_list(db_connection, "live", deleted=0, updated_at=_days_ago(99))
 
@@ -91,13 +91,13 @@ class TestStaleCheckpointGuard:
     not 410 a freshly synced client.
     """
 
-    def test_legacy_checkpoint_without_issued_at_returns_410(self, client):
+    def test_legacy_checkpoint_without_issued_at_returns_410(self, client) -> None:
         """A pre-issuedAt checkpoint forces one migrating full resync."""
         resp = client.get(f"/api/v1/sync/lists/pull?updated_at={_days_ago(40)}&id=any-id")
         assert resp.status_code == 410
         assert resp.json()["error"]["code"] == "CHECKPOINT_TOO_OLD"
 
-    def test_old_issued_at_returns_410(self, client):
+    def test_old_issued_at_returns_410(self, client) -> None:
         """A client that last synced before the purge horizon must resync."""
         resp = client.get(
             f"/api/v1/sync/lists/pull?updated_at={_days_ago(1)}&id=any-id&issued_at={_days_ago(40)}"
@@ -105,7 +105,7 @@ class TestStaleCheckpointGuard:
         assert resp.status_code == 410
         assert resp.json()["error"]["code"] == "CHECKPOINT_TOO_OLD"
 
-    def test_old_documents_with_fresh_issued_at_are_allowed(self, client):
+    def test_old_documents_with_fresh_issued_at_are_allowed(self, client) -> None:
         """Regression: ancient document timestamps must not 410 a fresh sync.
 
         The old guard compared ``updated_at`` (a document timestamp) against
@@ -118,14 +118,14 @@ class TestStaleCheckpointGuard:
         )
         assert resp.status_code == 200
 
-    def test_recent_checkpoint_is_allowed(self, client):
+    def test_recent_checkpoint_is_allowed(self, client) -> None:
         """A recent checkpoint pulls normally."""
         resp = client.get(
             f"/api/v1/sync/lists/pull?updated_at={_days_ago(1)}&id=any-id&issued_at={_days_ago(1)}"
         )
         assert resp.status_code == 200
 
-    def test_no_checkpoint_is_allowed(self, client):
+    def test_no_checkpoint_is_allowed(self, client) -> None:
         """The initial pull (no checkpoint) is never guarded."""
         resp = client.get("/api/v1/sync/lists/pull")
         assert resp.status_code == 200
@@ -134,7 +134,7 @@ class TestStaleCheckpointGuard:
 class TestCheckpointIssuedAt:
     """Tests for the issuedAt stamp on pull-response checkpoints."""
 
-    def test_checkpoint_includes_fresh_issued_at(self, client, db_connection):
+    def test_checkpoint_includes_fresh_issued_at(self, client, db_connection) -> None:
         """Every checkpoint built from documents carries a fresh issuedAt."""
         doc_time: str = _days_ago(400)
         _insert_list(db_connection, "old-doc", deleted=0, updated_at=doc_time)
@@ -147,7 +147,7 @@ class TestCheckpointIssuedAt:
         # The stamp reflects sync time, not the (ancient) document time.
         assert checkpoint["issuedAt"] > _days_ago(1)
 
-    def test_empty_pull_echoes_checkpoint_with_fresh_issued_at(self, client):
+    def test_empty_pull_echoes_checkpoint_with_fresh_issued_at(self, client) -> None:
         """An empty incremental pull refreshes the client's checkpoint stamp.
 
         Without this, an idle-but-active client's issuedAt would age past the
@@ -166,13 +166,13 @@ class TestCheckpointIssuedAt:
         assert checkpoint["id"] == "some-id"
         assert checkpoint["issuedAt"] > _days_ago(1)
 
-    def test_empty_initial_pull_has_no_checkpoint(self, client):
+    def test_empty_initial_pull_has_no_checkpoint(self, client) -> None:
         """No documents and no client checkpoint yields a null checkpoint."""
         resp = client.get("/api/v1/sync/lists/pull")
         assert resp.status_code == 200
         assert resp.json()["checkpoint"] is None
 
-    def test_fresh_paginated_resync_of_old_data_never_410s(self, client, db_connection):
+    def test_fresh_paginated_resync_of_old_data_never_410s(self, client, db_connection) -> None:
         """Regression for the reload loop: paginating >limit old rows succeeds.
 
         Page 1 of a fresh sync over data older than the purge horizon returns
@@ -202,7 +202,7 @@ class TestPurgeForeignKeyCascades:
     dangling ``history.item_id`` while keeping the audit row.
     """
 
-    def test_deleting_list_cascades_history(self, db_connection):
+    def test_deleting_list_cascades_history(self, db_connection) -> None:
         """Purging a soft-deleted list removes its items and history."""
         list_id = _insert_list(db_connection, "doomed", deleted=1, updated_at=_days_ago(40))
         _insert_item(db_connection, "item-1", list_id, deleted=0)
@@ -221,7 +221,7 @@ class TestPurgeForeignKeyCascades:
         ).fetchone()[0]
         assert history == 0
 
-    def test_purging_item_nulls_history_reference(self, db_connection):
+    def test_purging_item_nulls_history_reference(self, db_connection) -> None:
         """Purging an item under a live list nulls item_id but keeps the row."""
         list_id = _insert_list(db_connection, "live", deleted=0, updated_at=now())
         _insert_item(db_connection, "item-1", list_id, deleted=1)
@@ -264,10 +264,12 @@ class TestHistoryItemFkMigration:
 
     @staticmethod
     def _has_item_fk(conn: sqlite3.Connection) -> bool:
+        """Return whether the history table has an item_id foreign key."""
         rows = conn.execute("PRAGMA foreign_key_list(history)").fetchall()
         return any(row[3] == "item_id" for row in rows)
 
-    def test_migration_adds_fk_and_preserves_rows(self):
+    def test_migration_adds_fk_and_preserves_rows(self) -> None:
+        """The FK migration adds the item_id foreign key and keeps existing rows."""
         conn = sqlite3.connect(":memory:")
         init_db(conn)
         self._downgrade_history(conn)
@@ -285,7 +287,8 @@ class TestHistoryItemFkMigration:
         assert row == ("item-1", "Buy milk")
         conn.close()
 
-    def test_migration_is_idempotent(self):
+    def test_migration_is_idempotent(self) -> None:
+        """Running the FK migration on an already-migrated schema is a no-op."""
         conn = sqlite3.connect(":memory:")
         init_db(conn)  # schema already carries the FK
         assert self._has_item_fk(conn)
@@ -295,7 +298,7 @@ class TestHistoryItemFkMigration:
         assert self._has_item_fk(conn)
         conn.close()
 
-    def test_migration_rolls_back_on_failure(self):
+    def test_migration_rolls_back_on_failure(self) -> None:
         """A failure mid-rebuild leaves the original history table intact."""
         conn = sqlite3.connect(":memory:")
         init_db(conn)
@@ -310,15 +313,19 @@ class TestHistoryItemFkMigration:
             """Delegate to the real connection but raise on commit."""
 
             def __init__(self, real: sqlite3.Connection) -> None:
+                """Wrap the real connection that every call delegates to."""
                 self._real = real
 
             def cursor(self) -> sqlite3.Cursor:
+                """Delegate cursor creation to the real connection."""
                 return self._real.cursor()
 
             def commit(self) -> None:
+                """Simulate a commit failure to trigger the rollback path."""
                 raise sqlite3.OperationalError("simulated failure")
 
             def rollback(self) -> None:
+                """Delegate rollback to the real connection."""
                 self._real.rollback()
 
         with pytest.raises(sqlite3.OperationalError):

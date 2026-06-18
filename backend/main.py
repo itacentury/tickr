@@ -271,7 +271,9 @@ async def rate_limit_middleware(request: Request, call_next: CallNext) -> Respon
 
     with rate_limit_lock:
         cutoff: float = now - RATE_LIMIT_WINDOW
-        timestamps: list[float] = [t for t in rate_limit_store[client_ip] if t > cutoff]
+        timestamps: list[float] = [
+            timestamp for timestamp in rate_limit_store[client_ip] if timestamp > cutoff
+        ]
         rate_limit_store[client_ip] = timestamps
 
         if len(timestamps) >= RATE_LIMIT_REQUESTS:

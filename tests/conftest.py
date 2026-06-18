@@ -1,6 +1,8 @@
 """Shared test fixtures for Tickr API tests."""
 
 import sqlite3
+from collections.abc import Callable, Iterator
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,7 +13,7 @@ from backend.main import app, rate_limit_store
 
 
 @pytest.fixture()
-def db_connection():
+def db_connection() -> Iterator[sqlite3.Connection]:
     """Create a fresh in-memory SQLite database per test via `init_db(conn)`.
 
     Function-scope means every test gets a clean slate without hand-written
@@ -27,10 +29,11 @@ def db_connection():
 
 
 @pytest.fixture(autouse=True)
-def db(db_connection):
+def db(db_connection) -> Iterator[sqlite3.Connection]:
     """Override get_db to yield the per-test in-memory connection."""
 
-    def override_get_db():
+    def override_get_db() -> Iterator[sqlite3.Connection]:
+        """Yield the shared per-test connection in place of the real dependency."""
         yield db_connection
 
     app.dependency_overrides[get_db] = override_get_db
@@ -39,13 +42,13 @@ def db(db_connection):
 
 
 @pytest.fixture(autouse=True)
-def clear_rate_limits():
+def clear_rate_limits() -> None:
     """Reset the rate limit store before each test."""
     rate_limit_store.clear()
 
 
 @pytest.fixture()
-def client():
+def client() -> TestClient:
     """Provide a TestClient that returns HTTP error responses instead of raising."""
     return TestClient(app, raise_server_exceptions=False)
 
@@ -58,7 +61,7 @@ TEST_PASSWORD = "test-password"
 
 
 @pytest.fixture()
-def auth_enabled(monkeypatch):
+def auth_enabled(monkeypatch) -> str:
     """Turn on auth with a known plaintext password and an insecure cookie.
 
     Returns the configured password so tests can log in.
@@ -72,7 +75,7 @@ def auth_enabled(monkeypatch):
 
 
 @pytest.fixture()
-def authed_client(auth_enabled):
+def authed_client(auth_enabled) -> TestClient:
     """A TestClient with auth enabled and a valid session cookie."""
     test_client = TestClient(app, raise_server_exceptions=False)
     resp = test_client.post(
@@ -83,10 +86,11 @@ def authed_client(auth_enabled):
 
 
 @pytest.fixture()
-def create_list(client):
+def create_list(client) -> Callable[..., dict[str, Any]]:
     """Factory fixture that creates a list via the API and returns the response JSON."""
 
-    def _create(name="Test List", icon="list", undo=False):
+    def _create(name="Test List", icon="list", undo=False) -> dict[str, Any]:
+        """Create a list via the API and return its JSON body."""
         resp = client.post("/api/v1/lists", json={"name": name, "icon": icon, "undo": undo})
         assert resp.status_code == 200
         return resp.json()
@@ -95,10 +99,11 @@ def create_list(client):
 
 
 @pytest.fixture()
-def create_item(client):
+def create_item(client) -> Callable[..., dict[str, Any]]:
     """Factory fixture that creates an item via the API and returns the response JSON."""
 
-    def _create(list_id, text="Test Item", undo=False):
+    def _create(list_id, text="Test Item", undo=False) -> dict[str, Any]:
+        """Create an item in the given list via the API and return its JSON body."""
         resp = client.post(f"/api/v1/lists/{list_id}/items", json={"text": text, "undo": undo})
         assert resp.status_code == 200
         return resp.json()

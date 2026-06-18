@@ -89,13 +89,13 @@ function presentToast(message, undoCallback, commitCallback) {
   toastRemainingTime = UNDO_WINDOW_MS;
   const isVisible = undoToast.classList.contains("visible");
 
-  function startCountdown() {
+  const startCountdown = () => {
     animateProgress(toastProgress, toastRemainingTime);
     toastTimeout = setTimeout(() => {
       commitPending();
       hideUndoToast();
     }, toastRemainingTime);
-  }
+  };
 
   if (isVisible) {
     toastMessage.classList.add("swapping");
