@@ -117,16 +117,41 @@ describe("crud error/catch branches", () => {
     expect(showErrorToast).toHaveBeenCalledWith("Failed to restore list");
   });
 
-  it("markItemPendingDelete reports on refresh failure", async () => {
+  it("markItemPendingDelete rolls back the flag and returns false on refresh failure", async () => {
     vi.mocked(refreshCurrentItems).mockRejectedValue(
       new Error("refresh failed"),
     );
 
-    await markItemPendingDelete("item-1");
+    const result = await markItemPendingDelete("item-1");
 
-    expect(state.pendingDeletes.items.has("item-1")).toBe(true);
+    expect(result).toBe(false);
+    // The flag is rolled back so the item is not left hidden with no undo toast.
+    expect(state.pendingDeletes.items.has("item-1")).toBe(false);
     expect(reportError).toHaveBeenCalledWith("delete item", expect.any(Error));
     expect(showErrorToast).toHaveBeenCalledWith("Failed to delete item");
+  });
+
+  it("markItemPendingDelete returns true and keeps the flag on success", async () => {
+    const result = await markItemPendingDelete("item-1");
+
+    expect(result).toBe(true);
+    expect(state.pendingDeletes.items.has("item-1")).toBe(true);
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("markListPendingDelete rolls back flags and returns null on refresh failure", async () => {
+    // The query resolves but the re-render rejects; this is the path that
+    // previously left the list hidden in state with nothing to undo or commit.
+    state.db = resolvingDb([{ id: "item-1" }]);
+    vi.mocked(refreshLists).mockRejectedValue(new Error("refresh failed"));
+
+    const result = await markListPendingDelete("list-1");
+
+    expect(result).toBeNull();
+    expect(state.pendingDeletes.lists.has("list-1")).toBe(false);
+    expect(state.pendingDeletes.items.has("item-1")).toBe(false);
+    expect(reportError).toHaveBeenCalledWith("delete list", expect.any(Error));
+    expect(showErrorToast).toHaveBeenCalledWith("Failed to delete list");
   });
 
   it("unmarkItemPendingDelete reports on refresh failure", async () => {

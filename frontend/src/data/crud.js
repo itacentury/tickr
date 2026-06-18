@@ -110,11 +110,12 @@ export async function updateList(listId, name, icon, itemSort) {
  *   `[]` is a successful delete of a list that has no items.
  */
 export async function markListPendingDelete(listId) {
+  let itemIds = [];
   try {
     const listItems = await state.db.items
       .find({ selector: { listId } })
       .exec();
-    const itemIds = listItems.map((d) => d.id);
+    itemIds = listItems.map((d) => d.id);
 
     state.pendingDeletes.lists.add(listId);
     for (const id of itemIds) state.pendingDeletes.items.add(id);
@@ -127,6 +128,10 @@ export async function markListPendingDelete(listId) {
 
     return itemIds;
   } catch (error) {
+    // Roll back the flags we set so a failed refresh never leaves the list
+    // hidden with no undo toast and no commit/undo callbacks registered.
+    state.pendingDeletes.lists.delete(listId);
+    for (const id of itemIds) state.pendingDeletes.items.delete(id);
     reportError("delete list", error);
     showErrorToast("Failed to delete list");
     return null;
@@ -242,15 +247,20 @@ export async function updateItem(itemId, data) {
  * fields (completed, category, createdAt), so an undo restores it verbatim.
  *
  * @param {string} itemId - The item ID to delete.
+ * @returns {Promise<boolean>} `true` on success; `false` on failure, with the
+ *   pending flag rolled back so the item is not left hidden.
  */
 export async function markItemPendingDelete(itemId) {
   state.pendingDeletes.items.add(itemId);
   try {
     await refreshCurrentItems();
     await refreshItemCounts();
+    return true;
   } catch (error) {
+    state.pendingDeletes.items.delete(itemId);
     reportError("delete item", error);
     showErrorToast("Failed to delete item");
+    return false;
   }
 }
 
