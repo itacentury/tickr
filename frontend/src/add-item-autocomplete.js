@@ -34,16 +34,16 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
   // replacing the in-progress token with the selected category name.
   let acTriggerStart = -1;
 
-  function hide() {
+  const hide = () => {
     menu.hidden = true;
     menu.replaceChildren();
     acSuggestions = [];
     acActiveIndex = -1;
     acTriggerStart = -1;
     input.removeAttribute("aria-activedescendant");
-  }
+  };
 
-  function buildSuggestionItem(category, index) {
+  const buildSuggestionItem = (category, index) => {
     const li = document.createElement("li");
     li.className = "category-autocomplete-item";
     li.setAttribute("role", "option");
@@ -60,9 +60,9 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
 
     li.append(dot, label);
     return li;
-  }
+  };
 
-  function render(prefix) {
+  const render = (prefix) => {
     const lower = prefix.toLowerCase();
     acSuggestions = state.categories.filter((c) =>
       c.name.toLowerCase().startsWith(lower),
@@ -87,9 +87,9 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
     acActiveIndex = 0;
     updateActive();
     menu.hidden = false;
-  }
+  };
 
-  function updateActive() {
+  const updateActive = () => {
     menu.querySelectorAll(".category-autocomplete-item").forEach((el, i) => {
       el.classList.toggle("active", i === acActiveIndex);
     });
@@ -98,15 +98,15 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
     } else {
       input.removeAttribute("aria-activedescendant");
     }
-  }
+  };
 
   /** Cycle the highlighted suggestion by `dir` (+1 down, -1 up), wrapping. */
-  function moveActive(dir) {
+  const moveActive = (dir) => {
     if (acSuggestions.length === 0) return;
     acActiveIndex =
       (acActiveIndex + dir + acSuggestions.length) % acSuggestions.length;
     updateActive();
-  }
+  };
 
   /**
    * Commit the highlighted suggestion (if any) by rewriting the in-progress
@@ -114,7 +114,7 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
    *
    * @returns {boolean} true if a suggestion was accepted, false otherwise.
    */
-  function accept() {
+  const accept = () => {
     if (menu.hidden || acActiveIndex < 0 || acTriggerStart < 0) return false;
     const cat = acSuggestions[acActiveIndex];
     if (!cat) return false;
@@ -130,7 +130,7 @@ export function createCategoryAutocomplete(input, menu, onAccept) {
     input.selectionStart = input.selectionEnd = input.value.length;
     hide();
     return true;
-  }
+  };
 
   input.addEventListener("input", () => {
     // Trigger detection uses the substring up to the caret so the popup also

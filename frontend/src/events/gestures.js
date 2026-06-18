@@ -60,7 +60,7 @@ export function wireSwipeNavigation() {
     { passive: true },
   );
 
-  function handleSwipe() {
+  const handleSwipe = () => {
     const deltaX = touchEndX - touchStartX;
     const deltaY = touchEndY - touchStartY;
     const minSwipeDistance = 80;
@@ -106,20 +106,20 @@ export function wireSwipeNavigation() {
         dom.listTitle.classList.remove("fade-in");
       }, LIST_SWIPE_ANIMATION_MS);
     }, LIST_SWIPE_ANIMATION_MS);
-  }
+  };
 }
 
 /** Track the visual viewport height for modal positioning. */
 export function wireVisualViewport() {
   if (!window.visualViewport) return;
 
-  function updateVisualViewport() {
+  const updateVisualViewport = () => {
     const vv = window.visualViewport;
     document.documentElement.style.setProperty(
       "--visual-viewport-height",
       `${vv.height}px`,
     );
-  }
+  };
   updateVisualViewport();
   window.visualViewport.addEventListener("resize", updateVisualViewport);
   window.visualViewport.addEventListener("scroll", updateVisualViewport);

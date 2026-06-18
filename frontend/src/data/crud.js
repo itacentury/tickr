@@ -28,10 +28,15 @@ export function now() {
 
 /** Get the count of non-completed items for a list. */
 export async function getItemCount(listId) {
-  const allItems = await state.db.items
-    .find({ selector: { listId, completed: false } })
-    .exec();
-  return { remaining: allItems.length };
+  try {
+    const allItems = await state.db.items
+      .find({ selector: { listId, completed: false } })
+      .exec();
+    return { remaining: allItems.length };
+  } catch (error) {
+    reportError("count items", error);
+    return { remaining: 0 };
+  }
 }
 
 // ---- List CRUD ----
@@ -104,19 +109,27 @@ export async function updateList(listId, name, icon, itemSort) {
  *   commit/unmark to resolve the deferred deletion.
  */
 export async function markListPendingDelete(listId) {
-  const listItems = await state.db.items.find({ selector: { listId } }).exec();
-  const itemIds = listItems.map((d) => d.id);
+  try {
+    const listItems = await state.db.items
+      .find({ selector: { listId } })
+      .exec();
+    const itemIds = listItems.map((d) => d.id);
 
-  state.pendingDeletes.lists.add(listId);
-  for (const id of itemIds) state.pendingDeletes.items.add(id);
+    state.pendingDeletes.lists.add(listId);
+    for (const id of itemIds) state.pendingDeletes.items.add(id);
 
-  // refreshLists() re-renders without the hidden list and, since it is the
-  // current list, navigates away (or clears to "No Lists") via its built-in
-  // selection-reconciliation logic.
-  await refreshLists();
-  await refreshItemCounts();
+    // refreshLists() re-renders without the hidden list and, since it is the
+    // current list, navigates away (or clears to "No Lists") via its built-in
+    // selection-reconciliation logic.
+    await refreshLists();
+    await refreshItemCounts();
 
-  return itemIds;
+    return itemIds;
+  } catch (error) {
+    reportError("delete list", error);
+    showErrorToast("Failed to delete list");
+    return [];
+  }
 }
 
 /**
@@ -157,9 +170,14 @@ export async function unmarkListPendingDelete(listId, itemIds) {
   state.pendingDeletes.lists.delete(listId);
   for (const id of itemIds) state.pendingDeletes.items.delete(id);
 
-  await refreshLists();
-  await refreshItemCounts();
-  selectList(listId);
+  try {
+    await refreshLists();
+    await refreshItemCounts();
+    selectList(listId);
+  } catch (error) {
+    reportError("restore list", error);
+    showErrorToast("Failed to restore list");
+  }
 }
 
 // ---- Item CRUD ----
@@ -226,8 +244,13 @@ export async function updateItem(itemId, data) {
  */
 export async function markItemPendingDelete(itemId) {
   state.pendingDeletes.items.add(itemId);
-  await refreshCurrentItems();
-  await refreshItemCounts();
+  try {
+    await refreshCurrentItems();
+    await refreshItemCounts();
+  } catch (error) {
+    reportError("delete item", error);
+    showErrorToast("Failed to delete item");
+  }
 }
 
 /**
@@ -256,8 +279,13 @@ export async function commitItemDelete(itemId) {
  */
 export async function unmarkItemPendingDelete(itemId) {
   state.pendingDeletes.items.delete(itemId);
-  await refreshCurrentItems();
-  await refreshItemCounts();
+  try {
+    await refreshCurrentItems();
+    await refreshItemCounts();
+  } catch (error) {
+    reportError("restore item", error);
+    showErrorToast("Failed to restore item");
+  }
 }
 
 /**

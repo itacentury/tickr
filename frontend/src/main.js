@@ -115,7 +115,7 @@ if ("serviceWorker" in navigator && !inRecovery) {
    *
    * @param {ServiceWorker} worker - The waiting service worker.
    */
-  function showUpdateNotification(worker) {
+  const showUpdateNotification = (worker) => {
     const notification = document.createElement("div");
     notification.className = "sw-update-notification";
 
@@ -141,5 +141,5 @@ if ("serviceWorker" in navigator && !inRecovery) {
     notification.appendChild(updateBtn);
     notification.appendChild(dismissBtn);
     document.body.appendChild(notification);
-  }
+  };
 }
