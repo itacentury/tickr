@@ -252,6 +252,8 @@ export function wireListModals() {
     // Deferred delete: hide the list now, finalize when the undo window
     // expires. Undo is a pure revert, so the list keeps its ID and history.
     const itemIds = await markListPendingDelete(listId);
+    // Failure already surfaced its own error toast; don't claim "deleted".
+    if (itemIds === null) return;
     showUndoToast(`"${listName}" deleted`, {
       onUndo: () => unmarkListPendingDelete(listId, itemIds),
       onCommit: () => commitListDelete(listId, itemIds),

@@ -105,8 +105,9 @@ export async function updateList(listId, name, icon, itemSort) {
  * documents — and their history — stay intact, so an undo is a no-op revert.
  *
  * @param {string} listId - The list ID to delete.
- * @returns {Promise<string[]>} The IDs of the list's items, needed by
- *   commit/unmark to resolve the deferred deletion.
+ * @returns {Promise<string[] | null>} The IDs of the list's items, needed by
+ *   commit/unmark to resolve the deferred deletion. `null` signals failure;
+ *   `[]` is a successful delete of a list that has no items.
  */
 export async function markListPendingDelete(listId) {
   try {
@@ -128,7 +129,7 @@ export async function markListPendingDelete(listId) {
   } catch (error) {
     reportError("delete list", error);
     showErrorToast("Failed to delete list");
-    return [];
+    return null;
   }
 }
 
