@@ -222,11 +222,7 @@ class MetricsCollector:
     def _windowed_samples_locked(self, window_seconds: int) -> list[float]:
         """Return response-time samples within the window; caller holds the lock."""
         cutoff: float = time.time() - window_seconds
-        samples: list[float] = []
-        for timestamp, duration in self._response_times:
-            if timestamp > cutoff:
-                samples.append(duration)
-        return samples
+        return [duration for timestamp, duration in self._response_times if timestamp > cutoff]
 
     def _compute_percentiles_locked(self, window_seconds: int) -> dict[str, Any]:
         """Compute percentile snapshot; caller must hold ``self._lock``."""
