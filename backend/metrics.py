@@ -408,13 +408,15 @@ class MetricsCollector:
             spark_latency: list[float] = self._latency_series_locked(cur_start, now, _SPARK_POINTS)
             last_error: dict[str, Any] | None = dict(self._last_error) if self._last_error else None
 
-        cur_avg: float = current.latency_sum / current.latency_count if current.latency_count else 0
-        prev_avg: float = 0
+        cur_avg: float = (
+            current.latency_sum / current.latency_count if current.latency_count else 0.0
+        )
+        prev_avg: float = 0.0
         if previous.latency_count:
             prev_avg = previous.latency_sum / previous.latency_count
-        cur_err_rate: float = current.errors / current.count * 100 if current.count else 0
-        prev_err_rate: float = previous.errors / previous.count * 100 if previous.count else 0
-        throughput: float = current.count / window_seconds if window_seconds else 0
+        cur_err_rate: float = current.errors / current.count * 100 if current.count else 0.0
+        prev_err_rate: float = previous.errors / previous.count * 100 if previous.count else 0.0
+        throughput: float = current.count / window_seconds if window_seconds else 0.0
 
         peak_value: int = max(traffic_points) if traffic_points else 0
         peak_index: int = traffic_points.index(peak_value) if peak_value else 0
