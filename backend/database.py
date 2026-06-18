@@ -440,9 +440,7 @@ def _ensure_history_item_fk(conn: sqlite3.Connection) -> None:
                 FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
             )
         """)
-        cursor.execute(
-            f"INSERT INTO history_new ({columns}) SELECT {columns} FROM history"
-        )
+        cursor.execute(f"INSERT INTO history_new ({columns}) SELECT {columns} FROM history")
         # Capture now: the DROP/ALTER DDL below resets rowcount to -1, so it
         # cannot be read at the logger.info call.
         migrated: int = cursor.rowcount
