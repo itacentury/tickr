@@ -151,10 +151,10 @@ def init_db(conn: sqlite3.Connection | None = None) -> None:
     else:
         _ensure_columns(conn)
 
-    _ensure_indexes(conn)
     _rename_legacy_history_actions(conn)
     _ensure_history_hidden_column(conn)
     _ensure_history_item_fk(conn)
+    _ensure_indexes(conn)
 
     # Settings table
     cursor.execute("PRAGMA table_info(settings)")
@@ -413,6 +413,15 @@ def _ensure_history_item_fk(conn: sqlite3.Connection) -> None:
     if has_item_fk:
         return
 
+    # Older databases that predate this FK may also predate the `hidden` column.
+    # Copy it only when present so the rebuild works regardless of call order;
+    # absent rows fall back to the new table's DEFAULT 0.
+    cursor.execute("PRAGMA table_info(history)")
+    has_hidden: bool = any(row[1] == "hidden" for row in cursor.fetchall())
+    columns: str = "id, list_id, item_id, action, item_text, timestamp"
+    if has_hidden:
+        columns = "id, list_id, item_id, action, item_text, hidden, timestamp"
+
     # SQLite has transactional DDL, so a failure mid-rebuild can be rolled back to
     # the intact original table instead of leaving the database without history.
     logger.info("db_migration_begin", migration="history_item_fk")
@@ -425,14 +434,14 @@ def _ensure_history_item_fk(conn: sqlite3.Connection) -> None:
                 item_id TEXT,
                 action TEXT NOT NULL,
                 item_text TEXT,
+                hidden INTEGER DEFAULT 0,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
                 FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
             )
         """)
         cursor.execute(
-            "INSERT INTO history_new (id, list_id, item_id, action, item_text, timestamp) "
-            "SELECT id, list_id, item_id, action, item_text, timestamp FROM history"
+            f"INSERT INTO history_new ({columns}) SELECT {columns} FROM history"
         )
         # Capture now: the DROP/ALTER DDL below resets rowcount to -1, so it
         # cannot be read at the logger.info call.
