@@ -117,6 +117,10 @@ export async function markListPendingDelete(listId) {
       .exec();
     itemIds = listItems.map((d) => d.id);
 
+    // These item IDs live in the same Set as individually-deleted items, and the
+    // symmetric clears below remove them in bulk. That is safe: a pending list
+    // hides its items and navigates away, so they can never be individually marked
+    // in parallel — and on commit their documents are removed regardless.
     state.pendingDeletes.lists.add(listId);
     for (const id of itemIds) state.pendingDeletes.items.add(id);
 
