@@ -302,6 +302,9 @@ function animateGridHeight(grid, startHeight, visibleCount) {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const endHeight = naturalGridHeight(grid, visibleCount);
   if (Math.round(startHeight) === Math.round(endHeight)) return;
+  // Web Animations API is absent in some environments (e.g. jsdom); skip the
+  // tween gracefully rather than throwing.
+  if (typeof grid.animate !== "function") return;
   // Cancel any in-flight run so rapid typing stays smooth.
   grid.getAnimations().forEach((animation) => animation.cancel());
   grid.animate([{ height: `${startHeight}px` }, { height: `${endHeight}px` }], {

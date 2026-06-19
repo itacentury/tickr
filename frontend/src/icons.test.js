@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // jsdom is required because populateIconPicker/filterIconPicker query and
 // mutate DOM nodes.
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import {
   iconLabels,
   icons,
@@ -130,6 +130,58 @@ describe("icon picker search", () => {
     filterIconPicker(container, "");
     expect(visibleKeys(container)).toHaveLength(Object.keys(icons).length);
     expect(noResults(container).hidden).toBe(true);
+  });
+
+  // jsdom does no layout, so drive startHeight != endHeight by overriding the
+  // grid's measured height and stubbing the Web Animations API (absent here).
+  function stubAnimatedGrid(container) {
+    const grid = /** @type {HTMLElement} */ (
+      container.querySelector(".icon-grid")
+    );
+    Object.defineProperty(grid, "offsetHeight", {
+      value: 500,
+      configurable: true,
+    });
+    grid.getAnimations = () => [];
+    grid.animate = vi.fn();
+    return grid;
+  }
+
+  it("tweens the grid height when the layout changes", () => {
+    const container = createPicker();
+    const grid = stubAnimatedGrid(container);
+    filterIconPicker(container, "zzz"); // no matches -> endHeight 0
+    expect(grid.animate).toHaveBeenCalledWith(
+      [{ height: "500px" }, { height: "0px" }],
+      expect.objectContaining({ duration: 200 }),
+    );
+  });
+
+  it("does not throw where the Web Animations API is absent", () => {
+    const container = createPicker();
+    const grid = /** @type {HTMLElement} */ (
+      container.querySelector(".icon-grid")
+    );
+    // jsdom provides neither grid.animate nor grid.getAnimations; a non-zero
+    // start height forces past the equality early-return into the guard.
+    Object.defineProperty(grid, "offsetHeight", {
+      value: 500,
+      configurable: true,
+    });
+    expect(() => filterIconPicker(container, "zzz")).not.toThrow();
+  });
+
+  it("skips the tween under prefers-reduced-motion", () => {
+    const previous = window.matchMedia;
+    window.matchMedia = () => /** @type {MediaQueryList} */ ({ matches: true });
+    try {
+      const container = createPicker();
+      const grid = stubAnimatedGrid(container);
+      filterIconPicker(container, "zzz");
+      expect(grid.animate).not.toHaveBeenCalled();
+    } finally {
+      window.matchMedia = previous;
+    }
   });
 });
 
