@@ -283,14 +283,18 @@ function naturalGridHeight(grid, visibleCount) {
   if (!sample) return 0;
   const style = getComputedStyle(grid);
   const gap = parseFloat(style.rowGap) || 0;
-  // Derive columns from layout (cells sharing the first row's offsetTop) rather
-  // than parsing gridTemplateColumns, which can carry multi-token track functions.
+  // Derive columns from layout (cells that land in the first row) rather than
+  // parsing gridTemplateColumns, which can carry multi-token track functions.
   const firstRowTop = sample.offsetTop;
+  const cellHeight = sample.offsetHeight; // square cells (aspect-ratio: 1)
+  // A cell is in the first row when its top sits above the first cell's vertical
+  // center; rows are at least a cell tall, so this tolerates sub-pixel drift
+  // without ever absorbing a genuine second row.
+  const rowThreshold = firstRowTop + cellHeight / 2;
   let columns = 0;
   cells.forEach((cell) => {
-    if (cell.offsetTop === firstRowTop) columns += 1;
+    if (cell.offsetTop < rowThreshold) columns += 1;
   });
-  const cellHeight = sample.offsetHeight; // square cells (aspect-ratio: 1)
   const rows = Math.ceil(visibleCount / columns);
   const maxHeight = parseFloat(style.maxHeight) || Infinity;
   return Math.min(rows * cellHeight + (rows - 1) * gap, maxHeight);
