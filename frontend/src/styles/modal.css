@@ -338,8 +338,8 @@ button.icon-picker-toggle.open .chevron {
   /* `display` is discrete; pairing it with `allow-discrete` lets an option
      finish fading (opacity/transform below) before it leaves grid flow. */
   transition:
-    all 250ms ease,
-    display 250ms ease allow-discrete;
+    all var(--transition-normal),
+    display var(--transition-normal) allow-discrete;
 }
 
 /* `.icon-option` sets `display: flex`, which (as an author rule) overrides the
