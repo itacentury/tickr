@@ -61,17 +61,13 @@ All settings can be overridden via `TICKR_*` environment variables. Copy the exa
 cp tickr.env.example .env
 ```
 
-> **Note:** The app itself does not call `load_dotenv` — it reads `TICKR_*` from
-> the process environment. With the dev dependencies installed (`uv sync --dev`,
-> which brings in `python-dotenv`), the simplest option is to let uvicorn load
-> the file via `--env-file`:
+> **Note:** The app itself does not call `load_dotenv` — it reads `TICKR_*` from the process environment. With the dev dependencies installed (`uv sync --dev`, which brings in `python-dotenv`), the simplest option is to let uvicorn load the file via `--env-file`:
 >
 > ```bash
 > uv run uvicorn backend.main:app --reload --port 8000 --env-file .env
 > ```
 >
-> Without the dev dependencies (`--env-file` unavailable), pass the variables
-> directly or load the file into your shell before starting the server:
+> Without the dev dependencies (`--env-file` unavailable), pass the variables directly or load the file into your shell before starting the server:
 >
 > **PowerShell**
 >
@@ -91,9 +87,7 @@ cp tickr.env.example .env
 > uv run uvicorn backend.main:app --reload --port 8000
 > ```
 >
-> Both loaders skip comment and blank lines. In Docker the variables come from
-> the container environment / `env_file` instead (see
-> [`docker-compose.yml`](docker-compose.yml)).
+> Both loaders skip comment and blank lines. In Docker the variables come from the container environment / `env_file` instead (see [`docker-compose.yml`](docker-compose.yml)).
 
 See [`tickr.env.example`](tickr.env.example) for the full list with defaults.
 
@@ -122,12 +116,9 @@ See [`docker-compose.yml`](docker-compose.yml) for a ready-to-use Docker Compose
 
 ### Authentication
 
-Tickr ships with an optional single-password login (disabled by default). The
-app shell, PWA assets and `/api/v1/health` stay public so the login screen can
-load offline-first; all data and sync routes require a session.
+Tickr ships with an optional single-password login (disabled by default). The app shell, PWA assets and `/api/v1/health` stay public so the login screen can load offline-first; all data and sync routes require a session.
 
-Enable it by setting `TICKR_AUTH_ENABLED=true` and providing a password and a
-session secret:
+Enable it by setting `TICKR_AUTH_ENABLED=true` and providing a password and a session secret:
 
 ```bash
 # Generate a session secret
@@ -137,15 +128,9 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 uv run python -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('your-password'))"
 ```
 
-Then set `TICKR_PASSWORD_HASH` and `TICKR_SESSION_SECRET` (keep both out of
-version control — use `.env` or Docker secrets). For quick local testing you may
-instead set `TICKR_PASSWORD` in plaintext; this logs a startup warning.
+Then set `TICKR_PASSWORD_HASH` and `TICKR_SESSION_SECRET` (keep both out of version control — use `.env` or Docker secrets). For quick local testing you may instead set `TICKR_PASSWORD` in plaintext; this logs a startup warning.
 
-> **Docker Compose & the `$` in argon2 hashes:** an argon2 hash
-> (`$argon2id$v=19$m=...`) contains `$` characters that Docker Compose treats as
-> variable references, so it mangles the hash and logs
-> `WARN The "argon2id" variable is not set`. Disable interpolation for the env
-> file using the long `env_file` syntax with `format: raw`:
+> **Docker Compose & the `$` in argon2 hashes:** an argon2 hash (`$argon2id$v=19$m=...`) contains `$` characters that Docker Compose treats as variable references, so it mangles the hash and logs `WARN The "argon2id" variable is not set`. Disable interpolation for the env file using the long `env_file` syntax with `format: raw`:
 >
 > ```yaml
 > env_file:
@@ -153,23 +138,15 @@ instead set `TICKR_PASSWORD` in plaintext; this logs a startup warning.
 >     format: raw
 > ```
 >
-> The hash then stays untouched with single `$`. (Alternatively, double every
-> `$` to `$$` in the env file.) Verify with
-> `docker exec tickr printenv TICKR_PASSWORD_HASH`.
+> The hash then stays untouched with single `$`. (Alternatively, double every `$` to `$$` in the env file.) Verify with `docker exec tickr printenv TICKR_PASSWORD_HASH`.
 
-- **Stay signed in:** the login form has a checkbox. Checked → the cookie lives
-  ~30 days (`TICKR_SESSION_DAYS`); unchecked → it expires when the browser closes.
-- **HTTPS:** keep `TICKR_COOKIE_SECURE=true` behind TLS. For local plain-HTTP
-  testing set it to `false`. Behind a reverse proxy, forward `X-Forwarded-Proto`
-  and run uvicorn with `--proxy-headers` so `Secure` cookies work reliably.
-- **Known limits:** single user only; sessions are stateless signed cookies and
-  cannot be revoked server-side — logout just clears the browser cookie.
+- **Stay signed in:** the login form has a checkbox. Checked → the cookie lives ~30 days (`TICKR_SESSION_DAYS`); unchecked → it expires when the browser closes.
+- **HTTPS:** keep `TICKR_COOKIE_SECURE=true` behind TLS. For local plain-HTTP testing set it to `false`. Behind a reverse proxy, forward `X-Forwarded-Proto` and run uvicorn with `--proxy-headers` so `Secure` cookies work reliably.
+- **Known limits:** single user only; sessions are stateless signed cookies and cannot be revoked server-side — logout just clears the browser cookie.
 
 ## API
 
-Interactive API docs are available at `/api/docs` (Swagger UI) and `/api/redoc`
-(ReDoc); the OpenAPI schema is at `/api/openapi.json`. With `TICKR_AUTH_ENABLED`,
-these require a valid session like any other protected route.
+Interactive API docs are available at `/api/docs` (Swagger UI) and `/api/redoc` (ReDoc); the OpenAPI schema is at `/api/openapi.json`. With `TICKR_AUTH_ENABLED`, these require a valid session like any other protected route.
 
 ## Development
 
@@ -193,9 +170,7 @@ cd frontend && npm run dev
 
 ### Editor setup (VS Code)
 
-Open `tickr.code-workspace` for ready-to-run tasks and debug configs. They start
-uvicorn with `--env-file tickr.env.example`, so the app comes up with auth enabled and the
-dev credentials (`test1234`):
+Open `tickr.code-workspace` for ready-to-run tasks and debug configs. They start uvicorn with `--env-file tickr.env.example`, so the app comes up with auth enabled and the dev credentials (`test1234`):
 
 - **Dev: Full Stack** — backend + Vite dev server together
 - **Run: Start Server** — backend only
@@ -203,10 +178,19 @@ dev credentials (`test1234`):
 
 Dev server URLs:
 
-- **http://localhost:5173** — Vite dev server (HMR); proxies `/api` to the backend, so the
-  backend must run too. Use this while developing the frontend.
-- **http://localhost:8000** — FastAPI serving the built SPA from `static/dist` (after
-  **Build: Frontend**).
+- **http://localhost:5173** — Vite dev server (HMR); proxies `/api` to the backend, so the backend must run too. Use this while developing the frontend.
+- **http://localhost:8000** — FastAPI serving the built SPA from `static/dist` (after **Build: Frontend**).
+
+### Adding or removing a list icon
+
+Icons live in `frontend/src/icons/*.svg` (list icons, shown in the list icon picker) and `frontend/src/icons/ui/*.svg` (action icons for the history view, never shown in the picker). They are inlined at build time and registered in `frontend/src/icons.js`.
+
+A list icon needs **two things that must stay in sync**: the SVG file _and_ an entry in the `iconLabels` map. The file name (without `.svg`) is the icon key; `iconLabels` provides the picker label and, by its key order, the picker order.
+
+- **Add:** create `frontend/src/icons/<key>.svg` (camelCase key, e.g. `shoppingBag`) in the existing Feather style — `viewBox="0 0 24 24"`, `fill="none"`, `stroke="#808080"`, `stroke-width="2"`. The literal `#808080` is **mandatory**: it makes the icon visible when opened standalone and is rewritten to `currentColor` at load time so it inherits the theme color. Then add `<key>: "Label"` to `iconLabels` in `frontend/src/icons.js` (position = picker order). Restart the dev server — the glob is resolved at build time.
+- **Remove:** delete the SVG file and its `iconLabels` entry. Existing lists that still reference the removed key fall back to the `list` icon, so **never remove `list`** (it is the default in `render.js`, `db/replication.js`, and `data/crud.js`).
+
+`npm run test` includes a guard (`icons.test.js`) that fails if the SVG files and `iconLabels` drift out of sync, so forgetting either half is caught in CI.
 
 ## License
 
