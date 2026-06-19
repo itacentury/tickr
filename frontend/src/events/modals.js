@@ -107,7 +107,6 @@ function wireIconPicker(toggle, container, preview, onSelect) {
     const icon = option.dataset.icon;
     onSelect(icon);
     applyIconSelection(container, toggle, preview, icon);
-    resetSearch();
   });
 }
 

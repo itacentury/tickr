@@ -331,4 +331,9 @@ export function applyIconSelection(container, toggle, preview, iconKey) {
   });
   toggle.classList.remove("open");
   container.classList.remove("expanded");
+  const search = /** @type {HTMLInputElement | null} */ (
+    container.querySelector(".icon-search")
+  );
+  if (search) search.value = "";
+  filterIconPicker(container, "");
 }
