@@ -292,6 +292,7 @@ function naturalGridHeight(grid, visibleCount) {
  * @param {number} visibleCount - Number of options that remain visible.
  */
 function animateGridHeight(grid, startHeight, visibleCount) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const endHeight = naturalGridHeight(grid, visibleCount);
   if (Math.round(startHeight) === Math.round(endHeight)) return;
   // Cancel any in-flight run so rapid typing stays smooth.

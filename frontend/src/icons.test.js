@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // jsdom is required because populateIconPicker/filterIconPicker query and
 // mutate DOM nodes.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import {
   iconLabels,
   icons,
@@ -63,6 +63,13 @@ describe("ui icon registry", () => {
 });
 
 describe("icon picker search", () => {
+  // jsdom omits matchMedia; stub it so the reduced-motion guard in
+  // animateGridHeight runs. `matches: false` keeps the full filter path active.
+  beforeAll(() => {
+    window.matchMedia = () =>
+      /** @type {MediaQueryList} */ ({ matches: false });
+  });
+
   /** Build an icon-options container matching index.html and populate it. */
   function createPicker() {
     const container = document.createElement("div");
