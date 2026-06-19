@@ -11,7 +11,11 @@
 import { state } from "../state.js";
 import * as dom from "../dom.js";
 import { getStorageItem, setStorageItem } from "../storage.js";
-import { populateIconPicker, applyIconSelection } from "../icons.js";
+import {
+  populateIconPicker,
+  applyIconSelection,
+  filterIconPicker,
+} from "../icons.js";
 import {
   createList,
   updateList,
@@ -72,9 +76,28 @@ export function closeAllModals() {
  * @param {(icon: string) => void} onSelect - Receives the chosen icon name.
  */
 function wireIconPicker(toggle, container, preview, onSelect) {
+  const search = /** @type {HTMLInputElement} */ (
+    container.querySelector(".icon-search")
+  );
+
+  const resetSearch = () => {
+    search.value = "";
+    filterIconPicker(container, "");
+  };
+
   toggle.addEventListener("click", () => {
+    const opening = !toggle.classList.contains("open");
     toggle.classList.toggle("open");
     container.classList.toggle("expanded");
+    if (opening) {
+      search.focus();
+    } else {
+      resetSearch();
+    }
+  });
+
+  search.addEventListener("input", () => {
+    filterIconPicker(container, search.value);
   });
 
   container.addEventListener("click", (e) => {
@@ -84,6 +107,7 @@ function wireIconPicker(toggle, container, preview, onSelect) {
     const icon = option.dataset.icon;
     onSelect(icon);
     applyIconSelection(container, toggle, preview, icon);
+    resetSearch();
   });
 }
 
