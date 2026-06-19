@@ -32,7 +32,10 @@ function svgMapFromGlob(globResult) {
   const map = new Map();
   for (const [path, svg] of Object.entries(globResult)) {
     const key = path.slice(path.lastIndexOf("/") + 1, -".svg".length);
-    const themed = /** @type {string} */ (svg).replaceAll("#808080", "currentColor");
+    const themed = /** @type {string} */ (svg).replaceAll(
+      "#808080",
+      "currentColor",
+    );
     map.set(key, themed);
   }
   return map;
