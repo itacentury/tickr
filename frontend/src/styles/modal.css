@@ -247,8 +247,8 @@ button.icon-picker-toggle.open .chevron {
 }
 
 .icon-options {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   margin-bottom: 0;
   max-height: 0;
@@ -264,28 +264,64 @@ button.icon-picker-toggle.open .chevron {
 
 .icon-options.expanded {
   max-height: 280px;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 4px;
   margin-bottom: 24px;
   opacity: 1;
 }
 
-/* Custom scrollbar for icon picker */
-.icon-options::-webkit-scrollbar {
+/* Scoped to beat the generic `.modal-content input[type="text"]` rule, so the
+   search box keeps its own padding/border and gains no focus glow that would
+   bleed onto the grid below. */
+.icon-options .icon-search {
+  flex-shrink: 0;
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.icon-options .icon-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  max-height: 230px;
+  overflow-y: auto;
+}
+
+.icon-no-results {
+  margin: 4px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Custom scrollbar for icon picker grid */
+.icon-grid::-webkit-scrollbar {
   width: 6px;
 }
 
-.icon-options::-webkit-scrollbar-track {
+.icon-grid::-webkit-scrollbar-track {
   background: var(--bg-tertiary);
   border-radius: 3px;
 }
 
-.icon-options::-webkit-scrollbar-thumb {
+.icon-grid::-webkit-scrollbar-thumb {
   background: var(--border-light);
   border-radius: 3px;
 }
 
-.icon-options::-webkit-scrollbar-thumb:hover {
+.icon-grid::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
 
@@ -299,7 +335,29 @@ button.icon-picker-toggle.open .chevron {
   border: 2px solid transparent;
   border-radius: var(--radius-md);
   color: var(--text-secondary);
-  transition: all var(--transition-fast);
+  /* `display` is discrete; pairing it with `allow-discrete` lets an option
+     finish fading (opacity/transform below) before it leaves grid flow. */
+  transition:
+    all var(--transition-normal),
+    display var(--transition-normal) allow-discrete;
+}
+
+/* `.icon-option` sets `display: flex`, which (as an author rule) overrides the
+   UA `[hidden] { display: none }`; restore hiding so the search filter works.
+   The opacity/scale make filtered-out options fade out instead of snapping. */
+.icon-option[hidden] {
+  display: none;
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+/* Fade re-appearing options in from the same end state, instead of popping in
+   from `display: none` when the filter clears or the query loosens. */
+@starting-style {
+  .icon-option:not([hidden]) {
+    opacity: 0;
+    transform: scale(0.85);
+  }
 }
 
 .icon-option:hover {
