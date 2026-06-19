@@ -271,13 +271,20 @@ export function filterIconPicker(container, query) {
  */
 function naturalGridHeight(grid, visibleCount) {
   if (visibleCount === 0) return 0;
-  const sample = /** @type {HTMLElement | null} */ (
-    grid.querySelector(".icon-option:not([hidden])")
+  const cells = /** @type {NodeListOf<HTMLElement>} */ (
+    grid.querySelectorAll(".icon-option:not([hidden])")
   );
+  const sample = cells[0];
   if (!sample) return 0;
   const style = getComputedStyle(grid);
   const gap = parseFloat(style.rowGap) || 0;
-  const columns = style.gridTemplateColumns.split(" ").length;
+  // Derive columns from layout (cells sharing the first row's offsetTop) rather
+  // than parsing gridTemplateColumns, which can carry multi-token track functions.
+  const firstRowTop = sample.offsetTop;
+  let columns = 0;
+  cells.forEach((cell) => {
+    if (cell.offsetTop === firstRowTop) columns += 1;
+  });
   const cellHeight = sample.offsetHeight; // square cells (aspect-ratio: 1)
   const rows = Math.ceil(visibleCount / columns);
   const maxHeight = parseFloat(style.maxHeight) || Infinity;
