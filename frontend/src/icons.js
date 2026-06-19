@@ -256,7 +256,12 @@ export function filterIconPicker(container, query) {
   );
   if (noResults) noResults.hidden = visibleCount > 0;
 
-  if (grid) animateGridHeight(grid, startHeight, visibleCount);
+  // The grid height tween is only visible while the picker is expanded; skip it
+  // when collapsed (e.g. applyIconSelection / resetSearch on a closed picker) so
+  // we don't animate an off-screen grid.
+  if (grid && container.classList.contains("expanded")) {
+    animateGridHeight(grid, startHeight, visibleCount);
+  }
 }
 
 /**

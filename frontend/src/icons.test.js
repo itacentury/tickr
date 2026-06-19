@@ -149,12 +149,24 @@ describe("icon picker search", () => {
 
   it("tweens the grid height when the layout changes", () => {
     const container = createPicker();
+    container.classList.add("expanded");
     const grid = stubAnimatedGrid(container);
     filterIconPicker(container, "zzz"); // no matches -> endHeight 0
     expect(grid.animate).toHaveBeenCalledWith(
       [{ height: "500px" }, { height: "0px" }],
       expect.objectContaining({ duration: 200 }),
     );
+  });
+
+  it("does not tween while the picker is collapsed", () => {
+    const container = createPicker(); // no .expanded class
+    const grid = stubAnimatedGrid(container);
+    filterIconPicker(container, "zzz");
+    // The tween is skipped on a collapsed (off-screen) grid...
+    expect(grid.animate).not.toHaveBeenCalled();
+    // ...but the filter itself still applies.
+    expect(visibleKeys(container)).toEqual([]);
+    expect(noResults(container).hidden).toBe(false);
   });
 
   it("does not throw where the Web Animations API is absent", () => {
@@ -176,6 +188,7 @@ describe("icon picker search", () => {
     window.matchMedia = () => /** @type {MediaQueryList} */ ({ matches: true });
     try {
       const container = createPicker();
+      container.classList.add("expanded");
       const grid = stubAnimatedGrid(container);
       filterIconPicker(container, "zzz");
       expect(grid.animate).not.toHaveBeenCalled();
