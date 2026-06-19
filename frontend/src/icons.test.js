@@ -71,4 +71,8 @@ describe("themeSvgColors", () => {
     expect(themeSvgColors('fill="none"')).toBe('fill="none"');
     expect(themeSvgColors('fill="currentColor"')).toBe('fill="currentColor"');
   });
+
+  it("ignores stroke/fill embedded in other attribute names", () => {
+    expect(themeSvgColors('data-fill="#808080"')).toBe('data-fill="#808080"');
+  });
 });

@@ -34,7 +34,7 @@ const rawUiIcons = import.meta.glob("./icons/ui/*.svg", {
  */
 export function themeSvgColors(svg) {
   return svg.replace(
-    /(stroke|fill)\s*=\s*(["'])(?!(?:none|currentColor)\2)[^"']*\2/g,
+    /(?<![\w-])(stroke|fill)\s*=\s*(["'])(?!(?:none|currentColor)\2)[^"']*\2/g,
     '$1="currentColor"',
   );
 }
