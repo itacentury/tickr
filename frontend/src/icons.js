@@ -21,9 +21,11 @@ const rawUiIcons = import.meta.glob("./icons/ui/*.svg", {
 /**
  * Build a key→SVG map from a glob result, deriving each key from the file name.
  *
- * Source files use a literal `#808080` stroke/fill so they render visibly when
- * opened standalone in an editor; it is rewritten to `currentColor` here so the
- * inlined markup inherits the theme color at runtime.
+ * Source files use a visible placeholder color (by convention `#808080`) on
+ * their `stroke`/`fill` so they render when opened standalone in an editor. Any
+ * hardcoded `stroke`/`fill` color is rewritten to `currentColor` here so the
+ * inlined markup inherits the theme color at runtime; the exact source color is
+ * not load-bearing. `fill="none"` and existing `currentColor` are left intact.
  *
  * @param {Record<string, unknown>} globResult - Vite glob import result.
  * @returns {Map<string, string>} Map of icon key to SVG markup.
@@ -32,9 +34,9 @@ function svgMapFromGlob(globResult) {
   const map = new Map();
   for (const [path, svg] of Object.entries(globResult)) {
     const key = path.slice(path.lastIndexOf("/") + 1, -".svg".length);
-    const themed = /** @type {string} */ (svg).replaceAll(
-      "#808080",
-      "currentColor",
+    const themed = /** @type {string} */ (svg).replace(
+      /(stroke|fill)="(?!none"|currentColor")[^"]*"/g,
+      '$1="currentColor"',
     );
     map.set(key, themed);
   }

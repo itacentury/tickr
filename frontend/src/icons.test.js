@@ -17,10 +17,10 @@ describe("list icon registry", () => {
     }
   });
 
-  it("rewrites the editor placeholder color to currentColor", () => {
+  it("themes every stroke/fill to currentColor (no hardcoded colors survive)", () => {
     for (const svg of Object.values(icons)) {
       expect(svg).toContain("currentColor");
-      expect(svg).not.toContain("#808080");
+      expect(svg).not.toMatch(/(stroke|fill)="(?!none"|currentColor")/);
     }
   });
 });
