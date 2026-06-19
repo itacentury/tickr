@@ -19,13 +19,28 @@ const rawUiIcons = import.meta.glob("./icons/ui/*.svg", {
 });
 
 /**
- * Build a key→SVG map from a glob result, deriving each key from the file name.
+ * Rewrite hardcoded `stroke`/`fill` colors to `currentColor` so inlined markup
+ * inherits the theme color at runtime.
  *
  * Source files use a visible placeholder color (by convention `#808080`) on
- * their `stroke`/`fill` so they render when opened standalone in an editor. Any
- * hardcoded `stroke`/`fill` color is rewritten to `currentColor` here so the
- * inlined markup inherits the theme color at runtime; the exact source color is
- * not load-bearing. `fill="none"` and existing `currentColor` are left intact.
+ * their `stroke`/`fill` so they render when opened standalone in an editor; the
+ * exact source color is not load-bearing. Tolerates whitespace around `=` and
+ * single- or double-quoted values, and matches values spanning multiple lines.
+ * `fill="none"` and existing `currentColor` are left intact; output is
+ * normalized to double quotes.
+ *
+ * @param {string} svg - Raw SVG markup.
+ * @returns {string} Themed SVG markup.
+ */
+export function themeSvgColors(svg) {
+  return svg.replace(
+    /(stroke|fill)\s*=\s*(["'])(?!(?:none|currentColor)\2)[^"']*\2/g,
+    '$1="currentColor"',
+  );
+}
+
+/**
+ * Build a key→SVG map from a glob result, deriving each key from the file name.
  *
  * @param {Record<string, unknown>} globResult - Vite glob import result.
  * @returns {Map<string, string>} Map of icon key to SVG markup.
@@ -34,11 +49,7 @@ function svgMapFromGlob(globResult) {
   const map = new Map();
   for (const [path, svg] of Object.entries(globResult)) {
     const key = path.slice(path.lastIndexOf("/") + 1, -".svg".length);
-    const themed = /** @type {string} */ (svg).replace(
-      /(stroke|fill)="(?!none"|currentColor")[^"]*"/g,
-      '$1="currentColor"',
-    );
-    map.set(key, themed);
+    map.set(key, themeSvgColors(/** @type {string} */ (svg)));
   }
   return map;
 }
