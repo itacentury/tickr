@@ -1,9 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { iconLabels, icons, themeSvgColors } from "./icons.js";
+import { iconLabels, icons, uiIcons, themeSvgColors } from "./icons.js";
 
 /** SVG basenames in `icons/` — the source of truth the picker is built from. */
 const fileKeys = Object.keys(import.meta.glob("./icons/*.svg")).map((path) =>
   path.slice(path.lastIndexOf("/") + 1, -".svg".length),
+);
+
+/** SVG basenames in `icons/ui/` — action icons consumed by `render.js`. */
+const uiFileKeys = Object.keys(import.meta.glob("./icons/ui/*.svg")).map(
+  (path) => path.slice(path.lastIndexOf("/") + 1, -".svg".length),
+);
+
+/** `render.js` source — the only consumer of `uiIcons`. */
+const renderSource = /** @type {string} */ (
+  Object.values(
+    import.meta.glob("./render.js", {
+      query: "?raw",
+      import: "default",
+      eager: true,
+    }),
+  )[0]
 );
 
 describe("list icon registry", () => {
@@ -18,11 +34,19 @@ describe("list icon registry", () => {
   });
 
   it("themes every stroke/fill to currentColor (no hardcoded colors survive)", () => {
-    for (const svg of Object.values(icons)) {
+    for (const svg of [...Object.values(icons), ...Object.values(uiIcons)]) {
       expect(svg).toContain("currentColor");
       expect(svg).not.toMatch(
         /(stroke|fill)\s*=\s*(["'])(?!(?:none|currentColor)\2)/,
       );
+    }
+  });
+});
+
+describe("ui icon registry", () => {
+  it("consumes every ui icon file in render.js (no dead files)", () => {
+    for (const key of uiFileKeys) {
+      expect(renderSource).toContain(`uiIcons.${key}`);
     }
   });
 });
