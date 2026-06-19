@@ -192,22 +192,25 @@ button.icon-picker-toggle {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg-tertiary) !important;
-  border: 1px solid var(--border) !important;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 20px;
   transition: all var(--transition-fast);
   cursor: pointer;
 }
 
 button.icon-picker-toggle:hover {
-  background: var(--bg-hover) !important;
-  border-color: var(--border-light) !important;
-  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+button.icon-picker-toggle.open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
 }
 
 button.icon-picker-toggle .icon-preview {
@@ -234,7 +237,9 @@ button.icon-picker-toggle .chevron {
   width: 18px;
   height: 18px;
   min-width: 18px;
-  transition: transform var(--transition-normal);
+  stroke: var(--text-secondary);
+  transform: rotate(0deg);
+  transition: transform var(--transition-fast);
 }
 
 button.icon-picker-toggle.open .chevron {
