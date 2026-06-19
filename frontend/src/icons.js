@@ -54,6 +54,25 @@ function svgMapFromGlob(globResult) {
   return map;
 }
 
+/**
+ * Look up an icon SVG by key, throwing if no source file produced it.
+ *
+ * Guards build/load so a key without a matching `<key>.svg` surfaces as an
+ * immediate error instead of a silent `undefined` in the icon map.
+ *
+ * @param {Map<string, string>} map - Key→SVG map from `svgMapFromGlob`.
+ * @param {string} key - Icon key expected to have a `<key>.svg` source file.
+ * @param {string} kind - Icon-group label used in the error message.
+ * @returns {string} Themed SVG markup.
+ */
+export function requireSvg(map, key, kind) {
+  const svg = map.get(key);
+  if (svg === undefined) {
+    throw new Error(`Missing ${kind} SVG for "${key}" (expected ${key}.svg)`);
+  }
+  return svg;
+}
+
 const listIconSvgByKey = svgMapFromGlob(rawIcons);
 const uiIconSvgByKey = svgMapFromGlob(rawUiIcons);
 
@@ -111,7 +130,10 @@ export const iconLabels = {
 
 /** SVG markup keyed by icon name, ordered to match `iconLabels`. */
 export const icons = Object.fromEntries(
-  Object.keys(iconLabels).map((key) => [key, listIconSvgByKey.get(key)]),
+  Object.keys(iconLabels).map((key) => [
+    key,
+    requireSvg(listIconSvgByKey, key, "list icon"),
+  ]),
 );
 
 /**

@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { iconLabels, icons, uiIcons, themeSvgColors } from "./icons.js";
+import {
+  iconLabels,
+  icons,
+  uiIcons,
+  themeSvgColors,
+  requireSvg,
+} from "./icons.js";
 
 /** SVG basenames in `icons/` — the source of truth the picker is built from. */
 const fileKeys = Object.keys(import.meta.glob("./icons/*.svg")).map((path) =>
@@ -48,6 +54,17 @@ describe("ui icon registry", () => {
     for (const key of uiFileKeys) {
       expect(renderSource).toContain(`uiIcons.${key}`);
     }
+  });
+});
+
+describe("requireSvg", () => {
+  it("returns the SVG when the key is present", () => {
+    const map = new Map([["star", "<svg/>"]]);
+    expect(requireSvg(map, "star", "list icon")).toBe("<svg/>");
+  });
+
+  it("throws naming the missing file when the key is absent", () => {
+    expect(() => requireSvg(new Map(), "ghost", "list icon")).toThrow(/ghost/);
   });
 });
 
