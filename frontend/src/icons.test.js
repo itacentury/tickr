@@ -20,7 +20,9 @@ describe("list icon registry", () => {
   it("themes every stroke/fill to currentColor (no hardcoded colors survive)", () => {
     for (const svg of Object.values(icons)) {
       expect(svg).toContain("currentColor");
-      expect(svg).not.toMatch(/(stroke|fill)\s*=\s*(["'])(?!(?:none|currentColor)\2)/);
+      expect(svg).not.toMatch(
+        /(stroke|fill)\s*=\s*(["'])(?!(?:none|currentColor)\2)/,
+      );
     }
   });
 });
@@ -36,7 +38,9 @@ describe("themeSvgColors", () => {
 
   it("themes attributes spread across multiple lines", () => {
     const svg = '<svg\n  fill="#123456"\n  stroke="#808080"\n>';
-    expect(themeSvgColors(svg)).toBe('<svg\n  fill="currentColor"\n  stroke="currentColor"\n>');
+    expect(themeSvgColors(svg)).toBe(
+      '<svg\n  fill="currentColor"\n  stroke="currentColor"\n>',
+    );
   });
 
   it("leaves fill=none and existing currentColor intact", () => {
