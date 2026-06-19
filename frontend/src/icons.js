@@ -77,7 +77,7 @@ export const iconLabels = {
   coffee: "Coffee",
   gamepad: "Gaming",
   graduation: "Education",
-  dumbbell: "Fitness",
+  shirt: "Clothing",
   palette: "Art",
   utensils: "Food",
   mail: "Mail",
