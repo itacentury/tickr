@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 import { defineConfig } from "vite";
 
 const pkg = JSON.parse(
@@ -63,7 +63,7 @@ export default defineConfig({
         const partialsDir = resolve(root, "partials");
         server.watcher.add(partialsDir);
         server.watcher.on("change", (file) => {
-          if (file.startsWith(partialsDir)) {
+          if (file.startsWith(partialsDir + sep)) {
             server.ws.send({ type: "full-reload" });
           }
         });
