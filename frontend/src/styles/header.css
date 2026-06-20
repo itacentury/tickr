@@ -1,32 +1,32 @@
 /* Main Content */
 .main-content {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
   overflow: hidden;
-  background: var(--bg-primary);
   overscroll-behavior-y: contain;
+  background: var(--bg-primary);
 }
 
 /* Header */
 .header {
-  padding: 0 24px;
-  height: var(--header-height, 73px);
   display: flex;
-  align-items: center;
   gap: 16px;
-  border-bottom: 1px solid var(--border);
+  align-items: center;
+  height: var(--header-height, 73px);
+  padding: 0 24px;
   background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
 }
 
 .mobile-menu-btn {
   display: none;
-  width: 40px;
-  height: 40px;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
+  width: 40px;
+  height: 40px;
   color: var(--text-secondary);
+  border-radius: var(--radius-sm);
 }
 
 .mobile-menu-btn svg {
@@ -36,9 +36,9 @@
 
 .list-title-icon {
   display: none;
+  flex-shrink: 0;
   width: 24px;
   height: 24px;
-  flex-shrink: 0;
   color: var(--accent);
 }
 
@@ -63,21 +63,21 @@
 .edit-list-btn,
 .history-btn,
 .delete-list-btn {
-  width: 40px;
-  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
+  width: 40px;
+  height: 40px;
   color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
 }
 
 .refresh-btn:hover,
 .edit-list-btn:hover,
 .history-btn:hover {
-  background: var(--bg-hover);
   color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .refresh-btn:active,
@@ -87,8 +87,8 @@
 }
 
 .delete-list-btn:hover {
-  background: var(--danger-subtle);
   color: var(--danger);
+  background: var(--danger-subtle);
 }
 
 .refresh-btn svg,

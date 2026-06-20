@@ -24,10 +24,10 @@
   left: 8px;
   z-index: 10001;
   padding: 8px 16px;
-  background: var(--accent);
-  color: var(--bg-primary);
-  border-radius: var(--radius-sm);
   font-weight: 600;
+  color: var(--bg-primary);
+  background: var(--accent);
+  border-radius: var(--radius-sm);
   transform: translateY(-200%);
   transition: transform 0.15s ease-out;
 }
@@ -49,21 +49,21 @@
 
 /* Selection */
 ::selection {
-  background: var(--accent);
   color: #0d0d0f;
+  background: var(--accent);
 }
 
 /* Sync indicator */
 .sync-indicator {
   display: none;
-  align-items: center;
   gap: 6px;
+  align-items: center;
   padding: 4px 10px;
-  background: var(--accent-subtle);
-  color: var(--accent);
-  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-radius: var(--radius-sm);
 }
 
 .sync-indicator.visible {
@@ -71,9 +71,9 @@
 }
 
 .sync-indicator svg {
+  flex-shrink: 0;
   width: 14px;
   height: 14px;
-  flex-shrink: 0;
   animation: spin 1s linear infinite;
 }
 
@@ -92,70 +92,70 @@
   position: fixed;
   bottom: 20px;
   left: 50%;
-  transform: translateX(-50%);
-  background: #4a5568;
-  color: white;
-  padding: 16px 24px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   z-index: 10000;
   display: flex;
-  align-items: center;
   gap: 16px;
+  align-items: center;
+  padding: 16px 24px;
   font-family:
     system-ui,
     -apple-system,
     sans-serif;
+  color: white;
+  background: #4a5568;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
   animation: slideUp 0.3s ease-out;
 }
 
 @keyframes slideUp {
   from {
-    transform: translateX(-50%) translateY(100px);
     opacity: 0;
+    transform: translateX(-50%) translateY(100px);
   }
 
   to {
-    transform: translateX(-50%) translateY(0);
     opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
 
 .sw-update-btn {
-  background: #48bb78;
-  color: white;
-  border: none;
   padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
   font-weight: 600;
+  color: white;
+  cursor: pointer;
+  background: #48bb78;
+  border: none;
+  border-radius: 4px;
 }
 
 .sw-dismiss-btn {
-  background: transparent;
-  color: white;
-  border: 1px solid white;
   padding: 8px 16px;
-  border-radius: 4px;
+  color: white;
   cursor: pointer;
+  background: transparent;
+  border: 1px solid white;
+  border-radius: 4px;
 }
 
 /* Disable hover effects on touch devices */
 @media (hover: none) {
   .item:hover {
     background: var(--bg-secondary);
-    transform: none;
     box-shadow: none;
+    transform: none;
   }
 
   .nav-link:hover {
-    background: transparent;
     color: var(--text-secondary);
+    background: transparent;
     box-shadow: none;
   }
 
   .nav-link.active:hover {
-    background: var(--accent-muted);
     color: var(--accent);
+    background: var(--accent-muted);
   }
 }

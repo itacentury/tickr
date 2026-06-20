@@ -3,19 +3,19 @@
   position: fixed;
   top: 0;
   left: 0;
+  z-index: 150;
+  visibility: hidden;
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.6);
   opacity: 0;
-  visibility: hidden;
-  z-index: 150;
-  transition: all var(--transition-normal);
   backdrop-filter: blur(8px);
+  transition: all var(--transition-normal);
 }
 
 .overlay.visible {
-  opacity: 1;
   visibility: visible;
+  opacity: 1;
 }
 
 /* Modal */
@@ -23,35 +23,35 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: var(--visual-viewport-height, 100%);
+  z-index: 300;
   display: flex;
+  visibility: hidden;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: var(--visual-viewport-height, 100%);
+  padding: 20px;
   background: rgba(0, 0, 0, 0.6);
   opacity: 0;
-  visibility: hidden;
-  z-index: 300;
-  transition: all var(--transition-normal);
   backdrop-filter: blur(12px);
-  padding: 20px;
+  transition: all var(--transition-normal);
 }
 
 .modal.open {
-  opacity: 1;
   visibility: visible;
+  opacity: 1;
 }
 
 .modal-content {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 32px;
-  width: 100%;
-  max-width: 420px;
+  box-shadow: var(--shadow-lg);
   transform: scale(0.9);
   transition: transform var(--transition-normal);
-  box-shadow: var(--shadow-lg);
 }
 
 .modal.open .modal-content {
@@ -59,20 +59,20 @@
 }
 
 .modal-content h2 {
+  margin-bottom: 24px;
   font-size: 1.4rem;
   font-weight: 600;
   letter-spacing: -0.03em;
-  margin-bottom: 24px;
 }
 
 .modal-content input[type="text"] {
   width: 100%;
   padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: 1rem;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 1rem;
-  margin-bottom: 20px;
   transition: all var(--transition-fast);
 }
 
@@ -87,28 +87,28 @@
 
 .setting-group label {
   display: block;
+  margin-bottom: 8px;
   font-size: 0.9rem;
   color: var(--text-secondary);
-  margin-bottom: 8px;
 }
 
 .setting-select {
   width: 100%;
   padding: 14px 16px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: 1rem;
+  padding-right: 44px;
   font-family: inherit;
+  font-size: 1rem;
   color: var(--text-primary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
   appearance: none;
+  cursor: pointer;
+  background: var(--bg-tertiary);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%238a8a9a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 18px;
-  padding-right: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
 }
 
 .setting-select:focus {
@@ -121,22 +121,22 @@
 }
 
 .setting-select option {
-  background: var(--bg-secondary);
   color: var(--text-primary);
+  background: var(--bg-secondary);
 }
 
 .setting-hint {
-  font-size: 0.8rem;
-  color: var(--text-tertiary);
   margin-top: 8px;
+  font-size: 0.8rem;
   line-height: 1.4;
+  color: var(--text-tertiary);
 }
 
 .shortcut-list {
-  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin: 0;
 }
 
 .shortcut-row {
@@ -153,8 +153,8 @@
 .shortcut-row dd {
   margin: 0;
   font-size: 0.9rem;
-  color: var(--text-secondary);
   line-height: 1.5;
+  color: var(--text-secondary);
 }
 
 .shortcut-key {
@@ -164,44 +164,44 @@
   min-width: 28px;
   height: 28px;
   padding: 0 8px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9rem;
   color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
 }
 
 .shortcut-row code {
+  padding: 1px 5px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.85em;
-  padding: 1px 5px;
+  color: var(--text-primary);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
 }
 
 .shortcut-example {
   display: block;
   margin-top: 4px;
-  color: var(--text-tertiary);
   font-size: 0.8rem;
+  color: var(--text-tertiary);
 }
 
 button.icon-picker-toggle {
-  width: 100%;
   display: flex;
-  align-items: center;
   gap: 10px;
+  align-items: center;
+  width: 100%;
   padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  color: var(--text-primary);
+  cursor: pointer;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 1rem;
-  color: var(--text-primary);
-  margin-bottom: 20px;
   transition: all var(--transition-fast);
-  cursor: pointer;
 }
 
 button.icon-picker-toggle:hover {
@@ -214,12 +214,12 @@ button.icon-picker-toggle.open {
 }
 
 button.icon-picker-toggle .icon-preview {
-  width: 24px;
-  height: 24px;
-  min-width: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
   color: var(--accent);
 }
 
@@ -235,8 +235,8 @@ button.icon-picker-toggle .icon-picker-label {
 
 button.icon-picker-toggle .chevron {
   width: 18px;
-  height: 18px;
   min-width: 18px;
+  height: 18px;
   stroke: var(--text-secondary);
   transform: rotate(0deg);
   transition: transform var(--transition-fast);
@@ -250,10 +250,10 @@ button.icon-picker-toggle.open .chevron {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 0;
   max-height: 0;
-  overflow: hidden;
   padding: 0 4px;
+  margin-bottom: 0;
+  overflow: hidden;
   opacity: 0;
   transition:
     max-height var(--transition-slow),
@@ -264,9 +264,9 @@ button.icon-picker-toggle.open .chevron {
 
 .icon-options.expanded {
   max-height: 280px;
-  overflow: hidden;
   padding: 4px;
   margin-bottom: 24px;
+  overflow: hidden;
   opacity: 1;
 }
 
@@ -276,13 +276,13 @@ button.icon-picker-toggle.open .chevron {
 .icon-options .icon-search {
   flex-shrink: 0;
   width: 100%;
-  margin: 0;
   padding: 8px 12px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
   background: var(--bg-tertiary);
   border: 2px solid var(--border-light);
   border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: 14px;
 }
 
 .icon-options .icon-search:focus {
@@ -301,9 +301,9 @@ button.icon-picker-toggle.open .chevron {
 
 .icon-no-results {
   margin: 4px 0;
-  text-align: center;
-  color: var(--text-muted);
   font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 /* Custom scrollbar for icon picker grid */
@@ -326,15 +326,16 @@ button.icon-picker-toggle.open .chevron {
 }
 
 .icon-option {
-  width: 100%;
-  aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  color: var(--text-secondary);
   background: var(--bg-tertiary);
   border: 2px solid transparent;
   border-radius: var(--radius-md);
-  color: var(--text-secondary);
+
   /* `display` is discrete; pairing it with `allow-discrete` lets an option
      finish fading (opacity/transform below) before it leaves grid flow. */
   transition:
@@ -361,14 +362,14 @@ button.icon-picker-toggle.open .chevron {
 }
 
 .icon-option:hover {
-  background: var(--bg-hover);
   color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .icon-option.selected {
-  border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-subtle);
+  border-color: var(--accent);
 }
 
 .icon-option svg {
@@ -384,26 +385,26 @@ button.icon-picker-toggle.open .chevron {
 
 .modal-actions-split {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
   gap: 12px;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .btn-icon-danger {
-  width: 44px;
-  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-md);
-  background: var(--danger-subtle);
+  width: 44px;
+  height: 44px;
   color: var(--danger);
+  background: var(--danger-subtle);
+  border-radius: var(--radius-md);
   transition: all var(--transition-fast);
 }
 
 .btn-icon-danger:hover {
-  background: var(--danger);
   color: white;
+  background: var(--danger);
 }
 
 .btn-icon-danger svg {
@@ -414,20 +415,20 @@ button.icon-picker-toggle.open .chevron {
 .btn-cancel,
 .btn-create {
   padding: 12px 28px;
-  border-radius: var(--radius-lg);
   font-size: 0.95rem;
   font-weight: 500;
+  border-radius: var(--radius-lg);
   transition: all var(--transition-fast);
 }
 
 .btn-cancel {
-  background: var(--bg-tertiary);
   color: var(--text-secondary);
+  background: var(--bg-tertiary);
 }
 
 .btn-cancel:hover {
-  background: var(--bg-hover);
   color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .btn-cancel:active,
@@ -436,8 +437,8 @@ button.icon-picker-toggle.open .chevron {
 }
 
 .btn-create {
-  background: var(--accent);
   color: #0d0d0f;
+  background: var(--accent);
 }
 
 .btn-create:hover {
@@ -447,17 +448,17 @@ button.icon-picker-toggle.open .chevron {
 .btn-danger {
   width: 100%;
   padding: 10px 16px;
-  border-radius: var(--radius-md);
   font-size: 0.9rem;
   font-weight: 500;
-  transition: all var(--transition-fast);
-  background: var(--danger-subtle);
   color: var(--danger);
+  background: var(--danger-subtle);
   border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
 }
 
 .btn-danger:hover {
-  background: var(--danger);
   color: white;
+  background: var(--danger);
   border-color: var(--danger);
 }

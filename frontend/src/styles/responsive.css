@@ -1,13 +1,13 @@
 /* Mobile Responsive */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .sidebar {
     position: fixed;
-    left: -100%;
     top: 0;
-    height: 100%;
+    left: -100%;
+    z-index: 200;
     width: 280px;
     min-width: 280px;
-    z-index: 200;
+    height: 100%;
     transition: left var(--transition-slow);
   }
 
@@ -33,8 +33,8 @@
   }
 
   .sidebar-toggle {
-    pointer-events: none;
     gap: 12px;
+    pointer-events: none;
   }
 
   .mobile-menu-btn {
@@ -67,10 +67,10 @@
   }
 
   .toast {
-    left: 20px;
     right: 20px;
-    transform: translateX(0) translateY(100px);
     bottom: 20px;
+    left: 20px;
+    transform: translateX(0) translateY(100px);
   }
 
   .toast.visible {
@@ -134,8 +134,8 @@
   }
 
   .ep-path {
-    overflow-wrap: anywhere;
     word-break: break-all;
+    overflow-wrap: anywhere;
   }
 
   /* The count bar is decorative; the number alone is enough on mobile. */
