@@ -115,10 +115,10 @@ export function renderLoginView(onSuccess) {
   if (appEl) appEl.style.display = "none";
 
   // Reuse an existing gate if present (e.g. session expired mid-session).
-  document.getElementById("authGate")?.remove();
+  document.querySelector('[data-el="authGate"]')?.remove();
 
   const gate = document.createElement("div");
-  gate.id = "authGate";
+  gate.dataset.el = "authGate";
   gate.className = "auth-gate";
 
   const card = document.createElement("form");

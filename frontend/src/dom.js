@@ -6,187 +6,162 @@
  * This is a leaf node — no imports from other app modules.
  */
 
+/**
+ * Resolve a `data-el` scripting hook to its element.
+ *
+ * @param {string} name - The `data-el` hook value.
+ * @returns {HTMLElement} The hooked element (assumed present at module load).
+ */
+function el(name) {
+  return /** @type {HTMLElement} */ (
+    document.querySelector(`[data-el="${name}"]`)
+  );
+}
+
 // Layout
 export const appContainer = document.querySelector(".app");
-export const sidebar = document.getElementById("sidebar");
-export const sidebarToggle = document.getElementById("sidebarToggle");
-export const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+export const sidebar = el("sidebar");
+export const sidebarToggle = el("sidebarToggle");
+export const mobileMenuBtn = el("mobileMenuBtn");
 export const mainContent = document.querySelector(".main-content");
-export const overlay = document.getElementById("overlay");
+export const overlay = el("overlay");
 
 // Navigation
-export const navList = document.getElementById("navList");
-export const listTitle = document.getElementById("listTitle");
-export const listTitleIcon = document.getElementById("listTitleIcon");
+export const navList = el("navList");
+export const listTitle = el("listTitle");
+export const listTitleIcon = el("listTitleIcon");
 
 // Items
-export const addItemForm = /** @type {HTMLFormElement} */ (
-  document.getElementById("addItemForm")
-);
+export const addItemForm = /** @type {HTMLFormElement} */ (el("addItemForm"));
 export const addItemInput = /** @type {HTMLInputElement} */ (
-  document.getElementById("addItemInput")
+  el("addItemInput")
 );
 export const addItemCategoryAutocomplete = /** @type {HTMLUListElement} */ (
-  document.getElementById("addItemCategoryAutocomplete")
+  el("addItemCategoryAutocomplete")
 );
-export const itemsList = document.getElementById("itemsList");
-export const emptyState = document.getElementById("emptyState");
+export const itemsList = el("itemsList");
+export const emptyState = el("emptyState");
 
 // History
-export const historyBtn = document.getElementById("historyBtn");
-export const historyPanel = document.getElementById("historyPanel");
-export const historyList = document.getElementById("historyList");
-export const closeHistoryBtn = document.getElementById("closeHistoryBtn");
-export const historySort = document.getElementById("historySort");
-export const historyExpandAll = document.getElementById("historyExpandAll");
+export const historyBtn = el("historyBtn");
+export const historyPanel = el("historyPanel");
+export const historyList = el("historyList");
+export const closeHistoryBtn = el("closeHistoryBtn");
+export const historySort = el("historySort");
+export const historyExpandAll = el("historyExpandAll");
 
 // List actions
-export const deleteListBtn = document.getElementById("deleteListBtn");
-export const editListBtn = document.getElementById("editListBtn");
+export const deleteListBtn = el("deleteListBtn");
+export const editListBtn = el("editListBtn");
 
 // New List Modal
-export const newListModal = document.getElementById("newListModal");
-export const addListBtn = document.getElementById("addListBtn");
-export const newListForm = /** @type {HTMLFormElement} */ (
-  document.getElementById("newListForm")
-);
-export const newListName = /** @type {HTMLInputElement} */ (
-  document.getElementById("newListName")
-);
-export const cancelNewList = document.getElementById("cancelNewList");
-export const iconPickerToggle = document.getElementById("iconPickerToggle");
-export const iconOptionsContainer = document.getElementById("iconOptions");
-export const iconPreview = document.getElementById("iconPreview");
+export const newListModal = el("newListModal");
+export const addListBtn = el("addListBtn");
+export const newListForm = /** @type {HTMLFormElement} */ (el("newListForm"));
+export const newListName = /** @type {HTMLInputElement} */ (el("newListName"));
+export const cancelNewList = el("cancelNewList");
+export const iconPickerToggle = el("iconPickerToggle");
+export const iconOptionsContainer = el("iconOptions");
+export const iconPreview = el("iconPreview");
 
 // Edit List Modal
-export const editListModal = document.getElementById("editListModal");
-export const editListForm = /** @type {HTMLFormElement} */ (
-  document.getElementById("editListForm")
-);
+export const editListModal = el("editListModal");
+export const editListForm = /** @type {HTMLFormElement} */ (el("editListForm"));
 export const editListName = /** @type {HTMLInputElement} */ (
-  document.getElementById("editListName")
+  el("editListName")
 );
-export const cancelEditList = document.getElementById("cancelEditList");
-export const editListSave = document.getElementById("editListSave");
-export const editIconPickerToggle = document.getElementById(
-  "editIconPickerToggle",
-);
-export const editIconOptionsContainer =
-  document.getElementById("editIconOptions");
-export const editIconPreview = document.getElementById("editIconPreview");
+export const cancelEditList = el("cancelEditList");
+export const editListSave = el("editListSave");
+export const editIconPickerToggle = el("editIconPickerToggle");
+export const editIconOptionsContainer = el("editIconOptions");
+export const editIconPreview = el("editIconPreview");
 // Custom dropdown: `editListSort` holds the value (hidden input); the
 // wrapper element is referenced separately for init/close.
 export const editListSort = /** @type {HTMLInputElement} */ (
-  document.getElementById("editListSortValue")
+  el("editListSortValue")
 );
-export const editListSortDropdown = document.getElementById("editListSort");
+export const editListSortDropdown = el("editListSort");
 
 // Edit Item Modal
-export const editItemModal = document.getElementById("editItemModal");
-export const editItemForm = /** @type {HTMLFormElement} */ (
-  document.getElementById("editItemForm")
-);
+export const editItemModal = el("editItemModal");
+export const editItemForm = /** @type {HTMLFormElement} */ (el("editItemForm"));
 export const editItemText = /** @type {HTMLInputElement} */ (
-  document.getElementById("editItemText")
+  el("editItemText")
 );
 export const editItemCategoryAutocomplete = /** @type {HTMLUListElement} */ (
-  document.getElementById("editItemCategoryAutocomplete")
+  el("editItemCategoryAutocomplete")
 );
-export const cancelEditItem = document.getElementById("cancelEditItem");
-export const editItemSave = document.getElementById("editItemSave");
-export const deleteEditItem = document.getElementById("deleteEditItem");
+export const cancelEditItem = el("cancelEditItem");
+export const editItemSave = el("editItemSave");
+export const deleteEditItem = el("deleteEditItem");
 // Custom dropdown: `editItemCategory` holds the value (hidden input); the
 // wrapper element is referenced separately for init/close.
 export const editItemCategory = /** @type {HTMLInputElement} */ (
-  document.getElementById("editItemCategoryValue")
+  el("editItemCategoryValue")
 );
-export const editItemCategoryDropdown =
-  document.getElementById("editItemCategory");
-export const editItemCategoryNew = document.getElementById(
-  "editItemCategoryNew",
-);
-export const editItemCategoryQuickForm = document.getElementById(
-  "editItemCategoryQuickForm",
-);
+export const editItemCategoryDropdown = el("editItemCategory");
+export const editItemCategoryNew = el("editItemCategoryNew");
+export const editItemCategoryQuickForm = el("editItemCategoryQuickForm");
 export const editItemCategoryQuickName = /** @type {HTMLInputElement} */ (
-  document.getElementById("editItemCategoryQuickName")
+  el("editItemCategoryQuickName")
 );
 export const editItemCategoryQuickColor = /** @type {HTMLInputElement} */ (
-  document.getElementById("editItemCategoryQuickColor")
+  el("editItemCategoryQuickColor")
 );
-export const editItemCategoryQuickSwatches = document.getElementById(
+export const editItemCategoryQuickSwatches = el(
   "editItemCategoryQuickSwatches",
 );
-export const editItemCategoryQuickSave = document.getElementById(
-  "editItemCategoryQuickSave",
-);
-export const editItemCategoryQuickCancel = document.getElementById(
-  "editItemCategoryQuickCancel",
-);
+export const editItemCategoryQuickSave = el("editItemCategoryQuickSave");
+export const editItemCategoryQuickCancel = el("editItemCategoryQuickCancel");
 
 // Edit List Modal — Categories section
-export const editListCategoriesList = document.getElementById(
-  "editListCategoriesList",
-);
-export const editListCategoryAddBtn = document.getElementById(
-  "editListCategoryAddBtn",
-);
-export const editListCategoryForm = document.getElementById(
-  "editListCategoryForm",
-);
+export const editListCategoriesList = el("editListCategoriesList");
+export const editListCategoryAddBtn = el("editListCategoryAddBtn");
+export const editListCategoryForm = el("editListCategoryForm");
 export const editListCategoryName = /** @type {HTMLInputElement} */ (
-  document.getElementById("editListCategoryName")
+  el("editListCategoryName")
 );
 export const editListCategoryColor = /** @type {HTMLInputElement} */ (
-  document.getElementById("editListCategoryColor")
+  el("editListCategoryColor")
 );
-export const editListCategorySwatches = document.getElementById(
-  "editListCategorySwatches",
-);
-export const editListCategorySave = document.getElementById(
-  "editListCategorySave",
-);
-export const editListCategoryCancel = document.getElementById(
-  "editListCategoryCancel",
-);
+export const editListCategorySwatches = el("editListCategorySwatches");
+export const editListCategorySave = el("editListCategorySave");
+export const editListCategoryCancel = el("editListCategoryCancel");
 
 // Undo Toast
-export const undoToast = document.getElementById("undoToast");
-export const toastMessage = document.getElementById("toastMessage");
-export const toastUndo = document.getElementById("toastUndo");
-export const toastClose = document.getElementById("toastClose");
-export const toastProgress = document.getElementById("toastProgress");
+export const undoToast = el("undoToast");
+export const toastMessage = el("toastMessage");
+export const toastUndo = el("toastUndo");
+export const toastClose = el("toastClose");
+export const toastProgress = el("toastProgress");
 
 // Error Toast
-export const errorToast = document.getElementById("errorToast");
-export const errorToastMessage = document.getElementById("errorToastMessage");
-export const errorToastClose = document.getElementById("errorToastClose");
-export const errorToastProgress = document.getElementById("errorToastProgress");
+export const errorToast = el("errorToast");
+export const errorToastMessage = el("errorToastMessage");
+export const errorToastClose = el("errorToastClose");
+export const errorToastProgress = el("errorToastProgress");
 
 // Metrics Modal
-export const metricsModal = document.getElementById("metricsModal");
-export const metricsBtn = document.getElementById("metricsBtn");
-export const metricsBody = document.getElementById("metricsBody");
-export const closeMetricsBtn = document.getElementById("closeMetrics");
-export const metricsRange = document.getElementById("metricsRange");
+export const metricsModal = el("metricsModal");
+export const metricsBtn = el("metricsBtn");
+export const metricsBody = el("metricsBody");
+export const closeMetricsBtn = el("closeMetrics");
+export const metricsRange = el("metricsRange");
 
 // Settings Modal
-export const settingsModal = document.getElementById("settingsModal");
-export const settingsBtn = document.getElementById("settingsBtn");
+export const settingsModal = el("settingsModal");
+export const settingsBtn = el("settingsBtn");
 // Custom dropdown: `listSortSetting` holds the value (hidden input); the
 // wrapper element is referenced separately for init/close.
 export const listSortSetting = /** @type {HTMLInputElement} */ (
-  document.getElementById("listSortSettingValue")
+  el("listSortSettingValue")
 );
-export const listSortSettingDropdown =
-  document.getElementById("listSortSetting");
-export const cancelSettings = document.getElementById("cancelSettings");
-export const saveSettings = document.getElementById("saveSettings");
-export const clearCacheBtn = document.getElementById("clearCacheBtn");
-export const accountSettingGroup = document.getElementById(
-  "accountSettingGroup",
-);
-export const logoutBtn = document.getElementById("logoutBtn");
+export const listSortSettingDropdown = el("listSortSetting");
+export const cancelSettings = el("cancelSettings");
+export const saveSettings = el("saveSettings");
+export const clearCacheBtn = el("clearCacheBtn");
+export const accountSettingGroup = el("accountSettingGroup");
+export const logoutBtn = el("logoutBtn");
 
 /** Close the mobile sidebar menu. */
 export function closeMobileMenu() {

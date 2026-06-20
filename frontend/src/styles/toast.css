@@ -98,7 +98,6 @@
   background: #e05555;
 }
 
-/* stylelint-disable-next-line selector-max-id, selector-id-pattern -- pending the id -> data-el migration */
-#undoToast.visible ~ .error-toast.visible {
+[data-el="undoToast"].visible ~ .error-toast.visible {
   bottom: 84px;
 }

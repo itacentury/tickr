@@ -25,6 +25,9 @@ export default [
       "@html-eslint/require-closing-tags": ["error", { selfClosing: "always" }],
       // The PWA deliberately uses manifest/theme-color etc. that aren't Baseline-wide yet.
       "@html-eslint/use-baseline": "off",
+      // Hooks use data-el; the only remaining ids are ARIA/anchor targets, which are kebab-case.
+      // This blocks reintroducing a camelCase id as a scripting hook.
+      "@html-eslint/id-naming-convention": ["error", "kebab-case"],
     },
   },
   {
