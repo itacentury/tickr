@@ -9,6 +9,22 @@ const pkg = JSON.parse(
 const root = ".";
 const includeMarker = /<!--\s*@include\s+(\S+)\s*-->/g;
 
+// Recursively inline `<!-- @include path -->` partials so the browser still
+// receives one fully-assembled index.html. `stack` is the current resolution
+// chain; a repeated path means a circular include, which we fail loudly on
+// rather than recurse forever.
+function inlinePartials(html, stack = []) {
+  return html.replaceAll(includeMarker, (_match, path) => {
+    if (stack.includes(path)) {
+      throw new Error(
+        `Circular @include detected: ${[...stack, path].join(" -> ")}`,
+      );
+    }
+    const partial = readFileSync(resolve(root, path), "utf-8").trimEnd();
+    return inlinePartials(partial, [...stack, path]);
+  });
+}
+
 export default defineConfig({
   root,
   build: {
@@ -32,9 +48,7 @@ export default defineConfig({
       transformIndexHtml: {
         order: "pre",
         handler(html) {
-          return html.replaceAll(includeMarker, (_match, path) =>
-            readFileSync(resolve(root, path), "utf-8").trimEnd(),
-          );
+          return inlinePartials(html);
         },
       },
       configureServer(server) {
