@@ -4,7 +4,7 @@ Style conventions for this repository. These apply on every machine and do not d
 
 ## Project-specific rules (non-obvious — read these first)
 
-These are the rules that are **not** auto-enforced by `ruff`/`eslint`/`prettier` and are not standard language idiom. Everything below this block (`## Python` onwards) is the full human-oriented language reference; most of it is enforced automatically by the toolchain.
+These are the rules that are **not** auto-enforced by `ruff`/`eslint`/`prettier` and are not standard language idiom. Everything below this block (`## Python` onwards) is the full human-oriented language reference; most of it is enforced automatically by the toolchain. HTML/CSS has no linter beyond Prettier's defaults, so its rules live entirely in this block — there is no separate HTML/CSS reference section below.
 
 **Engineering principles**
 
@@ -27,6 +27,15 @@ These are the rules that are **not** auto-enforced by `ruff`/`eslint`/`prettier`
 
 - **Optional destructured array parameter** defaults to `[]`, with element defaults on the left-hand side.
 - No non-numeric properties on arrays (other than `length`) — use a `Map` or object instead.
+
+**HTML / CSS**
+
+- **Scripting/styling hooks:** use a `data-el="name"` hook (selected via `document.querySelector('[data-el="name"]')`) instead of an `id`, and avoid `id` selectors in CSS. Keep a (hyphenated) `id` only where the platform requires it — ARIA relationship attributes (`aria-labelledby`, `aria-controls`, `aria-activedescendant`) and in-page anchors (`href="#…"`, e.g. a skip link) reference targets by `id`; that is an intended use, not a violation of "avoid id".
+- **Semantic HTML:** use elements for their purpose (heading elements for headings, `p` for paragraphs, `a` for anchors, …).
+- **Class names:** meaningful or generic, as short as possible but as long as necessary, separated by hyphens (kebab-case); don't qualify them with type selectors.
+- **CSS declaration order:** group related properties logically (box model → layout → visual detail) so a rule reads top-down, with section comments between larger groups — not alphabetical.
+- **No `!important`** — override via selector specificity instead.
+- **CSS value hygiene:** prefer shorthand properties; omit the unit on `0` values; keep leading zeros (`0.5`, not `.5`); use 3-character hex where possible.
 
 ## Python
 
