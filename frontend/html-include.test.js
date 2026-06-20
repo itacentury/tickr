@@ -60,13 +60,13 @@ describe("inlinePartials error paths", () => {
 
   it("fails loudly on a circular include", () => {
     expect(() => inlinePartials("<!-- @include a.html -->", fixtureRoot)).toThrow(
-      /Circular @include detected: a\.html -> b\.html -> a\.html/,
+      /^Circular @include detected: a\.html -> b\.html -> a\.html$/,
     );
   });
 
   it("detects a cycle across different spellings of the same file", () => {
     expect(() => inlinePartials("<!-- @include c.html -->", fixtureRoot)).toThrow(
-      /Circular @include detected: c\.html -> \.\/c\.html$/,
+      /^Circular @include detected: c\.html -> \.\/c\.html$/,
     );
   });
 
