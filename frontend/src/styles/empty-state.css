@@ -28,9 +28,9 @@
 }
 
 .empty-state p {
+  margin-bottom: 4px;
   font-size: 1.1rem;
   font-weight: 500;
-  margin-bottom: 4px;
   color: var(--text-secondary);
 }
 

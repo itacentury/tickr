@@ -191,7 +191,7 @@ function trafficSection(m) {
       <p class="metrics-eyebrow">Traffic Over Time</p>
       <div class="metrics-card chart-wrap">
         <div class="chart-meta">Peak <b>${esc(peak)}</b></div>
-        <svg id="metricsTraffic" width="100%" height="120" preserveAspectRatio="none"></svg>
+        <svg data-el="metricsTraffic" width="100%" height="120" preserveAspectRatio="none"></svg>
         <div class="chart-axis mono">
           ${labels.map((l) => `<span>${esc(l)}</span>`).join("")}
         </div>
@@ -218,7 +218,7 @@ function latencySection(m) {
             <div class="perc ${p95Warn}"><div class="p">p95</div><div class="n mono">${esc(rt.p95_ms)}<span class="u">ms</span></div></div>
             <div class="perc ${p99Warn}"><div class="p">p99</div><div class="n mono">${esc(rt.p99_ms)}<span class="u">ms</span></div></div>
           </div>
-          <svg id="metricsHistogram" width="100%" height="56" preserveAspectRatio="none"></svg>
+          <svg data-el="metricsHistogram" width="100%" height="56" preserveAspectRatio="none"></svg>
         </div>
         ${methodsCard(m)}
         ${statusCard(m)}
@@ -265,7 +265,7 @@ function statusCard(m) {
       <div class="metrics-card-h">By Status</div>
       <div class="metrics-card-sub">Success rate ${successPct}%</div>
       <div class="donut-row">
-        <svg id="metricsDonut" width="86" height="86" viewBox="0 0 86 86" data-success="${successPct}"></svg>
+        <svg data-el="metricsDonut" width="86" height="86" viewBox="0 0 86 86" data-success="${successPct}"></svg>
         <div class="donut-legend">
           <div class="legend-item"><span class="sw" data-fill="success"></span><span class="lbl">2xx</span><span class="v mono">${buckets.s2}</span><span class="pct mono">${pct(buckets.s2)}%</span></div>
           <div class="legend-item"><span class="sw" data-fill="warning"></span><span class="lbl">4xx</span><span class="v mono">${buckets.s4}</span><span class="pct mono">${pct(buckets.s4)}%</span></div>
@@ -396,9 +396,15 @@ function postRender(m) {
     buildSpark(el);
   }
 
-  buildTraffic(body.querySelector("#metricsTraffic"), m.traffic);
-  buildHistogram(body.querySelector("#metricsHistogram"), m.latency_histogram);
-  buildDonut(body.querySelector("#metricsDonut"), m.requests.by_status);
+  buildTraffic(body.querySelector('[data-el="metricsTraffic"]'), m.traffic);
+  buildHistogram(
+    body.querySelector('[data-el="metricsHistogram"]'),
+    m.latency_histogram,
+  );
+  buildDonut(
+    body.querySelector('[data-el="metricsDonut"]'),
+    m.requests.by_status,
+  );
 }
 
 /** Map an HTTP method to its bar color. */

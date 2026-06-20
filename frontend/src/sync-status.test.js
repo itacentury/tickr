@@ -9,8 +9,8 @@ describe("initSyncStatus", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    document.body.innerHTML = '<div id="syncIndicator"></div>';
-    indicator = document.getElementById("syncIndicator");
+    document.body.innerHTML = '<div data-el="syncIndicator"></div>';
+    indicator = document.querySelector('[data-el="syncIndicator"]');
   });
 
   afterEach(() => {

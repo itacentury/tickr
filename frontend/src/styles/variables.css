@@ -1,46 +1,55 @@
 /* CSS Variables */
 :root {
+  /* Backgrounds */
   --bg-primary: #0d0d0f;
   --bg-secondary: #15151a;
   --bg-tertiary: #1c1c22;
   --bg-hover: #232330;
   --bg-active: #2c2c38;
 
+  /* Text */
   --text-primary: #e8e8ec;
   --text-secondary: #8a8a9a;
   --text-muted: #50505c;
 
+  /* Accents */
   --accent: #60a5fa;
   --accent-hover: #3b82f6;
   --accent-subtle: rgba(96, 165, 250, 0.12);
   --accent-glow: rgba(96, 165, 250, 0.06);
   --accent-2: #a78bfa;
-  --warning: #f59e0b;
 
+  /* Status */
+  --warning: #f59e0b;
   --success: #34d399;
   --danger: #f87171;
   --danger-subtle: rgba(248, 113, 113, 0.15);
 
+  /* Borders */
   --border: #232330;
   --border-light: #2c2c38;
 
+  /* Radius */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-full: 50%;
 
+  /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.6);
 
+  /* Layout sizing */
   --sidebar-width-expanded: 260px;
   --sidebar-width-collapsed: 64px;
-
   --content-max-width: 720px;
 
+  /* Focus ring */
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
 
+  /* Transitions */
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
   --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);

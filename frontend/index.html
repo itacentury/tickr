@@ -48,20 +48,20 @@
     <a href="#main-content" class="skip-link">Skip to main content</a>
     <div class="app">
       <!-- Sidebar Navigation -->
-      <nav class="sidebar" id="sidebar">
+      <nav class="sidebar" data-el="sidebar">
         <div class="sidebar-header">
-          <button class="sidebar-toggle" id="sidebarToggle">
+          <button class="sidebar-toggle" data-el="sidebarToggle">
             <div class="toggle-icon">
               <img src="/icons/sidebar-icon.png" alt="Tickr logo" />
             </div>
             <span class="sidebar-title">Tickr</span>
           </button>
         </div>
-        <ul class="nav-list" id="navList">
+        <ul class="nav-list" data-el="navList">
           <!-- Lists will be populated by JS -->
         </ul>
         <div class="sidebar-footer">
-          <button class="add-list-btn" id="addListBtn" title="New List">
+          <button class="add-list-btn" data-el="addListBtn" title="New List">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -73,7 +73,7 @@
             </svg>
             <span>New List</span>
           </button>
-          <button class="settings-btn" id="metricsBtn" title="Metrics">
+          <button class="settings-btn" data-el="metricsBtn" title="Metrics">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -84,7 +84,7 @@
             </svg>
             <span>Metrics</span>
           </button>
-          <button class="settings-btn" id="settingsBtn" title="Settings">
+          <button class="settings-btn" data-el="settingsBtn" title="Settings">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -105,7 +105,7 @@
         <header class="header">
           <button
             class="mobile-menu-btn"
-            id="mobileMenuBtn"
+            data-el="mobileMenuBtn"
             aria-label="Open menu"
           >
             <svg
@@ -119,9 +119,9 @@
               <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
-          <span class="list-title-icon" id="listTitleIcon"></span>
-          <h1 class="list-title" id="listTitle">Todos</h1>
-          <span class="sync-indicator" id="syncIndicator">
+          <span class="list-title-icon" data-el="listTitleIcon"></span>
+          <h1 class="list-title" data-el="listTitle">Todos</h1>
+          <span class="sync-indicator" data-el="syncIndicator">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -137,7 +137,7 @@
             Syncing
           </span>
           <div class="header-actions">
-            <button class="edit-list-btn" id="editListBtn" title="Edit list">
+            <button class="edit-list-btn" data-el="editListBtn" title="Edit list">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -152,7 +152,7 @@
                 ></path>
               </svg>
             </button>
-            <button class="history-btn" id="historyBtn" title="Show history">
+            <button class="history-btn" data-el="historyBtn" title="Show history">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -166,20 +166,20 @@
           </div>
         </header>
         <!-- Add Item Form -->
-        <form class="add-item-form" id="addItemForm">
+        <form class="add-item-form" data-el="addItemForm">
           <div class="add-item-field">
             <input
               type="text"
               class="add-item-input"
-              id="addItemInput"
+              data-el="addItemInput"
               placeholder="Add new item..."
               autocomplete="off"
               aria-autocomplete="list"
-              aria-controls="addItemCategoryAutocomplete"
+              aria-controls="add-item-category-autocomplete"
             />
             <ul
               class="category-autocomplete"
-              id="addItemCategoryAutocomplete"
+              id="add-item-category-autocomplete" data-el="addItemCategoryAutocomplete"
               role="listbox"
               hidden
             ></ul>
@@ -197,11 +197,11 @@
           </button>
         </form>
         <!-- Items List -->
-        <ul class="items-list" id="itemsList">
+        <ul class="items-list" data-el="itemsList">
           <!-- Items will be populated by JS -->
         </ul>
         <!-- Empty State -->
-        <div class="empty-state" id="emptyState">
+        <div class="empty-state" data-el="emptyState">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -217,12 +217,12 @@
         </div>
       </main>
       <!-- History Panel -->
-      <aside class="history-panel" id="historyPanel" aria-hidden="true">
+      <aside class="history-panel" data-el="historyPanel" aria-hidden="true">
         <div class="history-header">
           <h2>History</h2>
           <button
             class="close-history-btn"
-            id="closeHistoryBtn"
+            data-el="closeHistoryBtn"
             aria-label="Close"
           >
             <svg
@@ -239,7 +239,7 @@
         <div class="byitem-controls">
           <div
             class="byitem-sort"
-            id="historySort"
+            data-el="historySort"
             role="group"
             aria-label="Sort order"
           >
@@ -250,25 +250,25 @@
               Oldest first
             </button>
           </div>
-          <button type="button" class="expand-all-btn" id="historyExpandAll">
+          <button type="button" class="expand-all-btn" data-el="historyExpandAll">
             Expand all
           </button>
         </div>
-        <div class="history-list" id="historyList" role="list">
+        <div class="history-list" data-el="historyList" role="list">
           <!-- History will be populated by JS -->
         </div>
       </aside>
       <!-- Overlay for mobile -->
-      <div class="overlay" id="overlay"></div>
+      <div class="overlay" data-el="overlay"></div>
     </div>
     <!-- Modal for new list -->
-    <div class="modal" id="newListModal">
+    <div class="modal" data-el="newListModal">
       <div class="modal-content">
         <h2>Create New List</h2>
-        <form id="newListForm">
+        <form data-el="newListForm">
           <input
             type="text"
-            id="newListName"
+            data-el="newListName"
             placeholder="List name"
             autocomplete="off"
             required
@@ -277,9 +277,9 @@
             <button
               type="button"
               class="icon-picker-toggle"
-              id="iconPickerToggle"
+              data-el="iconPickerToggle"
             >
-              <span class="icon-preview" id="iconPreview">
+              <span class="icon-preview" data-el="iconPreview">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -305,7 +305,7 @@
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </button>
-            <div class="icon-options" id="iconOptions">
+            <div class="icon-options" data-el="iconOptions">
               <input
                 type="text"
                 class="icon-search"
@@ -322,7 +322,7 @@
             </div>
           </div>
           <div class="modal-actions">
-            <button type="button" class="btn-cancel" id="cancelNewList">
+            <button type="button" class="btn-cancel" data-el="cancelNewList">
               Cancel
             </button>
             <button type="submit" class="btn-create">Create</button>
@@ -331,13 +331,13 @@
       </div>
     </div>
     <!-- Modal for editing list -->
-    <div class="modal" id="editListModal">
+    <div class="modal" data-el="editListModal">
       <div class="modal-content">
         <h2>Edit List</h2>
-        <form id="editListForm">
+        <form data-el="editListForm">
           <input
             type="text"
-            id="editListName"
+            data-el="editListName"
             placeholder="List name"
             autocomplete="off"
             required
@@ -346,9 +346,9 @@
             <button
               type="button"
               class="icon-picker-toggle"
-              id="editIconPickerToggle"
+              data-el="editIconPickerToggle"
             >
-              <span class="icon-preview" id="editIconPreview">
+              <span class="icon-preview" data-el="editIconPreview">
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -374,7 +374,7 @@
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </button>
-            <div class="icon-options" id="editIconOptions">
+            <div class="icon-options" data-el="editIconOptions">
               <input
                 type="text"
                 class="icon-search"
@@ -391,14 +391,14 @@
             </div>
           </div>
           <div class="setting-group">
-            <label id="editListSortLabel">Sorting</label>
-            <div class="dropdown" id="editListSort">
+            <label id="edit-list-sort-label">Sorting</label>
+            <div class="dropdown" data-el="editListSort">
               <button
                 type="button"
                 class="dropdown-toggle"
                 aria-haspopup="listbox"
                 aria-expanded="false"
-                aria-labelledby="editListSortLabel"
+                aria-labelledby="edit-list-sort-label"
               >
                 <span class="dropdown-value"></span>
                 <svg
@@ -444,7 +444,7 @@
               </ul>
               <input
                 type="hidden"
-                id="editListSortValue"
+                data-el="editListSortValue"
                 value="alphabetical"
               />
             </div>
@@ -455,26 +455,26 @@
               <button
                 type="button"
                 class="btn-mini"
-                id="editListCategoryAddBtn"
+                data-el="editListCategoryAddBtn"
                 title="Add category"
               >
                 + Add
               </button>
             </div>
-            <ul class="categories-list" id="editListCategoriesList"></ul>
-            <div class="category-form" id="editListCategoryForm">
+            <ul class="categories-list" data-el="editListCategoriesList"></ul>
+            <div class="category-form" data-el="editListCategoryForm">
               <input
                 type="text"
-                id="editListCategoryName"
+                data-el="editListCategoryName"
                 aria-label="Category name"
                 placeholder="Category name"
                 maxlength="200"
                 autocomplete="off"
               />
-              <div class="color-picker" id="editListCategorySwatches">
+              <div class="color-picker" data-el="editListCategorySwatches">
                 <input
                   type="color"
-                  id="editListCategoryColor"
+                  data-el="editListCategoryColor"
                   class="color-picker-custom"
                   value="#3b82f6"
                   aria-label="Category color"
@@ -485,14 +485,14 @@
                 <button
                   type="button"
                   class="btn-cancel"
-                  id="editListCategoryCancel"
+                  data-el="editListCategoryCancel"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   class="btn-create"
-                  id="editListCategorySave"
+                  data-el="editListCategorySave"
                 >
                   Done
                 </button>
@@ -503,7 +503,7 @@
             <button
               type="button"
               class="btn-icon-danger"
-              id="deleteListBtn"
+              data-el="deleteListBtn"
               title="Delete list"
             >
               <svg
@@ -519,10 +519,10 @@
               </svg>
             </button>
             <div class="modal-actions">
-              <button type="button" class="btn-cancel" id="cancelEditList">
+              <button type="button" class="btn-cancel" data-el="cancelEditList">
                 Cancel
               </button>
-              <button type="submit" class="btn-create" id="editListSave">
+              <button type="submit" class="btn-create" data-el="editListSave">
                 Save
               </button>
             </div>
@@ -531,37 +531,37 @@
       </div>
     </div>
     <!-- Modal for editing item -->
-    <div class="modal" id="editItemModal">
+    <div class="modal" data-el="editItemModal">
       <div class="modal-content">
         <h2>Edit Item</h2>
-        <form id="editItemForm">
+        <form data-el="editItemForm">
           <div class="category-autocomplete-field">
             <input
               type="text"
-              id="editItemText"
+              data-el="editItemText"
               placeholder="Item text"
               autocomplete="off"
               aria-autocomplete="list"
-              aria-controls="editItemCategoryAutocomplete"
+              aria-controls="edit-item-category-autocomplete"
               required
             />
             <ul
               class="category-autocomplete"
-              id="editItemCategoryAutocomplete"
+              id="edit-item-category-autocomplete" data-el="editItemCategoryAutocomplete"
               role="listbox"
               hidden
             ></ul>
           </div>
           <div class="setting-group">
-            <label id="editItemCategoryLabel">Category</label>
+            <label id="edit-item-category-label">Category</label>
             <div class="category-row-inline">
-              <div class="dropdown" id="editItemCategory">
+              <div class="dropdown" data-el="editItemCategory">
                 <button
                   type="button"
                   class="dropdown-toggle"
                   aria-haspopup="listbox"
                   aria-expanded="false"
-                  aria-labelledby="editItemCategoryLabel"
+                  aria-labelledby="edit-item-category-label"
                 >
                   <span class="dropdown-value"></span>
                   <svg
@@ -578,30 +578,30 @@
                 <ul class="dropdown-menu" role="listbox" tabindex="-1" hidden>
                   <!-- Populated by renderItemCategoryOptions() -->
                 </ul>
-                <input type="hidden" id="editItemCategoryValue" value="" />
+                <input type="hidden" data-el="editItemCategoryValue" value="" />
               </div>
               <button
                 type="button"
                 class="btn-mini"
-                id="editItemCategoryNew"
+                data-el="editItemCategoryNew"
                 title="New category"
               >
                 + New
               </button>
             </div>
-            <div class="category-form" id="editItemCategoryQuickForm">
+            <div class="category-form" data-el="editItemCategoryQuickForm">
               <input
                 type="text"
-                id="editItemCategoryQuickName"
+                data-el="editItemCategoryQuickName"
                 aria-label="Category name"
                 placeholder="Category name"
                 maxlength="200"
                 autocomplete="off"
               />
-              <div class="color-picker" id="editItemCategoryQuickSwatches">
+              <div class="color-picker" data-el="editItemCategoryQuickSwatches">
                 <input
                   type="color"
-                  id="editItemCategoryQuickColor"
+                  data-el="editItemCategoryQuickColor"
                   class="color-picker-custom"
                   value="#3b82f6"
                   aria-label="Category color"
@@ -612,14 +612,14 @@
                 <button
                   type="button"
                   class="btn-cancel"
-                  id="editItemCategoryQuickCancel"
+                  data-el="editItemCategoryQuickCancel"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   class="btn-create"
-                  id="editItemCategoryQuickSave"
+                  data-el="editItemCategoryQuickSave"
                 >
                   Done
                 </button>
@@ -630,7 +630,7 @@
             <button
               type="button"
               class="btn-icon-danger"
-              id="deleteEditItem"
+              data-el="deleteEditItem"
               title="Delete"
             >
               <svg
@@ -646,10 +646,10 @@
               </svg>
             </button>
             <div class="modal-actions">
-              <button type="button" class="btn-cancel" id="cancelEditItem">
+              <button type="button" class="btn-cancel" data-el="cancelEditItem">
                 Cancel
               </button>
-              <button type="submit" class="btn-create" id="editItemSave">
+              <button type="submit" class="btn-create" data-el="editItemSave">
                 Save
               </button>
             </div>
@@ -658,18 +658,18 @@
       </div>
     </div>
     <!-- Modal for settings -->
-    <div class="modal" id="settingsModal">
+    <div class="modal" data-el="settingsModal">
       <div class="modal-content">
         <h2>Settings</h2>
         <div class="setting-group">
-          <label id="listSortSettingLabel">List sorting</label>
-          <div class="dropdown" id="listSortSetting">
+          <label id="list-sort-setting-label">List sorting</label>
+          <div class="dropdown" data-el="listSortSetting">
             <button
               type="button"
               class="dropdown-toggle"
               aria-haspopup="listbox"
               aria-expanded="false"
-              aria-labelledby="listSortSettingLabel"
+              aria-labelledby="list-sort-setting-label"
             >
               <span class="dropdown-value"></span>
               <svg
@@ -706,11 +706,11 @@
             </ul>
             <input
               type="hidden"
-              id="listSortSettingValue"
+              data-el="listSortSettingValue"
               value="alphabetical"
             />
           </div>
-          <p class="setting-hint" id="listSortHint">
+          <p class="setting-hint">
             With "Custom" you can reorder lists via drag & drop in the sidebar.
           </p>
         </div>
@@ -732,7 +732,7 @@
         </div>
         <div class="setting-group">
           <label>Troubleshooting</label>
-          <button type="button" class="btn-danger" id="clearCacheBtn">
+          <button type="button" class="btn-danger" data-el="clearCacheBtn">
             Clear cache & reload
           </button>
           <p class="setting-hint">
@@ -740,24 +740,24 @@
             completely reloads the page.
           </p>
         </div>
-        <div class="setting-group" id="accountSettingGroup" hidden>
+        <div class="setting-group" data-el="accountSettingGroup" hidden>
           <label>Account</label>
-          <button type="button" class="btn-danger" id="logoutBtn">
+          <button type="button" class="btn-danger" data-el="logoutBtn">
             Sign out
           </button>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-cancel" id="cancelSettings">
+          <button type="button" class="btn-cancel" data-el="cancelSettings">
             Cancel
           </button>
-          <button type="button" class="btn-create" id="saveSettings">
+          <button type="button" class="btn-create" data-el="saveSettings">
             Save
           </button>
         </div>
       </div>
     </div>
     <!-- Metrics Modal -->
-    <div class="modal" id="metricsModal">
+    <div class="modal" data-el="metricsModal">
       <div class="modal-content metrics-content">
         <div class="metrics-header">
           <div class="metrics-head-left">
@@ -766,7 +766,7 @@
           <div class="metrics-head-right">
             <div
               class="segmented"
-              id="metricsRange"
+              data-el="metricsRange"
               role="group"
               aria-label="Time range"
             >
@@ -776,13 +776,13 @@
               </button>
               <button type="button" data-window="604800">7d</button>
             </div>
-            <div class="live-indicator" id="metricsLive">
+            <div class="live-indicator">
               <span class="live-dot"></span> Live
             </div>
             <button
               type="button"
               class="close-history-btn"
-              id="closeMetrics"
+              data-el="closeMetrics"
               aria-label="Close"
             >
               <svg
@@ -797,7 +797,7 @@
             </button>
           </div>
         </div>
-        <div class="metrics-body" id="metricsBody">
+        <div class="metrics-body" data-el="metricsBody">
           <p class="metrics-loading">Loading...</p>
         </div>
       </div>
@@ -805,14 +805,14 @@
     <!-- Undo Toast -->
     <div
       class="toast"
-      id="undoToast"
+      data-el="undoToast"
       role="status"
       aria-live="polite"
       aria-atomic="true"
     >
-      <span class="toast-message" id="toastMessage"></span>
-      <button class="toast-action" id="toastUndo">Undo</button>
-      <button class="toast-close" id="toastClose" title="Close">
+      <span class="toast-message" data-el="toastMessage"></span>
+      <button class="toast-action" data-el="toastUndo">Undo</button>
+      <button class="toast-close" data-el="toastClose" title="Close">
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -823,17 +823,17 @@
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-      <div class="toast-progress" id="toastProgress"></div>
+      <div class="toast-progress" data-el="toastProgress"></div>
     </div>
     <div
       class="toast error-toast"
-      id="errorToast"
+      data-el="errorToast"
       role="alert"
       aria-live="assertive"
       aria-atomic="true"
     >
-      <span class="toast-message" id="errorToastMessage"></span>
-      <button class="toast-close" id="errorToastClose" title="Close">
+      <span class="toast-message" data-el="errorToastMessage"></span>
+      <button class="toast-close" data-el="errorToastClose" title="Close">
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -844,7 +844,7 @@
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
-      <div class="toast-progress" id="errorToastProgress"></div>
+      <div class="toast-progress" data-el="errorToastProgress"></div>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

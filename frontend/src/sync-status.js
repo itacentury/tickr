@@ -15,7 +15,7 @@ import { SYNC_INDICATOR_SHOW_DELAY_MS } from "./timing.js";
  * @returns {() => void} Teardown that unsubscribes from all replication states.
  */
 export function initSyncStatus(replications) {
-  const syncIndicator = document.getElementById("syncIndicator");
+  const syncIndicator = document.querySelector('[data-el="syncIndicator"]');
   let syncShowTimeout = null;
 
   const updateSyncUI = (syncing) => {
