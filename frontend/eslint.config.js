@@ -31,6 +31,16 @@ export default [
     },
   },
   {
+    // Partials are HTML fragments inlined into index.html at build time, so the
+    // document-level rules don't apply; keep all correctness rules.
+    files: ["partials/**/*.html"],
+    rules: {
+      "@html-eslint/require-doctype": "off",
+      "@html-eslint/require-lang": "off",
+      "@html-eslint/require-title": "off",
+    },
+  },
+  {
     files: ["src/**/*.js"],
     languageOptions: {
       ecmaVersion: "latest",
@@ -47,12 +57,14 @@ export default [
     },
   },
   {
-    // Build config, lint config, and test files run in Node.
-    files: ["*.config.js", "src/**/*.test.js"],
+    // Build config, lint config, and test files run in Node. Tests may also
+    // use a jsdom environment, so they get browser globals (DOMParser, document)
+    // regardless of which directory they live in.
+    files: ["*.config.js", "**/*.test.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      globals: globals.node,
+      globals: { ...globals.node, ...globals.browser },
     },
   },
   prettier,

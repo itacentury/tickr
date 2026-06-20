@@ -1,0 +1,99 @@
+<!-- Modal for settings -->
+<div class="modal" data-el="settingsModal">
+  <div class="modal-content">
+    <h2>Settings</h2>
+    <div class="setting-group">
+      <label id="list-sort-setting-label">List sorting</label>
+      <div class="dropdown" data-el="listSortSetting">
+        <button
+          type="button"
+          class="dropdown-toggle"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+          aria-labelledby="list-sort-setting-label"
+        >
+          <span class="dropdown-value"></span>
+          <svg
+            class="dropdown-chevron"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <ul class="dropdown-menu" role="listbox" tabindex="-1" hidden>
+          <li class="dropdown-item" role="option" data-value="alphabetical">
+            <span class="dropdown-item-label">Alphabetical (A-Z)</span>
+          </li>
+          <li
+            class="dropdown-item"
+            role="option"
+            data-value="alphabetical_desc"
+          >
+            <span class="dropdown-item-label">Alphabetical (Z-A)</span>
+          </li>
+          <li class="dropdown-item" role="option" data-value="created_desc">
+            <span class="dropdown-item-label">Newest first</span>
+          </li>
+          <li class="dropdown-item" role="option" data-value="created_asc">
+            <span class="dropdown-item-label">Oldest first</span>
+          </li>
+          <li class="dropdown-item" role="option" data-value="custom">
+            <span class="dropdown-item-label">Custom</span>
+          </li>
+        </ul>
+        <input
+          type="hidden"
+          data-el="listSortSettingValue"
+          value="alphabetical"
+        />
+      </div>
+      <p class="setting-hint">
+        With "Custom" you can reorder lists via drag & drop in the sidebar.
+      </p>
+    </div>
+    <div class="setting-group">
+      <label>Shortcuts</label>
+      <dl class="shortcut-list">
+        <div class="shortcut-row">
+          <dt><kbd class="shortcut-key">#</kbd></dt>
+          <dd>
+            Tag an item with a category. Type
+            <code>#Name</code> (or <code>#"Name with spaces"</code>) at the end
+            of an item to assign an existing category.
+            <span class="shortcut-example"
+              >Example: <code>Milk #Groceries</code></span
+            >
+          </dd>
+        </div>
+      </dl>
+    </div>
+    <div class="setting-group">
+      <label>Troubleshooting</label>
+      <button type="button" class="btn-danger" data-el="clearCacheBtn">
+        Clear cache & reload
+      </button>
+      <p class="setting-hint">
+        For display issues or after updates: Clears all cached data and
+        completely reloads the page.
+      </p>
+    </div>
+    <div class="setting-group" data-el="accountSettingGroup" hidden>
+      <label>Account</label>
+      <button type="button" class="btn-danger" data-el="logoutBtn">
+        Sign out
+      </button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" data-el="cancelSettings">
+        Cancel
+      </button>
+      <button type="button" class="btn-create" data-el="saveSettings">
+        Save
+      </button>
+    </div>
+  </div>
+</div>

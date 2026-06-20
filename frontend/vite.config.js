@@ -1,13 +1,16 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 import { defineConfig } from "vite";
+import { inlinePartials } from "./html-include.js";
 
 const pkg = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf-8"),
 );
 
+const root = ".";
+
 export default defineConfig({
-  root: ".",
+  root,
   build: {
     outDir: "../static/dist",
     emptyOutDir: true,
@@ -19,6 +22,27 @@ export default defineConfig({
         const swPath = resolve(options.dir, "sw.js");
         const src = readFileSync(swPath, "utf-8");
         writeFileSync(swPath, src.replaceAll("__APP_VERSION__", pkg.version));
+      },
+    },
+    {
+      // Inline `<!-- @include path -->` partials so the browser still receives
+      // one fully-assembled index.html (dom.js resolves every [data-el] hook at
+      // module-load time). Runs before Vite's own index-html asset processing.
+      name: "html-include",
+      transformIndexHtml: {
+        order: "pre",
+        handler(html) {
+          return inlinePartials(html, root);
+        },
+      },
+      configureServer(server) {
+        const partialsDir = resolve(root, "partials");
+        server.watcher.add(partialsDir);
+        server.watcher.on("change", (file) => {
+          if (file.startsWith(partialsDir + sep)) {
+            server.ws.send({ type: "full-reload" });
+          }
+        });
       },
     },
   ],

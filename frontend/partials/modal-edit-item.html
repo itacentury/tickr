@@ -1,0 +1,128 @@
+<!-- Modal for editing item -->
+<div class="modal" data-el="editItemModal">
+  <div class="modal-content">
+    <h2>Edit Item</h2>
+    <form data-el="editItemForm">
+      <div class="category-autocomplete-field">
+        <input
+          type="text"
+          data-el="editItemText"
+          placeholder="Item text"
+          autocomplete="off"
+          aria-autocomplete="list"
+          aria-controls="edit-item-category-autocomplete"
+          required
+        />
+        <ul
+          class="category-autocomplete"
+          id="edit-item-category-autocomplete"
+          data-el="editItemCategoryAutocomplete"
+          role="listbox"
+          hidden
+        ></ul>
+      </div>
+      <div class="setting-group">
+        <label id="edit-item-category-label">Category</label>
+        <div class="category-row-inline">
+          <div class="dropdown" data-el="editItemCategory">
+            <button
+              type="button"
+              class="dropdown-toggle"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-labelledby="edit-item-category-label"
+            >
+              <span class="dropdown-value"></span>
+              <svg
+                class="dropdown-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <ul class="dropdown-menu" role="listbox" tabindex="-1" hidden>
+              <!-- Populated by renderItemCategoryOptions() -->
+            </ul>
+            <input type="hidden" data-el="editItemCategoryValue" value="" />
+          </div>
+          <button
+            type="button"
+            class="btn-mini"
+            data-el="editItemCategoryNew"
+            title="New category"
+          >
+            + New
+          </button>
+        </div>
+        <div class="category-form" data-el="editItemCategoryQuickForm">
+          <input
+            type="text"
+            data-el="editItemCategoryQuickName"
+            aria-label="Category name"
+            placeholder="Category name"
+            maxlength="200"
+            autocomplete="off"
+          />
+          <div class="color-picker" data-el="editItemCategoryQuickSwatches">
+            <input
+              type="color"
+              data-el="editItemCategoryQuickColor"
+              class="color-picker-custom"
+              value="#3b82f6"
+              aria-label="Category color"
+              title="Custom color"
+            />
+          </div>
+          <div class="category-form-actions">
+            <button
+              type="button"
+              class="btn-cancel"
+              data-el="editItemCategoryQuickCancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-create"
+              data-el="editItemCategoryQuickSave"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions-split">
+        <button
+          type="button"
+          class="btn-icon-danger"
+          data-el="deleteEditItem"
+          title="Delete"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            ></path>
+          </svg>
+        </button>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" data-el="cancelEditItem">
+            Cancel
+          </button>
+          <button type="submit" class="btn-create" data-el="editItemSave">
+            Save
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

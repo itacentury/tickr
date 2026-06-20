@@ -1,0 +1,188 @@
+<!-- Modal for editing list -->
+<div class="modal" data-el="editListModal">
+  <div class="modal-content">
+    <h2>Edit List</h2>
+    <form data-el="editListForm">
+      <input
+        type="text"
+        data-el="editListName"
+        placeholder="List name"
+        autocomplete="off"
+        required
+      />
+      <div class="icon-picker">
+        <button
+          type="button"
+          class="icon-picker-toggle"
+          data-el="editIconPickerToggle"
+        >
+          <span class="icon-preview" data-el="editIconPreview">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="8" y1="6" x2="21" y2="6"></line>
+              <line x1="8" y1="12" x2="21" y2="12"></line>
+              <line x1="8" y1="18" x2="21" y2="18"></line>
+              <line x1="3" y1="6" x2="3.01" y2="6"></line>
+              <line x1="3" y1="12" x2="3.01" y2="12"></line>
+              <line x1="3" y1="18" x2="3.01" y2="18"></line>
+            </svg>
+          </span>
+          <span class="icon-picker-label">Choose icon</span>
+          <svg
+            class="chevron"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <div class="icon-options" data-el="editIconOptions">
+          <input
+            type="text"
+            class="icon-search"
+            placeholder="Search icons…"
+            aria-label="Search icons"
+            autocomplete="off"
+          />
+          <div class="icon-grid">
+            <!-- Populated dynamically by JS from the icons object -->
+          </div>
+          <p class="icon-no-results" role="status" aria-live="polite" hidden>
+            No icons found
+          </p>
+        </div>
+      </div>
+      <div class="setting-group">
+        <label id="edit-list-sort-label">Sorting</label>
+        <div class="dropdown" data-el="editListSort">
+          <button
+            type="button"
+            class="dropdown-toggle"
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-labelledby="edit-list-sort-label"
+          >
+            <span class="dropdown-value"></span>
+            <svg
+              class="dropdown-chevron"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <ul class="dropdown-menu" role="listbox" tabindex="-1" hidden>
+            <li class="dropdown-item" role="option" data-value="alphabetical">
+              <span class="dropdown-item-label">Alphabetical (A-Z)</span>
+            </li>
+            <li
+              class="dropdown-item"
+              role="option"
+              data-value="alphabetical_desc"
+            >
+              <span class="dropdown-item-label">Alphabetical (Z-A)</span>
+            </li>
+            <li class="dropdown-item" role="option" data-value="created_desc">
+              <span class="dropdown-item-label">Newest first</span>
+            </li>
+            <li class="dropdown-item" role="option" data-value="created_asc">
+              <span class="dropdown-item-label">Oldest first</span>
+            </li>
+          </ul>
+          <input
+            type="hidden"
+            data-el="editListSortValue"
+            value="alphabetical"
+          />
+        </div>
+      </div>
+      <div class="setting-group categories-group">
+        <div class="categories-header">
+          <label>Categories</label>
+          <button
+            type="button"
+            class="btn-mini"
+            data-el="editListCategoryAddBtn"
+            title="Add category"
+          >
+            + Add
+          </button>
+        </div>
+        <ul class="categories-list" data-el="editListCategoriesList"></ul>
+        <div class="category-form" data-el="editListCategoryForm">
+          <input
+            type="text"
+            data-el="editListCategoryName"
+            aria-label="Category name"
+            placeholder="Category name"
+            maxlength="200"
+            autocomplete="off"
+          />
+          <div class="color-picker" data-el="editListCategorySwatches">
+            <input
+              type="color"
+              data-el="editListCategoryColor"
+              class="color-picker-custom"
+              value="#3b82f6"
+              aria-label="Category color"
+              title="Custom color"
+            />
+          </div>
+          <div class="category-form-actions">
+            <button
+              type="button"
+              class="btn-cancel"
+              data-el="editListCategoryCancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-create"
+              data-el="editListCategorySave"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions-split">
+        <button
+          type="button"
+          class="btn-icon-danger"
+          data-el="deleteListBtn"
+          title="Delete list"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            ></path>
+          </svg>
+        </button>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" data-el="cancelEditList">
+            Cancel
+          </button>
+          <button type="submit" class="btn-create" data-el="editListSave">
+            Save
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

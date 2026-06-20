@@ -1,0 +1,42 @@
+<!-- Metrics Modal -->
+<div class="modal" data-el="metricsModal">
+  <div class="modal-content metrics-content">
+    <div class="metrics-header">
+      <div class="metrics-head-left">
+        <h2>Metrics</h2>
+      </div>
+      <div class="metrics-head-right">
+        <div
+          class="segmented"
+          data-el="metricsRange"
+          role="group"
+          aria-label="Time range"
+        >
+          <button type="button" data-window="3600">1h</button>
+          <button type="button" class="active" data-window="86400">24h</button>
+          <button type="button" data-window="604800">7d</button>
+        </div>
+        <div class="live-indicator"><span class="live-dot"></span> Live</div>
+        <button
+          type="button"
+          class="close-history-btn"
+          data-el="closeMetrics"
+          aria-label="Close"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="metrics-body" data-el="metricsBody">
+      <p class="metrics-loading">Loading...</p>
+    </div>
+  </div>
+</div>
