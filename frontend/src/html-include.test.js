@@ -49,6 +49,9 @@ describe("inlinePartials error paths", () => {
     fixtureRoot = mkdtempSync(resolve(tmpdir(), "tickr-include-"));
     writeFileSync(resolve(fixtureRoot, "a.html"), "<!-- @include b.html -->");
     writeFileSync(resolve(fixtureRoot, "b.html"), "<!-- @include a.html -->");
+    // Self-include written with a different spelling of the same file; the
+    // cycle guard must key on the resolved path, not the raw marker string.
+    writeFileSync(resolve(fixtureRoot, "c.html"), "<!-- @include ./c.html -->");
   });
 
   afterAll(() => {
@@ -58,6 +61,12 @@ describe("inlinePartials error paths", () => {
   it("fails loudly on a circular include", () => {
     expect(() => inlinePartials("<!-- @include a.html -->", fixtureRoot)).toThrow(
       /Circular @include detected: a\.html -> b\.html -> a\.html/,
+    );
+  });
+
+  it("detects a cycle across different spellings of the same file", () => {
+    expect(() => inlinePartials("<!-- @include c.html -->", fixtureRoot)).toThrow(
+      /Circular @include detected: c\.html -> \.\/c\.html$/,
     );
   });
 
