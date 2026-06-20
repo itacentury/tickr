@@ -57,12 +57,14 @@ export default [
     },
   },
   {
-    // Build config, lint config, and test files run in Node.
-    files: ["*.config.js", "src/**/*.test.js"],
+    // Build config, lint config, and test files run in Node. Tests may also
+    // use a jsdom environment, so they get browser globals (DOMParser, document)
+    // regardless of which directory they live in.
+    files: ["*.config.js", "**/*.test.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      globals: globals.node,
+      globals: { ...globals.node, ...globals.browser },
     },
   },
   prettier,

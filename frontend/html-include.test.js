@@ -7,9 +7,9 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { inlinePartials } from "../html-include.js";
+import { inlinePartials } from "./html-include.js";
 
-const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const frontendRoot = dirname(fileURLToPath(import.meta.url));
 const assembled = inlinePartials(
   readFileSync(resolve(frontendRoot, "index.html"), "utf-8"),
   frontendRoot,
@@ -33,7 +33,7 @@ describe("assembled index.html", () => {
     });
 
     it("resolves every dom.js element hook", async () => {
-      const dom = await import("./dom.js");
+      const dom = await import("./src/dom.js");
       for (const [name, value] of Object.entries(dom)) {
         if (typeof value === "function") continue;
         expect(value, `dom.js export "${name}" resolved to null`).not.toBeNull();
