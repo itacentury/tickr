@@ -4,8 +4,11 @@ import { resolve } from "node:path";
 const includeMarker = /<!--\s*@include\s+(\S+)\s*-->/g;
 
 // Recursively inline `<!-- @include path -->` partials so the browser still
-// receives one fully-assembled index.html. `root` is the base directory paths
-// resolve against; `stack` is the current resolution chain. We key cycle
+// receives one fully-assembled index.html. `root` is the base directory every
+// path resolves against — including nested includes inside a partial, since the
+// same `root` is passed down (line below). So a nested include must be written
+// relative to the frontend root (e.g. `partials/x.html`), not relative to the
+// including partial. `stack` is the current resolution chain. We key cycle
 // detection on the resolved path so different spellings of the same file
 // (`b.html` vs `./b.html`) can't slip past it, while keeping the raw spellings
 // for the error chain. A repeat means a circular include, which we fail loudly
