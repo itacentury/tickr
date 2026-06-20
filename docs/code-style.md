@@ -4,7 +4,7 @@ Style conventions for this repository. These apply on every machine and do not d
 
 ## Project-specific rules (non-obvious — read these first)
 
-These are the rules that are **not** auto-enforced by `ruff`/`eslint`/`prettier` and are not standard language idiom. Everything below this block (`## Python` onwards) is the full human-oriented language reference; most of it is enforced automatically by the toolchain. HTML/CSS has no linter beyond Prettier's defaults, so its rules live entirely in this block — there is no separate HTML/CSS reference section below.
+These are the rules that are **not** auto-enforced by the toolchain (`ruff`, `eslint` incl. `@html-eslint`, `stylelint`, `prettier`) and are not standard language idiom. Everything below this block (`## Python` onwards) is the full human-oriented language reference; most of it is enforced automatically. The HTML/CSS rules live entirely in this block (there is no separate HTML/CSS reference section below) — many of them (no `!important`, no `id` selectors, value hygiene, declaration order) are now enforced by `stylelint`/`@html-eslint`; the rest (semantic HTML, the `data-el` convention, the *intent* behind logical grouping) remain human-checked.
 
 **Engineering principles**
 

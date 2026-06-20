@@ -17,7 +17,11 @@
 			"editor.formatOnSave": true,
 			"editor.formatOnPaste": true,
 			"editor.tabSize": 2,
-			"editor.insertSpaces": true
+			"editor.insertSpaces": true,
+			"editor.codeActionsOnSave": {
+				"source.fixAll.eslint": "explicit",
+				"source.fixAll.stylelint": "explicit"
+			}
 		},
 		"[markdown]": {
 			"editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -58,7 +62,7 @@
 			{
 				"label": "Format: All",
 				"type": "shell",
-				"command": "uv run ruff check --fix . && uv run ruff format . && cd frontend && npm run format",
+				"command": "uv run ruff check --fix . && uv run ruff format . && cd frontend && npm run format && npm run lint:css -- --fix",
 				"group": "build",
 				"presentation": {
 					"panel": "shared"
@@ -155,7 +159,10 @@
 			"ms-python.python",
 			"charliermarsh.ruff",
 			"ms-python.mypy-type-checker",
-			"tamasfe.even-better-toml"
+			"tamasfe.even-better-toml",
+			"esbenp.prettier-vscode",
+			"dbaeumer.vscode-eslint",
+			"stylelint.vscode-stylelint"
 		]
 	}
 }
