@@ -20,7 +20,15 @@ function inlinePartials(html, stack = []) {
         `Circular @include detected: ${[...stack, path].join(" -> ")}`,
       );
     }
-    const partial = readFileSync(resolve(root, path), "utf-8").trimEnd();
+    let partial;
+    try {
+      partial = readFileSync(resolve(root, path), "utf-8").trimEnd();
+    } catch (cause) {
+      const source = stack.length ? `"${stack.at(-1)}"` : "index.html";
+      throw new Error(`@include: cannot read "${path}" (included from ${source})`, {
+        cause,
+      });
+    }
     return inlinePartials(partial, [...stack, path]);
   });
 }
