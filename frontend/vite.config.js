@@ -1,37 +1,13 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, sep } from "node:path";
 import { defineConfig } from "vite";
+import { inlinePartials } from "./html-include.js";
 
 const pkg = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url), "utf-8"),
 );
 
 const root = ".";
-const includeMarker = /<!--\s*@include\s+(\S+)\s*-->/g;
-
-// Recursively inline `<!-- @include path -->` partials so the browser still
-// receives one fully-assembled index.html. `stack` is the current resolution
-// chain; a repeated path means a circular include, which we fail loudly on
-// rather than recurse forever.
-function inlinePartials(html, stack = []) {
-  return html.replaceAll(includeMarker, (_match, path) => {
-    if (stack.includes(path)) {
-      throw new Error(
-        `Circular @include detected: ${[...stack, path].join(" -> ")}`,
-      );
-    }
-    let partial;
-    try {
-      partial = readFileSync(resolve(root, path), "utf-8").trimEnd();
-    } catch (cause) {
-      const source = stack.length ? `"${stack.at(-1)}"` : "index.html";
-      throw new Error(`@include: cannot read "${path}" (included from ${source})`, {
-        cause,
-      });
-    }
-    return inlinePartials(partial, [...stack, path]);
-  });
-}
 
 export default defineConfig({
   root,
@@ -56,7 +32,7 @@ export default defineConfig({
       transformIndexHtml: {
         order: "pre",
         handler(html) {
-          return inlinePartials(html);
+          return inlinePartials(html, root);
         },
       },
       configureServer(server) {
