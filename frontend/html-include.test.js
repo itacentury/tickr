@@ -2,7 +2,7 @@
 // jsdom is required so the assembled markup can be loaded into a document and
 // dom.js (which resolves every [data-el] hook at module-load time) re-imported
 // against it — that is exactly the contract this test guards.
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,6 +52,11 @@ describe("inlinePartials error paths", () => {
     // Self-include written with a different spelling of the same file; the
     // cycle guard must key on the resolved path, not the raw marker string.
     writeFileSync(resolve(fixtureRoot, "c.html"), "<!-- @include ./c.html -->");
+    // Cycle that only exists once symlinks are resolved: s.html includes a
+    // symlink that points back at s.html. Textual resolution sees two distinct
+    // paths; realpath collapses them to one inode.
+    writeFileSync(resolve(fixtureRoot, "s.html"), "<!-- @include s-link.html -->");
+    symlinkSync(resolve(fixtureRoot, "s.html"), resolve(fixtureRoot, "s-link.html"));
   });
 
   afterAll(() => {
@@ -67,6 +72,12 @@ describe("inlinePartials error paths", () => {
   it("detects a cycle across different spellings of the same file", () => {
     expect(() => inlinePartials("<!-- @include c.html -->", fixtureRoot)).toThrow(
       /^Circular @include detected: c\.html -> \.\/c\.html$/,
+    );
+  });
+
+  it("detects a cycle through a symlink alias of the same file", () => {
+    expect(() => inlinePartials("<!-- @include s.html -->", fixtureRoot)).toThrow(
+      /^Circular @include detected: s\.html -> s-link\.html$/,
     );
   });
 
