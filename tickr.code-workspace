@@ -62,7 +62,7 @@
 			{
 				"label": "Format: All",
 				"type": "shell",
-				"command": "uv run ruff check --fix . && uv run ruff format . && cd frontend && npm run format && npm run lint:css -- --fix",
+				"command": "uv run ruff check --fix . && uv run ruff format . && cd frontend && npm run format && npm run lint:js -- --fix && npm run lint:css -- --fix",
 				"group": "build",
 				"presentation": {
 					"panel": "shared"
