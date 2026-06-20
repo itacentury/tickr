@@ -31,6 +31,16 @@ export default [
     },
   },
   {
+    // Partials are HTML fragments inlined into index.html at build time, so the
+    // document-level rules don't apply; keep all correctness rules.
+    files: ["partials/**/*.html"],
+    rules: {
+      "@html-eslint/require-doctype": "off",
+      "@html-eslint/require-lang": "off",
+      "@html-eslint/require-title": "off",
+    },
+  },
+  {
     files: ["src/**/*.js"],
     languageOptions: {
       ecmaVersion: "latest",

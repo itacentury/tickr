@@ -1,0 +1,42 @@
+<!-- History Panel -->
+<aside class="history-panel" data-el="historyPanel" aria-hidden="true">
+  <div class="history-header">
+    <h2>History</h2>
+    <button
+      class="close-history-btn"
+      data-el="closeHistoryBtn"
+      aria-label="Close"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+  <div class="byitem-controls">
+    <div
+      class="byitem-sort"
+      data-el="historySort"
+      role="group"
+      aria-label="Sort order"
+    >
+      <button type="button" class="seg-btn active" data-sort="newest">
+        Newest first
+      </button>
+      <button type="button" class="seg-btn" data-sort="oldest">
+        Oldest first
+      </button>
+    </div>
+    <button type="button" class="expand-all-btn" data-el="historyExpandAll">
+      Expand all
+    </button>
+  </div>
+  <div class="history-list" data-el="historyList" role="list">
+    <!-- History will be populated by JS -->
+  </div>
+</aside>
