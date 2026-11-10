@@ -69,7 +69,7 @@ export function renderNavigation() {
       const remaining = state.itemCounts[list.id] || 0;
       const defaultMarker =
         list.id === defaultListId
-          ? `<span class="nav-default" role="img" aria-label="Default list" title="Default list">${icons.star}</span>`
+          ? `<span class="nav-default" role="img" aria-label="Default list" title="Default list">${uiIcons.pin}</span>`
           : "";
       return `
             <li class="nav-item" data-list-id="${list.id}" ${isCustomSort ? 'draggable="true"' : ""}>
