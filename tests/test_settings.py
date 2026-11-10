@@ -1,6 +1,7 @@
 """Tests for settings endpoints."""
 
 import importlib
+from types import ModuleType
 from typing import Any
 
 import httpx
@@ -39,7 +40,7 @@ class TestGetConfig:
         """A non-positive timeout is clamped so resumes aren't always idle."""
         monkeypatch.setenv("TICKR_DEFAULT_LIST_TIMEOUT_MINUTES", raw)
         try:
-            reloaded = importlib.reload(config)
+            reloaded: ModuleType = importlib.reload(config)
             assert reloaded.DEFAULT_LIST_TIMEOUT_MINUTES == 1
         finally:
             monkeypatch.delenv("TICKR_DEFAULT_LIST_TIMEOUT_MINUTES")
