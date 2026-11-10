@@ -19,7 +19,6 @@ import {
   updateSettings,
 } from "../data.js";
 import { reportError } from "../error-reporting.js";
-import { showErrorToast } from "../toast.js";
 
 /** @returns {boolean} Whether a modal or the history drawer is currently open. */
 function isListBoundUiOpen() {
@@ -70,10 +69,8 @@ export async function saveDefaultListChoice(listId) {
   const isDefault = state.appSettings.default_list_id === listId;
   const wantsDefault = dom.editListDefault.checked;
   if (isDefault === wantsDefault) return;
-  const saved = await updateSettings({
-    default_list_id: wantsDefault ? listId : "",
-  });
-  if (!saved) showErrorToast("Failed to update default list");
+  // A rejection is reported via settingsRejected$ (events/settings.js).
+  await updateSettings({ default_list_id: wantsDefault ? listId : "" });
 }
 
 /** Track background time and reopen the default list on resume. */

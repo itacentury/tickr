@@ -11,6 +11,7 @@ import {
 } from "./subscriptions.js";
 import { recordHidden } from "./default-list.js";
 import { reportError } from "../error-reporting.js";
+import { settingsRejected$ } from "../bus.js";
 
 vi.mock("../error-reporting.js", () => ({ reportError: vi.fn() }));
 
@@ -327,6 +328,68 @@ describe("updateSettings", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(readPending()).toBeNull();
     expect(state.appSettings).toEqual(SERVER_SETTINGS);
+  });
+
+  describe("rejection reporting", () => {
+    /** @type {import("rxjs").Subscription} */
+    let subscription;
+    let rejections = 0;
+
+    beforeEach(async () => {
+      rejections = 0;
+      subscription = settingsRejected$.subscribe(() => rejections++);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockRejectedValue(new TypeError("offline")),
+      );
+      await updateSettings({ list_sort: "bogus" });
+    });
+
+    afterEach(() => {
+      subscription.unsubscribe();
+    });
+
+    it("reports a rejection from the flush fetchSettings starts", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce(okResponse(SERVER_SETTINGS))
+          .mockResolvedValueOnce(errorResponse(400, "INVALID_SORT_OPTION"))
+          .mockResolvedValueOnce(okResponse(SERVER_SETTINGS)),
+      );
+
+      await fetchSettings();
+      // Joins the background flush fetchSettings did not await.
+      await flushPendingSettings();
+
+      expect(rejections).toBe(1);
+    });
+
+    it("reports a rejection even when the flush ends queued", async () => {
+      await updateSettings({ default_list_id: "deleted" });
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce(errorResponse(404, "LIST_NOT_FOUND"))
+          .mockResolvedValueOnce(okResponse(SERVER_SETTINGS))
+          .mockResolvedValueOnce(SW_OFFLINE),
+      );
+
+      expect(await flushPendingSettings()).toBe("queued");
+      expect(rejections).toBe(1);
+    });
+
+    it.each([
+      { outcome: "synced", response: { ok: true } },
+      { outcome: "queued", response: SW_OFFLINE },
+    ])("does not report a $outcome flush", async ({ outcome, response }) => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+
+      expect(await flushPendingSettings()).toBe(outcome);
+      expect(rejections).toBe(0);
+    });
   });
 
   describe("with a change made while a request is in flight", () => {

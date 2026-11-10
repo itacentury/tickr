@@ -19,7 +19,6 @@ import {
   updateSettings,
 } from "../data.js";
 import { reportError } from "../error-reporting.js";
-import { showErrorToast } from "../toast.js";
 import { saveDefaultListChoice, wireDefaultList } from "./default-list.js";
 
 vi.mock("../data.js", () => ({
@@ -37,7 +36,6 @@ vi.mock("../dom.js", () => ({
   editListDefault: { checked: false },
 }));
 
-vi.mock("../toast.js", () => ({ showErrorToast: vi.fn() }));
 vi.mock("../error-reporting.js", () => ({ reportError: vi.fn() }));
 
 const CURRENT_ID = "list-current";
@@ -192,15 +190,5 @@ describe("saveDefaultListChoice", () => {
     await saveDefaultListChoice(CURRENT_ID);
 
     expect(updateSettings).toHaveBeenCalledWith({ default_list_id: "" });
-  });
-
-  it("shows an error toast when saving fails", async () => {
-    state.appSettings = { list_sort: "custom" };
-    dom.editListDefault.checked = true;
-    vi.mocked(updateSettings).mockResolvedValue(false);
-
-    await saveDefaultListChoice(CURRENT_ID);
-
-    expect(showErrorToast).toHaveBeenCalledOnce();
   });
 });

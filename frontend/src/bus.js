@@ -32,3 +32,10 @@ export const authExpired$ = new Subject();
  * flaky connections can miss.
  */
 export const sseConnected$ = new Subject();
+
+/**
+ * Fires each time the server rejects a queued settings patch, after the
+ * settings were restored from the server. Lets one listener report it no
+ * matter which caller started the flush.
+ */
+export const settingsRejected$ = new Subject();

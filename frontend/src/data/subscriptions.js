@@ -15,6 +15,7 @@ import {
   navigationChanged$,
   itemsChanged$,
   categoriesChanged$,
+  settingsRejected$,
 } from "../bus.js";
 import {
   getStorageItem,
@@ -212,6 +213,9 @@ async function sendPendingSettings() {
     await loadSettings();
     subscribeLists();
     outcome = "rejected";
+    // Emitted here, not via the return value: fire-and-forget callers and a
+    // later "queued" return must not hide the rejection.
+    settingsRejected$.next();
   }
 }
 

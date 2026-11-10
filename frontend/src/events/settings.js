@@ -9,7 +9,7 @@ import { state } from "../state.js";
 import * as dom from "../dom.js";
 import { setDropdownValue } from "../dropdown.js";
 import { flushPendingSettings, updateSettings } from "../data.js";
-import { sseConnected$ } from "../bus.js";
+import { settingsRejected$, sseConnected$ } from "../bus.js";
 import { logout } from "../auth.js";
 import { reportError } from "../error-reporting.js";
 import { showErrorToast } from "../toast.js";
@@ -67,11 +67,12 @@ export function wireSettings() {
   // Flushes every queued setting, not just this modal's: the edit-list default
   // (events/default-list.js) queues here too. The SSE reopen covers a missed
   // `online` event (iOS PWAs, flaky links).
-  const flushQueuedSettings = async () => {
-    if ((await flushPendingSettings()) === "rejected") {
-      showErrorToast("Failed to update settings");
-    }
-  };
-  window.addEventListener("online", flushQueuedSettings);
-  sseConnected$.subscribe(() => void flushQueuedSettings());
+  window.addEventListener("online", () => void flushPendingSettings());
+  sseConnected$.subscribe(() => void flushPendingSettings());
+
+  // The single place a rejected settings patch is reported, whichever caller
+  // (save, startup, resume, reconnect) started the flush.
+  settingsRejected$.subscribe(() =>
+    showErrorToast("Failed to update settings"),
+  );
 }
