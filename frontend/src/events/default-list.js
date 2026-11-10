@@ -16,8 +16,10 @@ import {
   resolveDefaultListId,
   selectList,
   subscribeLists,
+  updateSettings,
 } from "../data.js";
 import { reportError } from "../error-reporting.js";
+import { showErrorToast } from "../toast.js";
 
 /** @returns {boolean} Whether a modal or the history drawer is currently open. */
 function isListBoundUiOpen() {
@@ -55,6 +57,23 @@ async function handleResume() {
   } catch (error) {
     reportError("reopen default list on resume", error);
   }
+}
+
+/**
+ * Persist the edit-list "Open by default" checkbox when it changed. Unticking
+ * the current default clears it, so no list is default.
+ *
+ * @param {string} listId - The list being edited.
+ * @returns {Promise<void>}
+ */
+export async function saveDefaultListChoice(listId) {
+  const isDefault = state.appSettings.default_list_id === listId;
+  const wantsDefault = dom.editListDefault.checked;
+  if (isDefault === wantsDefault) return;
+  const saved = await updateSettings({
+    default_list_id: wantsDefault ? listId : "",
+  });
+  if (!saved) showErrorToast("Failed to update default list");
 }
 
 /** Track background time and reopen the default list on resume. */

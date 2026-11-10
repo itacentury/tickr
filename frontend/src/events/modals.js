@@ -30,7 +30,6 @@ import {
   selectList,
   discardCategoryDraft,
   commitCategoryDraft,
-  updateSettings,
 } from "../data.js";
 import {
   openEditListModal,
@@ -44,6 +43,7 @@ import { createCategoryAutocomplete } from "../add-item-autocomplete.js";
 import { closeMetrics } from "../metrics.js";
 import { makeBackdropDismiss } from "./modal-helpers.js";
 import { MODAL_FOCUS_DELAY_MS } from "../timing.js";
+import { saveDefaultListChoice } from "./default-list.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
 export function closeAllModals() {
@@ -238,23 +238,6 @@ export function wireItems() {
     dom.addItemInput.value = "";
     addItemAutocomplete.hide();
   });
-}
-
-/**
- * Persist the edit-list "Open by default" checkbox when it changed. Unticking
- * the current default clears it, so no list is default.
- *
- * @param {string} listId - The list being edited.
- * @returns {Promise<void>}
- */
-async function saveDefaultListChoice(listId) {
-  const isDefault = state.appSettings.default_list_id === listId;
-  const wantsDefault = dom.editListDefault.checked;
-  if (isDefault === wantsDefault) return;
-  const saved = await updateSettings({
-    default_list_id: wantsDefault ? listId : "",
-  });
-  if (!saved) showErrorToast("Failed to update default list");
 }
 
 /** New-list and edit-list modals: icon pickers, create, update, delete. */

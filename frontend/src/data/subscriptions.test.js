@@ -5,8 +5,10 @@ import { removeStorageItem } from "../storage.js";
 import {
   fetchSettings,
   fetchServerConfig,
+  getInitialListId,
   updateSettings,
 } from "./subscriptions.js";
+import { recordHidden } from "./default-list.js";
 
 const CACHE_KEY = "tickr_settings";
 const DEFAULTS = { list_sort: "alphabetical" };
@@ -144,5 +146,45 @@ describe("updateSettings", () => {
       ...DEFAULTS,
       default_list_id: "list-2",
     });
+  });
+});
+
+describe("getInitialListId", () => {
+  const MINUTE = 60_000;
+  const LISTS = [{ id: "list-1" }, { id: "list-2" }, { id: "list-3" }];
+
+  beforeEach(() => {
+    removeStorageItem("tickr_current_list");
+    state.lists = /** @type {any} */ (LISTS);
+    state.appSettings = { ...DEFAULTS, default_list_id: "list-3" };
+    state.serverConfig = { default_list_timeout_minutes: 30 };
+  });
+
+  it("opens the default list after an idle period", () => {
+    recordHidden(Date.now() - 31 * MINUTE);
+    localStorage.setItem("tickr_current_list", "list-2");
+
+    expect(getInitialListId()).toBe("list-3");
+  });
+
+  it("reopens the last viewed list before the timeout", () => {
+    recordHidden(Date.now() - 5 * MINUTE);
+    localStorage.setItem("tickr_current_list", "list-2");
+
+    expect(getInitialListId()).toBe("list-2");
+  });
+
+  it("falls back to the last viewed list when the default is gone", () => {
+    recordHidden(Date.now() - 31 * MINUTE);
+    state.appSettings = { ...DEFAULTS, default_list_id: "deleted" };
+    localStorage.setItem("tickr_current_list", "list-2");
+
+    expect(getInitialListId()).toBe("list-2");
+  });
+
+  it("falls back to the first list without a last viewed list", () => {
+    recordHidden(Date.now() - 5 * MINUTE);
+
+    expect(getInitialListId()).toBe("list-1");
   });
 });
