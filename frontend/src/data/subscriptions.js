@@ -142,7 +142,8 @@ let flushInFlight = null;
  * Send the pending settings patch to the server.
  *
  * An unreachable server, a server error or an expired session keeps the patch
- * for a later retry (see isRetryableStatus). Any other error drops the patch,
+ * for a later retry (see isRetryableStatus). Any other error drops the patch
+ * (only the default list if that list was deleted, see rejectedSettings),
  * since resending cannot succeed, and restores the server's settings over the
  * optimistic ones.
  * Changes queued while a request is in flight are sent in a follow-up request.
@@ -190,14 +191,40 @@ async function sendPendingSettings() {
     }
     if (isRetryableStatus(response.status)) return "queued";
 
-    dequeueSentSettings(pending);
-    if (response.ok) continue;
-
+    if (response.ok) {
+      dequeueSentSettings(pending);
+      continue;
+    }
+    // The rest of a partly rejected patch is resent by the next iteration.
+    dequeueSentSettings(await rejectedSettings(response, pending));
     // Not fetchSettings(): its flush would await this very flush and deadlock.
     await loadSettings();
     subscribeLists();
     outcome = "rejected";
   }
+}
+
+/**
+ * Determine which settings of a rejected patch to drop. A deleted default list
+ * fails the whole request, so only that key is dropped; any other rejection
+ * drops the whole patch.
+ *
+ * @param {Response} response - The rejected response.
+ * @param {Object} sent - The patch that was sent.
+ * @returns {Promise<Object>} The settings to remove from the queue.
+ */
+async function rejectedSettings(response, sent) {
+  let code;
+  try {
+    code = (await response.json())?.error?.code;
+  } catch {
+    // No error body: treat the whole patch as rejected.
+  }
+  // Requiring the key guarantees the queue shrinks, so resending terminates.
+  if (code === "LIST_NOT_FOUND" && "default_list_id" in sent) {
+    return { default_list_id: sent.default_list_id };
+  }
+  return sent;
 }
 
 /**

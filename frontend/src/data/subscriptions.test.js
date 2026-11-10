@@ -257,6 +257,56 @@ describe("updateSettings", () => {
     expect(state.appSettings).toEqual(SERVER_SETTINGS);
   });
 
+  /**
+   * @param {number} status
+   * @param {string} code
+   */
+  const errorResponse = (status, code) => ({
+    ok: false,
+    status,
+    json: async () => ({ error: { code, message: "", status } }),
+  });
+
+  it("resends the rest of the patch when the default list was deleted", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    await updateSettings({ list_sort: "alphabetical" });
+    await updateSettings({ default_list_id: "deleted" });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(errorResponse(404, "LIST_NOT_FOUND"))
+      .mockResolvedValueOnce(okResponse(SERVER_SETTINGS))
+      .mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await flushPendingSettings()).toBe("rejected");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({
+      list_sort: "alphabetical",
+    });
+    expect(readPending()).toBeNull();
+    expect(state.appSettings).toEqual({
+      ...SERVER_SETTINGS,
+      list_sort: "alphabetical",
+    });
+  });
+
+  it("drops the whole patch on any other rejection", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    await updateSettings({ list_sort: "bogus", default_list_id: "list-2" });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(errorResponse(400, "INVALID_SORT_OPTION"))
+      .mockResolvedValueOnce(okResponse(SERVER_SETTINGS));
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await flushPendingSettings()).toBe("rejected");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(readPending()).toBeNull();
+    expect(state.appSettings).toEqual(SERVER_SETTINGS);
+  });
+
   describe("with a change made while a request is in flight", () => {
     /** @type {(response: Object) => void} */
     let resolveFirst;
