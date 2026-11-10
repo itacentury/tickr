@@ -181,6 +181,10 @@ function isRetryableStatus(status) {
   return status >= 500 || status === 401;
 }
 
+// 503 is the service worker's offline response; a reverse proxy answers
+// 502/504 while the backend restarts (e.g. during a deploy).
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
 /** @returns {Promise<"synced"|"queued"|"rejected">} */
 async function sendPendingSettings() {
   /** @type {"synced"|"rejected"} */
@@ -204,8 +208,8 @@ async function sendPendingSettings() {
         return "queued";
       }
       if (isRetryableStatus(response.status)) {
-        // 503 is the service worker's offline response; other 5xx may be a server bug.
-        if (response.status >= 500 && response.status !== 503) {
+        // Gateway statuses mean the backend is unreachable; other 5xx may be a server bug.
+        if (response.status >= 500 && !GATEWAY_STATUSES.has(response.status)) {
           reportError(
             "update settings",
             new Error(`Server responded ${response.status}; patch kept queued`),

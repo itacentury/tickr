@@ -203,7 +203,7 @@ describe("updateSettings", () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
-  it.each([500, 502, 504])(
+  it.each([500, 501])(
     "keeps the patch queued and reports a server error %i",
     async (status) => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status }));
@@ -215,6 +215,18 @@ describe("updateSettings", () => {
         "update settings",
         expect.any(Error),
       );
+    },
+  );
+
+  it.each([502, 504])(
+    "keeps the patch queued without reporting a gateway error %i",
+    async (status) => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status }));
+
+      await updateSettings({ list_sort: "custom" });
+
+      expect(readPending()).toEqual({ list_sort: "custom" });
+      expect(reportError).not.toHaveBeenCalled();
     },
   );
 
