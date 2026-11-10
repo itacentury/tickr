@@ -1,5 +1,9 @@
 """Tests for settings endpoints."""
 
+import pytest
+
+from backend import config
+
 
 class TestGetSettings:
     """Tests for GET /api/v1/settings."""
@@ -8,7 +12,18 @@ class TestGetSettings:
         """Default settings include list_sort=alphabetical."""
         resp = client.get("/api/v1/settings")
         assert resp.status_code == 200
-        assert resp.json() == {"list_sort": "alphabetical"}
+        assert resp.json() == {
+            "list_sort": "alphabetical",
+            "default_list_timeout_minutes": "30",
+        }
+
+    def test_get_settings_timeout_from_config(
+        self, client, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The default-list timeout reflects the configured value."""
+        monkeypatch.setattr(config, "DEFAULT_LIST_TIMEOUT_MINUTES", 5)
+        resp = client.get("/api/v1/settings")
+        assert resp.json()["default_list_timeout_minutes"] == "5"
 
 
 class TestUpdateSettings:
@@ -53,3 +68,46 @@ class TestUpdateSettings:
         client.put("/api/v1/settings", json={"list_sort": "alphabetical_desc"})
         names_desc = [entry["name"] for entry in client.get("/api/v1/lists").json()]
         assert names_desc == ["Cherry", "Banana", "Apple"]
+
+
+class TestDefaultList:
+    """Tests for the default_list_id setting."""
+
+    def test_no_default_initially(self, client) -> None:
+        """No list is default until one is chosen."""
+        assert "default_list_id" not in client.get("/api/v1/settings").json()
+
+    def test_set_and_clear_default(self, client, create_list) -> None:
+        """A default can be set, replaced and cleared again."""
+        first: dict = create_list("First")
+        second: dict = create_list("Second")
+
+        client.put("/api/v1/settings", json={"default_list_id": first["id"]})
+        assert client.get("/api/v1/settings").json()["default_list_id"] == first["id"]
+
+        client.put("/api/v1/settings", json={"default_list_id": second["id"]})
+        assert client.get("/api/v1/settings").json()["default_list_id"] == second["id"]
+
+        resp = client.put("/api/v1/settings", json={"default_list_id": ""})
+        assert resp.status_code == 200
+        assert "default_list_id" not in client.get("/api/v1/settings").json()
+
+    def test_unrelated_update_keeps_default(self, client, create_list) -> None:
+        """Updating another setting leaves the default untouched."""
+        lst: dict = create_list("Keep")
+        client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
+        client.put("/api/v1/settings", json={"list_sort": "created_asc"})
+        assert client.get("/api/v1/settings").json()["default_list_id"] == lst["id"]
+
+    def test_unknown_list_rejected(self, client) -> None:
+        """An unknown list id returns 404 LIST_NOT_FOUND."""
+        resp = client.put("/api/v1/settings", json={"default_list_id": "missing"})
+        assert resp.status_code == 404
+        assert resp.json()["error"]["code"] == "LIST_NOT_FOUND"
+
+    def test_deleted_list_rejected(self, client, create_list) -> None:
+        """A soft-deleted list cannot become the default."""
+        lst: dict = create_list("Gone")
+        client.delete(f"/api/v1/lists/{lst['id']}")
+        resp = client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
+        assert resp.status_code == 404

@@ -81,6 +81,9 @@ export const editListSort = /** @type {HTMLInputElement} */ (
   el("editListSortValue")
 );
 export const editListSortDropdown = el("editListSort");
+export const editListDefault = /** @type {HTMLInputElement} */ (
+  el("editListDefault")
+);
 
 // Edit Item Modal
 export const editItemModal = el("editItemModal");

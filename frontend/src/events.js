@@ -17,6 +17,7 @@ import { wireMetrics } from "./events/metrics.js";
 import { wireSettings } from "./events/settings.js";
 import { wireCategories } from "./events/categories.js";
 import { wireHistory } from "./events/history.js";
+import { wireDefaultList } from "./events/default-list.js";
 import {
   wireKeyboardShortcuts,
   wireSwipeNavigation,
@@ -34,6 +35,7 @@ export function setupEventListeners() {
   wireHistory();
   wireMetrics();
   wireSettings();
+  wireDefaultList();
   wireKeyboardShortcuts();
   wireSwipeNavigation();
   wireVisualViewport();

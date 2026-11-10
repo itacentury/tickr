@@ -22,6 +22,7 @@ import {
   removeStorageItem,
 } from "../storage.js";
 import { sortLists, sortItems } from "./sorting.js";
+import { isAppIdle, resolveDefaultListId } from "./default-list.js";
 
 // ---- Settings ----
 
@@ -234,11 +235,15 @@ export async function refreshItemCounts() {
 // ---- Navigation ----
 
 /**
- * Determine which list to select based on saved preference.
+ * Determine which list to select: the default list after an idle period,
+ * otherwise the last viewed list.
  *
  * @returns {string|null} The list ID to select initially.
  */
 export function getInitialListId() {
+  const defaultId = resolveDefaultListId(state.lists, state.appSettings);
+  if (defaultId && isAppIdle(state.appSettings)) return defaultId;
+
   const savedId = getStorageItem("tickr_current_list");
   if (savedId && state.lists.some((l) => l.id === savedId)) {
     return savedId;

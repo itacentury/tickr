@@ -172,6 +172,26 @@
   opacity: 0;
 }
 
+/* Default-list marker */
+.nav-default {
+  display: flex;
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+  color: var(--accent);
+  opacity: 1;
+  transition: opacity var(--transition-normal);
+}
+
+.nav-default svg {
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar.collapsed .nav-default {
+  opacity: 0;
+}
+
 .nav-count {
   padding: 2px 8px;
   font-size: 0.75rem;

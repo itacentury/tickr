@@ -92,6 +92,19 @@
   color: var(--text-secondary);
 }
 
+.setting-group .checkbox-label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input {
+  accent-color: var(--accent);
+}
+
 .setting-select {
   width: 100%;
   padding: 14px 16px;

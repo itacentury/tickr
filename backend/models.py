@@ -89,6 +89,8 @@ class SettingsUpdate(BaseModel):
     """Request model for updating app settings."""
 
     list_sort: str | None = None
+    # An empty string clears the default list; None leaves it unchanged.
+    default_list_id: str | None = Field(None, max_length=ID_MAX)
 
 
 class ListReorder(BaseModel):

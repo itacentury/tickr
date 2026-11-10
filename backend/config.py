@@ -39,6 +39,9 @@ BACKUP_RETAIN: int = _env_int("TICKR_BACKUP_RETAIN", 7)
 TOMBSTONE_RETAIN_DAYS: int = _env_int("TICKR_TOMBSTONE_RETAIN_DAYS", 30)
 TOMBSTONE_PURGE_INTERVAL_HOURS: int = _env_int("TICKR_TOMBSTONE_PURGE_INTERVAL_HOURS", 24)
 
+# Minutes the app must stay in the background before it reopens the default list.
+DEFAULT_LIST_TIMEOUT_MINUTES: int = _env_int("TICKR_DEFAULT_LIST_TIMEOUT_MINUTES", 30)
+
 CORS_ORIGINS: list[str] = [
     origin.strip()
     for origin in os.getenv("TICKR_CORS_ORIGINS", "http://localhost:8000").split(",")

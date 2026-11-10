@@ -30,6 +30,7 @@ import {
   selectList,
   discardCategoryDraft,
   commitCategoryDraft,
+  updateSettings,
 } from "../data.js";
 import {
   openEditListModal,
@@ -239,6 +240,23 @@ export function wireItems() {
   });
 }
 
+/**
+ * Persist the edit-list "Open by default" checkbox when it changed. Unticking
+ * the current default clears it, so no list is default.
+ *
+ * @param {string} listId - The list being edited.
+ * @returns {Promise<void>}
+ */
+async function saveDefaultListChoice(listId) {
+  const isDefault = state.appSettings.default_list_id === listId;
+  const wantsDefault = dom.editListDefault.checked;
+  if (isDefault === wantsDefault) return;
+  const saved = await updateSettings({
+    default_list_id: wantsDefault ? listId : "",
+  });
+  if (!saved) showErrorToast("Failed to update default list");
+}
+
 /** New-list and edit-list modals: icon pickers, create, update, delete. */
 export function wireListModals() {
   // Icon pickers
@@ -324,6 +342,7 @@ export function wireListModals() {
         state.editSelectedIcon,
         dom.editListSort.value,
       );
+      await saveDefaultListChoice(state.currentListId);
       dom.editListModal.classList.remove("open");
     }
   });
