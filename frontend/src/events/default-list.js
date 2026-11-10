@@ -15,6 +15,7 @@ import {
   selectList,
   subscribeLists,
 } from "../data.js";
+import { reportError } from "../error-reporting.js";
 
 /** @returns {boolean} Whether a modal or the history drawer is currently open. */
 function isListBoundUiOpen() {
@@ -29,25 +30,29 @@ function hasAddItemDraft() {
 /** Handle the app becoming visible again after being in the background. */
 async function handleResume() {
   if (!isAppIdle(state.serverConfig)) return;
-  const listIdBeforeFetch = state.currentListId;
-  // Settings are HTTP-only (no SSE), so refetch to pick up a default changed
-  // on another device while this one was in the background.
-  await fetchSettings();
-  // Re-render the sidebar so sort order and default marker match the settings.
-  subscribeLists();
-  // The user picked a list while settings were loading; their choice wins.
-  if (state.currentListId !== listIdBeforeFetch) return;
-  const defaultId = resolveDefaultListId(state.lists, state.appSettings);
-  // Switching under an open modal, the history drawer or an unsent add-item
-  // draft would retarget it to another list.
-  if (
-    !defaultId ||
-    defaultId === state.currentListId ||
-    isListBoundUiOpen() ||
-    hasAddItemDraft()
-  )
-    return;
-  selectList(defaultId);
+  try {
+    const listIdBeforeFetch = state.currentListId;
+    // Settings are HTTP-only (no SSE), so refetch to pick up a default changed
+    // on another device while this one was in the background.
+    await fetchSettings();
+    // Re-render the sidebar so sort order and default marker match the settings.
+    subscribeLists();
+    // The user picked a list while settings were loading; their choice wins.
+    if (state.currentListId !== listIdBeforeFetch) return;
+    const defaultId = resolveDefaultListId(state.lists, state.appSettings);
+    // Switching under an open modal, the history drawer or an unsent add-item
+    // draft would retarget it to another list.
+    if (
+      !defaultId ||
+      defaultId === state.currentListId ||
+      isListBoundUiOpen() ||
+      hasAddItemDraft()
+    )
+      return;
+    selectList(defaultId);
+  } catch (error) {
+    reportError("reopen default list on resume", error);
+  }
 }
 
 /** Track background time and reopen the default list on resume. */
