@@ -330,6 +330,26 @@ describe("updateSettings", () => {
     expect(state.appSettings).toEqual(SERVER_SETTINGS);
   });
 
+  it("keeps the patch queued when the flush fails unexpectedly", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    await updateSettings({ list_sort: "custom" });
+
+    const failure = new Error("unexpected");
+    const fetchMock = vi.fn().mockResolvedValue({
+      get status() {
+        throw failure;
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await flushPendingSettings()).toBe("queued");
+    expect(readPending()).toEqual({ list_sort: "custom" });
+    expect(reportError).toHaveBeenCalledWith("update settings", failure);
+
+    await flushPendingSettings();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   describe("when storage cannot clear the queue", () => {
     beforeEach(() => {
       vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {

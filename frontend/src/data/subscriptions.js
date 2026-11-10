@@ -151,14 +151,21 @@ let flushInFlight = null;
  * since resending cannot succeed, and restores the server's settings over the
  * optimistic ones.
  * Changes queued while a request is in flight are sent in a follow-up request.
+ * Never rejects: an unexpected error is reported and keeps the patch queued,
+ * so fire-and-forget callers need no catch.
  *
  * @returns {Promise<"synced"|"queued"|"rejected">} Outcome of the attempt.
  */
 export function flushPendingSettings() {
   // The online event and an app resume can both trigger a flush at once.
-  flushInFlight ??= sendPendingSettings().finally(() => {
-    flushInFlight = null;
-  });
+  flushInFlight ??= sendPendingSettings()
+    .catch((error) => {
+      reportError("update settings", error);
+      return /** @type {const} */ ("queued");
+    })
+    .finally(() => {
+      flushInFlight = null;
+    });
   return flushInFlight;
 }
 
