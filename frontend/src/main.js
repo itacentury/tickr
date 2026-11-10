@@ -74,7 +74,9 @@ if (!inRecovery) {
   authExpired$.subscribe(() => {
     renderLoginView(() => {
       resumeReplication();
-      // Settings kept queued by the 401 that expired the session.
+      // Settings kept queued by the 401 that expired the session. The reopened
+      // SSE stream flushes too (sseConnected$); this call doesn't wait for it,
+      // and the overlap is harmless (shared in-flight promise / empty queue).
       void flushPendingSettings();
     });
   });
