@@ -99,7 +99,23 @@ async function loadSettings() {
     SETTINGS_CACHE_KEY,
   );
   // Edits still waiting for the server must not be overwritten by stale values.
-  if (settings) state.appSettings = { ...settings, ...getPendingSettings() };
+  if (settings) {
+    state.appSettings = mergeSettings(settings, getPendingSettings());
+  }
+}
+
+/**
+ * Merge a settings patch the way the server stores it: an empty default list
+ * id clears the setting, so the key is dropped instead of kept as "".
+ *
+ * @param {Object} base - Current settings.
+ * @param {Object} patch - Key-value pairs to apply.
+ * @returns {Object} The merged settings.
+ */
+function mergeSettings(base, patch) {
+  const merged = { ...base, ...patch };
+  if (merged.default_list_id === "") delete merged.default_list_id;
+  return merged;
 }
 
 /** Fetch the read-only server configuration (e.g. the default-list timeout). */
@@ -172,7 +188,7 @@ async function sendPendingSettings() {
  */
 export async function updateSettings(settings) {
   cacheObject(PENDING_SETTINGS_KEY, { ...getPendingSettings(), ...settings });
-  Object.assign(state.appSettings, settings);
+  state.appSettings = mergeSettings(state.appSettings, settings);
   cacheObject(SETTINGS_CACHE_KEY, state.appSettings);
   subscribeLists();
   return (await flushPendingSettings()) !== "rejected";

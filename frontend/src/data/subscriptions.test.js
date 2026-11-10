@@ -228,6 +228,39 @@ describe("updateSettings", () => {
     });
     expect(readPending()).toEqual({ default_list_id: "list-2" });
   });
+
+  it("removes the default list locally when cleared", async () => {
+    state.appSettings = { ...DEFAULTS, default_list_id: "list-2" };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateSettings({ default_list_id: "" });
+
+    expect(state.appSettings).toEqual(DEFAULTS);
+    expect(JSON.parse(localStorage.getItem(CACHE_KEY) ?? "null")).toEqual(
+      DEFAULTS,
+    );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      default_list_id: "",
+    });
+  });
+
+  it("keeps a pending clear when reloading settings offline", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    await updateSettings({ default_list_id: "" });
+
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(SW_OFFLINE)
+        .mockResolvedValueOnce(okResponse(SERVER_SETTINGS)),
+    );
+    await fetchSettings();
+
+    expect(state.appSettings).toEqual({ list_sort: "custom" });
+    expect(readPending()).toEqual({ default_list_id: "" });
+  });
 });
 
 describe("getInitialListId", () => {
