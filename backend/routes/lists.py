@@ -18,7 +18,7 @@ from ..models import (
     SuccessResponse,
     resolve_sort_sql,
 )
-from .settings import clear_default_list_if_matches
+from ..settings_store import clear_default_list_if_matches
 
 logger = get_logger(__name__)
 

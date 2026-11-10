@@ -48,11 +48,6 @@ def _save_default_list(cursor: sqlite3.Cursor, list_id: str) -> None:
     )
 
 
-def clear_default_list_if_matches(cursor: sqlite3.Cursor, list_id: str) -> None:
-    """Drop the default-list setting if it points at ``list_id``."""
-    cursor.execute("DELETE FROM settings WHERE key = 'default_list_id' AND value = ?", (list_id,))
-
-
 @router.put("/settings", response_model=SuccessResponse)
 def update_settings(
     settings_data: SettingsUpdate, db: sqlite3.Connection = Depends(get_db)

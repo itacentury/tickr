@@ -19,7 +19,7 @@ from ..logging_config import get_logger
 from ..metrics import sync_metrics
 from ..models import SyncCategoryState, SyncChange, SyncItemState, SyncListState
 from ..purge import tombstone_cutoff
-from .settings import clear_default_list_if_matches
+from ..settings_store import clear_default_list_if_matches
 
 logger = get_logger(__name__)
 
