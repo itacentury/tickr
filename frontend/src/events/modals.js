@@ -342,8 +342,8 @@ export function wireListModals() {
         state.editSelectedIcon,
         dom.editListSort.value,
       );
-      await saveDefaultListChoice(state.currentListId);
       dom.editListModal.classList.remove("open");
+      await saveDefaultListChoice(state.currentListId);
     }
   });
 
