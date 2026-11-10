@@ -25,3 +25,10 @@ export const categoriesChanged$ = new Subject();
  * which owns the login gate and re-renders the login view).
  */
 export const authExpired$ = new Subject();
+
+/**
+ * Fires each time the SSE sync stream opens, i.e. the server is reachable
+ * again. A fallback for the browser's `online` event, which iOS PWAs and
+ * flaky connections can miss.
+ */
+export const sseConnected$ = new Subject();

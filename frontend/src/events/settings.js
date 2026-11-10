@@ -9,6 +9,7 @@ import { state } from "../state.js";
 import * as dom from "../dom.js";
 import { setDropdownValue } from "../dropdown.js";
 import { flushPendingSettings, updateSettings } from "../data.js";
+import { sseConnected$ } from "../bus.js";
 import { logout } from "../auth.js";
 import { reportError } from "../error-reporting.js";
 import { showErrorToast } from "../toast.js";
@@ -64,9 +65,12 @@ export function wireSettings() {
   makeBackdropDismiss(dom.settingsModal);
 
   // Settings edited offline are queued; send them once the connection returns.
-  window.addEventListener("online", async () => {
+  // The SSE reopen covers a missed `online` event (iOS PWAs, flaky links).
+  const flushQueuedSettings = async () => {
     if ((await flushPendingSettings()) === "rejected") {
       showErrorToast("Failed to update settings");
     }
-  });
+  };
+  window.addEventListener("online", flushQueuedSettings);
+  sseConnected$.subscribe(() => void flushQueuedSettings());
 }

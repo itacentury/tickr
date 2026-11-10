@@ -384,4 +384,19 @@ describe("SSE staleness reconnect", () => {
     expect(MockEventSource.instances).toHaveLength(1);
     expect(first.closed).toBe(false);
   });
+
+  it("emits sseConnected$ each time a connection opens", async () => {
+    const { getCollectionStream } = await import("./replication.js");
+    const { sseConnected$ } = await import("../bus.js");
+    const onOpen = vi.fn();
+    sseConnected$.subscribe(onOpen);
+
+    getCollectionStream("lists");
+    MockEventSource.instances[0].emit("open");
+    expect(onOpen).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(40000);
+    MockEventSource.instances[1].emit("open");
+    expect(onOpen).toHaveBeenCalledTimes(2);
+  });
 });
