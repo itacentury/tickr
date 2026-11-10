@@ -14,6 +14,7 @@ import { recordHidden } from "./default-list.js";
 const CACHE_KEY = "tickr_settings";
 const PENDING_KEY = "tickr_pending_settings";
 const SW_OFFLINE = { ok: false, status: 503 };
+const TIMEOUT_ERROR = new DOMException("timed out", "TimeoutError");
 
 /** @returns {Object|null} The queued settings patch. */
 const readPending = () =>
@@ -53,6 +54,15 @@ describe("fetchSettings", () => {
   it("restores the cached settings when offline", async () => {
     localStorage.setItem(CACHE_KEY, JSON.stringify(SERVER_SETTINGS));
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+
+    await fetchSettings();
+
+    expect(state.appSettings).toEqual(SERVER_SETTINGS);
+  });
+
+  it("restores the cached settings when the request times out", async () => {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(SERVER_SETTINGS));
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(TIMEOUT_ERROR));
 
     await fetchSettings();
 
@@ -105,7 +115,9 @@ describe("fetchServerConfig", () => {
 
     await fetchServerConfig();
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/config");
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/config", {
+      signal: expect.any(AbortSignal),
+    });
     expect(state.serverConfig).toEqual(SERVER_CONFIG);
     expect(
       JSON.parse(localStorage.getItem(CONFIG_CACHE_KEY) ?? "null"),
@@ -166,6 +178,17 @@ describe("updateSettings", () => {
     expect(saved).toBe(true);
     expect(state.appSettings.default_list_id).toBe("list-2");
     expect(readPending()).toEqual({ default_list_id: "list-2" });
+  });
+
+  it("keeps the patch queued when the request times out", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(TIMEOUT_ERROR);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const saved = await updateSettings({ list_sort: "custom" });
+
+    expect(saved).toBe(true);
+    expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    expect(readPending()).toEqual({ list_sort: "custom" });
   });
 
   it("treats the service worker's offline 503 as offline", async () => {

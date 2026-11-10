@@ -45,6 +45,9 @@ export const SSE_STALE_TIMEOUT_MS = 40000;
 /** Abort replication fetches that hang past this; RxDB retries via retryTime. */
 export const REPLICATION_FETCH_TIMEOUT_MS = 15000;
 
+/** Abort settings/config fetches that hang past this so startup falls back to the cache. */
+export const SETTINGS_FETCH_TIMEOUT_MS = 5000;
+
 /** RxDB `retryTime` for failed pull/push on every collection. */
 export const REPLICATION_RETRY_MS = 5000;
 

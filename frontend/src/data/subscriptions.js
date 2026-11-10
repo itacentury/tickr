@@ -21,6 +21,7 @@ import {
   setStorageItem,
   removeStorageItem,
 } from "../storage.js";
+import { SETTINGS_FETCH_TIMEOUT_MS } from "../timing.js";
 import { sortLists, sortItems } from "./sorting.js";
 import { consumeIdle, resolveDefaultListId } from "./default-list.js";
 
@@ -70,7 +71,9 @@ function restoreCachedObject(key) {
  */
 async function fetchCachedObject(url, cacheKey) {
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(SETTINGS_FETCH_TIMEOUT_MS),
+    });
     if (response.ok) {
       const fresh = await response.json();
       cacheObject(cacheKey, fresh);
@@ -164,6 +167,7 @@ async function sendPendingSettings() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pending),
+      signal: AbortSignal.timeout(SETTINGS_FETCH_TIMEOUT_MS),
     });
   } catch {
     return "queued";
