@@ -141,10 +141,10 @@ let flushInFlight = null;
 /**
  * Send the pending settings patch to the server.
  *
- * An unreachable server keeps the patch for a later retry; the service worker
- * answers offline API requests with a synthetic 503, so that counts as
- * unreachable too. Any other error drops the patch, since resending cannot
- * succeed, and restores the server's settings over the optimistic ones.
+ * An unreachable server, a server error or an expired session keeps the patch
+ * for a later retry (see isRetryableStatus). Any other error drops the patch,
+ * since resending cannot succeed, and restores the server's settings over the
+ * optimistic ones.
  * Changes queued while a request is in flight are sent in a follow-up request.
  *
  * @returns {Promise<"synced"|"queued"|"rejected">} Outcome of the attempt.
@@ -155,6 +155,18 @@ export function flushPendingSettings() {
     flushInFlight = null;
   });
   return flushInFlight;
+}
+
+/**
+ * Whether a failed settings request may succeed when resent: server errors
+ * (incl. the service worker's offline 503 and proxy 502/504 during a
+ * restart) and an expired session, which a re-login fixes.
+ *
+ * @param {number} status - HTTP status of the failed response.
+ * @returns {boolean}
+ */
+function isRetryableStatus(status) {
+  return status >= 500 || status === 401;
 }
 
 /** @returns {Promise<"synced"|"queued"|"rejected">} */
@@ -176,7 +188,7 @@ async function sendPendingSettings() {
     } catch {
       return "queued";
     }
-    if (response.status === 503) return "queued";
+    if (isRetryableStatus(response.status)) return "queued";
 
     dequeueSentSettings(pending);
     if (response.ok) continue;

@@ -200,6 +200,32 @@ describe("updateSettings", () => {
     expect(readPending()).toEqual({ list_sort: "custom" });
   });
 
+  it.each([500, 502, 504, 401])(
+    "keeps the patch queued on a transient %i",
+    async (status) => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status }));
+
+      const saved = await updateSettings({ list_sort: "custom" });
+
+      expect(saved).toBe(true);
+      expect(readPending()).toEqual({ list_sort: "custom" });
+    },
+  );
+
+  it("drops the patch on a validation error", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 422 })
+      .mockResolvedValueOnce(okResponse(SERVER_SETTINGS));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const saved = await updateSettings({ list_sort: "invalid" });
+
+    expect(saved).toBe(false);
+    expect(readPending()).toBeNull();
+    expect(state.appSettings).toEqual(SERVER_SETTINGS);
+  });
+
   it("sends merged offline edits once when flushed", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
     await updateSettings({ default_list_id: "list-2" });
