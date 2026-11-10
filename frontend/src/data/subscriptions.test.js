@@ -2,7 +2,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { state } from "../state.js";
 import { removeStorageItem } from "../storage.js";
-import { fetchSettings, updateSettings } from "./subscriptions.js";
+import {
+  fetchSettings,
+  fetchServerConfig,
+  updateSettings,
+} from "./subscriptions.js";
 
 const CACHE_KEY = "tickr_settings";
 const DEFAULTS = { list_sort: "alphabetical" };
@@ -69,6 +73,50 @@ describe("fetchSettings", () => {
     await fetchSettings();
 
     expect(state.appSettings).toEqual(DEFAULTS);
+  });
+});
+
+describe("fetchServerConfig", () => {
+  const CONFIG_CACHE_KEY = "tickr_server_config";
+  const SERVER_CONFIG = { default_list_timeout_minutes: 5 };
+
+  beforeEach(() => {
+    removeStorageItem(CONFIG_CACHE_KEY);
+    state.serverConfig = {};
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("applies and caches the server config", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse(SERVER_CONFIG));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchServerConfig();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/config");
+    expect(state.serverConfig).toEqual(SERVER_CONFIG);
+    expect(
+      JSON.parse(localStorage.getItem(CONFIG_CACHE_KEY) ?? "null"),
+    ).toEqual(SERVER_CONFIG);
+  });
+
+  it("restores the cached config when offline", async () => {
+    localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(SERVER_CONFIG));
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+
+    await fetchServerConfig();
+
+    expect(state.serverConfig).toEqual(SERVER_CONFIG);
+  });
+
+  it("keeps the current config when offline without a cache", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+
+    await fetchServerConfig();
+
+    expect(state.serverConfig).toEqual({});
   });
 });
 

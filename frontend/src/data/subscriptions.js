@@ -27,43 +27,80 @@ import { isAppIdle, resolveDefaultListId } from "./default-list.js";
 // ---- Settings ----
 
 const SETTINGS_CACHE_KEY = "tickr_settings";
+const SERVER_CONFIG_CACHE_KEY = "tickr_server_config";
 
-/** Persist the current settings so an offline cold start can restore them. */
-function cacheSettings() {
-  setStorageItem(SETTINGS_CACHE_KEY, JSON.stringify(state.appSettings));
-}
-
-/** Restore the last cached settings; keeps the current ones if none are usable. */
-function restoreCachedSettings() {
-  const raw = getStorageItem(SETTINGS_CACHE_KEY);
-  if (raw === null) return;
-  try {
-    const cached = JSON.parse(raw);
-    if (cached && typeof cached === "object" && !Array.isArray(cached)) {
-      state.appSettings = cached;
-    }
-  } catch {
-    // Corrupt cache: keep the current settings.
-  }
+/**
+ * Persist an object so an offline cold start can restore it.
+ *
+ * @param {string} key - Storage key.
+ * @param {Object} value - Object to cache.
+ */
+function cacheObject(key, value) {
+  setStorageItem(key, JSON.stringify(value));
 }
 
 /**
- * Fetch settings from the server, falling back to the last cached settings
- * when the server is unreachable (e.g. offline cold start).
- * Settings are not stored in RxDB since they're lightweight global config.
+ * Restore a cached plain object.
+ *
+ * @param {string} key - Storage key.
+ * @returns {Object|null} The cached object, or null if missing or unusable.
  */
-export async function fetchSettings() {
+function restoreCachedObject(key) {
+  const raw = getStorageItem(key);
+  if (raw === null) return null;
   try {
-    const response = await fetch("/api/v1/settings");
+    const cached = JSON.parse(raw);
+    if (cached && typeof cached === "object" && !Array.isArray(cached)) {
+      return cached;
+    }
+  } catch {
+    // Corrupt cache: treat as missing.
+  }
+  return null;
+}
+
+/**
+ * Fetch a JSON object from the server and cache it, falling back to the last
+ * cached copy when the server is unreachable (e.g. offline cold start).
+ *
+ * @param {string} url - Endpoint to fetch.
+ * @param {string} cacheKey - Storage key for the offline copy.
+ * @returns {Promise<Object|null>} The fresh or cached object, or null if neither is available.
+ */
+async function fetchCachedObject(url, cacheKey) {
+  try {
+    const response = await fetch(url);
     if (response.ok) {
-      state.appSettings = await response.json();
-      cacheSettings();
-      return;
+      const fresh = await response.json();
+      cacheObject(cacheKey, fresh);
+      return fresh;
     }
   } catch {
     // Offline: fall through to the cache.
   }
-  restoreCachedSettings();
+  return restoreCachedObject(cacheKey);
+}
+
+/**
+ * Fetch settings from the server, keeping the current ones if neither the
+ * server nor the cache has any.
+ * Settings are not stored in RxDB since they're lightweight global config.
+ */
+export async function fetchSettings() {
+  const settings = await fetchCachedObject(
+    "/api/v1/settings",
+    SETTINGS_CACHE_KEY,
+  );
+  if (settings) state.appSettings = settings;
+}
+
+/** Fetch the read-only server configuration (e.g. the default-list timeout). */
+export async function fetchServerConfig() {
+  const config = await fetchCachedObject(
+    "/api/v1/config",
+    SERVER_CONFIG_CACHE_KEY,
+  );
+  if (config) state.serverConfig = config;
 }
 
 /**
@@ -81,7 +118,7 @@ export async function updateSettings(settings) {
     });
     if (!response.ok) return false;
     Object.assign(state.appSettings, settings);
-    cacheSettings();
+    cacheObject(SETTINGS_CACHE_KEY, state.appSettings);
     subscribeLists();
     return true;
   } catch {
@@ -268,7 +305,7 @@ export async function refreshItemCounts() {
  */
 export function getInitialListId() {
   const defaultId = resolveDefaultListId(state.lists, state.appSettings);
-  if (defaultId && isAppIdle(state.appSettings)) return defaultId;
+  if (defaultId && isAppIdle(state.serverConfig)) return defaultId;
 
   const savedId = getStorageItem("tickr_current_list");
   if (savedId && state.lists.some((l) => l.id === savedId)) {

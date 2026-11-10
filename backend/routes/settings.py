@@ -7,20 +7,24 @@ from fastapi import APIRouter, Depends
 from .. import config
 from ..database import get_db
 from ..errors import AppError, ErrorCode
-from ..models import VALID_LIST_SORT_OPTIONS, SettingsUpdate, SuccessResponse
+from ..models import VALID_LIST_SORT_OPTIONS, ServerConfig, SettingsUpdate, SuccessResponse
 
 router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/settings")
 def get_settings(db: sqlite3.Connection = Depends(get_db)) -> dict[str, str]:
-    """Return all app settings plus the read-only default-list timeout."""
+    """Return all app settings."""
     cursor: sqlite3.Cursor = db.cursor()
     cursor.execute("SELECT key, value FROM settings")
     rows: list[sqlite3.Row] = cursor.fetchall()
-    settings: dict[str, str] = {row["key"]: row["value"] for row in rows}
-    settings["default_list_timeout_minutes"] = str(config.DEFAULT_LIST_TIMEOUT_MINUTES)
-    return settings
+    return {row["key"]: row["value"] for row in rows}
+
+
+@router.get("/config", response_model=ServerConfig)
+def get_config() -> ServerConfig:
+    """Return the read-only server configuration."""
+    return ServerConfig(default_list_timeout_minutes=config.DEFAULT_LIST_TIMEOUT_MINUTES)
 
 
 def _save_default_list(cursor: sqlite3.Cursor, list_id: str) -> None:

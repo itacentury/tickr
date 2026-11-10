@@ -93,6 +93,12 @@ class SettingsUpdate(BaseModel):
     default_list_id: str | None = Field(None, max_length=ID_MAX)
 
 
+class ServerConfig(BaseModel):
+    """Read-only server configuration exposed to the client."""
+
+    default_list_timeout_minutes: int
+
+
 class ListReorder(BaseModel):
     """Request model for reordering lists."""
 

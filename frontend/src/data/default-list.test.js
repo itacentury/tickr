@@ -25,29 +25,23 @@ describe("isIdleExpired", () => {
 });
 
 describe("getIdleTimeoutMinutes", () => {
-  it("parses the server value", () => {
-    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: "5" })).toBe(
-      5,
-    );
+  it("uses the server value", () => {
+    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: 5 })).toBe(5);
   });
 
   it("falls back when missing or invalid", () => {
     expect(getIdleTimeoutMinutes({})).toBe(30);
-    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: "x" })).toBe(
+    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: "5" })).toBe(
       30,
     );
-    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: " " })).toBe(
+    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: NaN })).toBe(
       30,
     );
   });
 
   it("clamps zero and negative values to one minute", () => {
-    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: "0" })).toBe(
-      1,
-    );
-    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: "-5" })).toBe(
-      1,
-    );
+    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: 0 })).toBe(1);
+    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: -5 })).toBe(1);
   });
 });
 
@@ -68,19 +62,19 @@ describe("resolveDefaultListId", () => {
 });
 
 describe("isAppIdle", () => {
-  const settings = { default_list_timeout_minutes: "30" };
+  const config = { default_list_timeout_minutes: 30 };
 
   beforeEach(() => {
     localStorage.clear();
   });
 
   it("is idle on first launch", () => {
-    expect(isAppIdle(settings, 0)).toBe(true);
+    expect(isAppIdle(config, 0)).toBe(true);
   });
 
   it("uses the recorded hide time", () => {
     recordHidden(0);
-    expect(isAppIdle(settings, 10 * MINUTE)).toBe(false);
-    expect(isAppIdle(settings, 30 * MINUTE)).toBe(true);
+    expect(isAppIdle(config, 10 * MINUTE)).toBe(false);
+    expect(isAppIdle(config, 30 * MINUTE)).toBe(true);
   });
 });

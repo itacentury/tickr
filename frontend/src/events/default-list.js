@@ -22,7 +22,7 @@ function isListBoundUiOpen() {
 
 /** Handle the app becoming visible again after being in the background. */
 async function handleResume() {
-  if (!isAppIdle(state.appSettings)) return;
+  if (!isAppIdle(state.serverConfig)) return;
   const listIdBeforeFetch = state.currentListId;
   // Settings are HTTP-only (no SSE), so refetch to pick up a default changed
   // on another device while this one was in the background.

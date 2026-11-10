@@ -15,18 +15,22 @@ class TestGetSettings:
         """Default settings include list_sort=alphabetical."""
         resp = client.get("/api/v1/settings")
         assert resp.status_code == 200
-        assert resp.json() == {
-            "list_sort": "alphabetical",
-            "default_list_timeout_minutes": "30",
-        }
+        assert resp.json() == {"list_sort": "alphabetical"}
 
-    def test_get_settings_timeout_from_config(
-        self, client, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+
+class TestGetConfig:
+    """Tests for GET /api/v1/config."""
+
+    def test_get_config_default(self, client) -> None:
+        """The default-list timeout defaults to 30 minutes."""
+        resp = client.get("/api/v1/config")
+        assert resp.status_code == 200
+        assert resp.json() == {"default_list_timeout_minutes": 30}
+
+    def test_get_config_timeout_from_config(self, client, monkeypatch: pytest.MonkeyPatch) -> None:
         """The default-list timeout reflects the configured value."""
         monkeypatch.setattr(config, "DEFAULT_LIST_TIMEOUT_MINUTES", 5)
-        resp = client.get("/api/v1/settings")
-        assert resp.json()["default_list_timeout_minutes"] == "5"
+        assert client.get("/api/v1/config").json()["default_list_timeout_minutes"] == 5
 
     @pytest.mark.parametrize("raw", ["0", "-5"])
     def test_timeout_config_clamped_to_one(self, raw: str, monkeypatch: pytest.MonkeyPatch) -> None:

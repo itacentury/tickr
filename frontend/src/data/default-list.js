@@ -2,9 +2,10 @@
  * Default-list helpers: decide whether the app has been idle long enough to
  * reopen the user's default list instead of the last viewed one.
  *
- * The default list id and the idle timeout come from the server settings
- * (`default_list_id`, `default_list_timeout_minutes`); the moment the app went
- * to the background is kept per device in storage.
+ * The default list id comes from the server settings (`default_list_id`), the
+ * idle timeout from the read-only server config
+ * (`default_list_timeout_minutes`); the moment the app went to the background
+ * is kept per device in storage.
  */
 
 import { getStorageItem, setStorageItem } from "../storage.js";
@@ -29,19 +30,18 @@ export function isIdleExpired(lastHiddenAt, now, timeoutMinutes) {
 }
 
 /**
- * Read the idle timeout from settings, falling back when absent or invalid.
- * Values below one minute are clamped so a quick app switch never counts
- * as idle.
+ * Read the idle timeout from the server config, falling back when absent or
+ * invalid. Values below one minute are clamped so a quick app switch never
+ * counts as idle.
  *
- * @param {Record<string, string>} settings - Server settings.
+ * @param {{default_list_timeout_minutes?: unknown}} config - Server config.
  * @returns {number} Timeout in minutes.
  */
-export function getIdleTimeoutMinutes(settings) {
-  const raw = settings.default_list_timeout_minutes;
-  // `Number(" ")` is 0, so blank strings must be rejected before parsing.
-  if (raw === undefined || raw.trim() === "") return FALLBACK_TIMEOUT_MINUTES;
-  const minutes = Number(raw);
-  if (!Number.isFinite(minutes)) return FALLBACK_TIMEOUT_MINUTES;
+export function getIdleTimeoutMinutes(config) {
+  const minutes = config.default_list_timeout_minutes;
+  if (typeof minutes !== "number" || !Number.isFinite(minutes)) {
+    return FALLBACK_TIMEOUT_MINUTES;
+  }
   return Math.max(MIN_TIMEOUT_MINUTES, minutes);
 }
 
@@ -71,13 +71,13 @@ export function recordHidden(now = Date.now()) {
 /**
  * Whether the app has been idle long enough to reopen the default list.
  *
- * @param {Record<string, string>} settings - Server settings.
+ * @param {{default_list_timeout_minutes?: unknown}} config - Server config.
  * @param {number} [now] - Epoch ms; defaults to the current time.
  * @returns {boolean}
  */
-export function isAppIdle(settings, now = Date.now()) {
+export function isAppIdle(config, now = Date.now()) {
   const raw = getStorageItem(LAST_HIDDEN_KEY);
   const lastHiddenAt = raw === null ? null : Number(raw);
   const validLastHiddenAt = Number.isFinite(lastHiddenAt) ? lastHiddenAt : null;
-  return isIdleExpired(validLastHiddenAt, now, getIdleTimeoutMinutes(settings));
+  return isIdleExpired(validLastHiddenAt, now, getIdleTimeoutMinutes(config));
 }
