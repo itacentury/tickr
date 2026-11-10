@@ -130,7 +130,7 @@ class TestSyncPush:
 
     def test_push_list_tombstone_clears_default(self, client, create_list) -> None:
         """Pushing a deleted default list removes default_list_id from settings."""
-        lst: dict = create_list()
+        lst: dict[str, Any] = create_list()
         client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
         _push_list_change(client, lst["id"], _deleted=True)
 
@@ -138,7 +138,7 @@ class TestSyncPush:
 
     def test_push_list_update_keeps_default(self, client, create_list) -> None:
         """A non-deleting push of the default list leaves the setting untouched."""
-        lst: dict = create_list()
+        lst: dict[str, Any] = create_list()
         client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
         _push_list_change(client, lst["id"], name="Renamed")
 

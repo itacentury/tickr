@@ -1,5 +1,7 @@
 """Tests for list CRUD and reorder endpoints."""
 
+from typing import Any
+
 from backend.routes import lists as lists_module
 
 
@@ -155,7 +157,7 @@ class TestDeleteList:
 
     def test_delete_default_list_clears_setting(self, client, create_list) -> None:
         """Deleting the default list removes default_list_id from settings."""
-        lst: dict = create_list()
+        lst: dict[str, Any] = create_list()
         client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
         client.delete(f"/api/v1/lists/{lst['id']}")
 
@@ -163,8 +165,8 @@ class TestDeleteList:
 
     def test_delete_other_list_keeps_default(self, client, create_list) -> None:
         """Deleting a non-default list leaves the default untouched."""
-        default: dict = create_list("Default")
-        other: dict = create_list("Other")
+        default: dict[str, Any] = create_list("Default")
+        other: dict[str, Any] = create_list("Other")
         client.put("/api/v1/settings", json={"default_list_id": default["id"]})
         client.delete(f"/api/v1/lists/{other['id']}")
 

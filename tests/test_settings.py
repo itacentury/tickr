@@ -1,6 +1,7 @@
 """Tests for settings endpoints."""
 
 import importlib
+from typing import Any
 
 import pytest
 
@@ -97,8 +98,8 @@ class TestDefaultList:
 
     def test_set_and_clear_default(self, client, create_list) -> None:
         """A default can be set, replaced and cleared again."""
-        first: dict = create_list("First")
-        second: dict = create_list("Second")
+        first: dict[str, Any] = create_list("First")
+        second: dict[str, Any] = create_list("Second")
 
         client.put("/api/v1/settings", json={"default_list_id": first["id"]})
         assert client.get("/api/v1/settings").json()["default_list_id"] == first["id"]
@@ -112,7 +113,7 @@ class TestDefaultList:
 
     def test_unrelated_update_keeps_default(self, client, create_list) -> None:
         """Updating another setting leaves the default untouched."""
-        lst: dict = create_list("Keep")
+        lst: dict[str, Any] = create_list("Keep")
         client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
         client.put("/api/v1/settings", json={"list_sort": "created_asc"})
         assert client.get("/api/v1/settings").json()["default_list_id"] == lst["id"]
