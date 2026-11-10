@@ -179,7 +179,6 @@
   min-width: 14px;
   height: 14px;
   color: var(--accent);
-  opacity: 1;
   transition: opacity var(--transition-normal);
 }
 
