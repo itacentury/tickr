@@ -10,6 +10,9 @@ import {
   updateSettings,
 } from "./subscriptions.js";
 import { recordHidden } from "./default-list.js";
+import { reportError } from "../error-reporting.js";
+
+vi.mock("../error-reporting.js", () => ({ reportError: vi.fn() }));
 
 const CACHE_KEY = "tickr_settings";
 const PENDING_KEY = "tickr_pending_settings";
@@ -148,6 +151,7 @@ describe("updateSettings", () => {
     removeStorageItem(CACHE_KEY);
     removeStorageItem(PENDING_KEY);
     state.appSettings = { ...DEFAULTS };
+    vi.mocked(reportError).mockClear();
     const subscription = { unsubscribe() {} };
     state.db = /** @type {any} */ ({
       lists: { find: () => ({ $: { subscribe: () => subscription } }) },
@@ -198,10 +202,11 @@ describe("updateSettings", () => {
 
     expect(saved).toBe(true);
     expect(readPending()).toEqual({ list_sort: "custom" });
+    expect(reportError).not.toHaveBeenCalled();
   });
 
-  it.each([500, 502, 504, 401])(
-    "keeps the patch queued on a transient %i",
+  it.each([500, 502, 504])(
+    "keeps the patch queued and reports a server error %i",
     async (status) => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status }));
 
@@ -209,8 +214,25 @@ describe("updateSettings", () => {
 
       expect(saved).toBe(true);
       expect(readPending()).toEqual({ list_sort: "custom" });
+      expect(reportError).toHaveBeenCalledWith(
+        "update settings",
+        expect.any(Error),
+      );
     },
   );
+
+  it("keeps the patch queued on an expired session without reporting", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 401 }),
+    );
+
+    const saved = await updateSettings({ list_sort: "custom" });
+
+    expect(saved).toBe(true);
+    expect(readPending()).toEqual({ list_sort: "custom" });
+    expect(reportError).not.toHaveBeenCalled();
+  });
 
   it("drops the patch on a validation error", async () => {
     const fetchMock = vi

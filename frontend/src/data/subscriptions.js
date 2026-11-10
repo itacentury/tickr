@@ -22,6 +22,7 @@ import {
   removeStorageItem,
 } from "../storage.js";
 import { SETTINGS_FETCH_TIMEOUT_MS } from "../timing.js";
+import { reportError } from "../error-reporting.js";
 import { sortLists, sortItems } from "./sorting.js";
 import { consumeIdle, resolveDefaultListId } from "./default-list.js";
 
@@ -191,7 +192,16 @@ async function sendPendingSettings() {
     } catch {
       return "queued";
     }
-    if (isRetryableStatus(response.status)) return "queued";
+    if (isRetryableStatus(response.status)) {
+      // 503 is the service worker's offline response; other 5xx may be a server bug.
+      if (response.status >= 500 && response.status !== 503) {
+        reportError(
+          "update settings",
+          new Error(`Server responded ${response.status}; patch kept queued`),
+        );
+      }
+      return "queued";
+    }
 
     if (response.ok) {
       dequeueSentSettings(pending);
