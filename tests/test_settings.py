@@ -125,6 +125,15 @@ class TestDefaultList:
         assert resp.status_code == 200
         assert client.get("/api/v1/settings").json()["default_list_id"] == "not-synced-yet"
 
+    def test_deleted_list_rejected(self, client, create_list) -> None:
+        """A list already soft-deleted on the server cannot become the default."""
+        lst: dict[str, Any] = create_list("Gone")
+        client.delete(f"/api/v1/lists/{lst['id']}")
+        resp: httpx.Response = client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
+        assert resp.status_code == 404
+        assert resp.json()["error"]["code"] == "LIST_NOT_FOUND"
+        assert "default_list_id" not in client.get("/api/v1/settings").json()
+
     def test_overlong_id_rejected(self, client) -> None:
         """An id exceeding the maximum length fails validation."""
         resp = client.put("/api/v1/settings", json={"default_list_id": "x" * (ID_MAX + 1)})

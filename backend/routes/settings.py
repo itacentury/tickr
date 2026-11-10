@@ -30,12 +30,17 @@ def get_config() -> ServerConfig:
 def _save_default_list(cursor: sqlite3.Cursor, list_id: str) -> None:
     """Set the default list, or clear it when ``list_id`` is empty.
 
-    The id is not checked against ``lists``: a list created offline may not have
-    replicated yet, and the client ignores default ids it cannot resolve.
+    Unknown ids are accepted: a list created offline may not have replicated yet,
+    and the client ignores default ids it cannot resolve. Only ids of soft-deleted
+    lists are rejected, since clean-up on deletion would never remove them.
     """
     if not list_id:
         cursor.execute("DELETE FROM settings WHERE key = 'default_list_id'")
         return
+
+    cursor.execute("SELECT 1 FROM lists WHERE id = ? AND _deleted = 1", (list_id,))
+    if cursor.fetchone() is not None:
+        raise AppError(ErrorCode.LIST_NOT_FOUND, "List has been deleted", 404)
 
     cursor.execute(
         "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
