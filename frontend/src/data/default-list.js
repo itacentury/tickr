@@ -4,8 +4,10 @@
  *
  * The default list id comes from the server settings (`default_list_id`), the
  * idle timeout from the read-only server config
- * (`default_list_timeout_minutes`); the moment the app went to the background
- * is kept per device in storage.
+ * (`default_list_timeout_minutes`). The moment the app was hidden is kept per
+ * tab in memory for resumes, and in storage for cold starts. Storage is shared
+ * by all tabs, so a resuming tab must not read it: another tab hiding later
+ * would overwrite this tab's hide time.
  */
 
 import { getStorageItem, setStorageItem } from "../storage.js";
@@ -14,6 +16,9 @@ const LAST_HIDDEN_KEY = "tickr_last_hidden_at";
 const FALLBACK_TIMEOUT_MINUTES = 30;
 const MIN_TIMEOUT_MINUTES = 1;
 const MS_PER_MINUTE = 60_000;
+
+/** @type {number|null} */
+let lastHiddenAtInTab = null;
 
 /**
  * Whether the app has been in the background for at least the timeout.
@@ -65,19 +70,27 @@ export function resolveDefaultListId(lists, settings) {
  * @returns {void}
  */
 export function recordHidden(now = Date.now()) {
+  lastHiddenAtInTab = now;
   setStorageItem(LAST_HIDDEN_KEY, String(now));
 }
 
 /**
  * Whether the app has been idle long enough to reopen the default list.
+ * Prefers this tab's own hide time; falls back to storage on a cold start.
  *
  * @param {{default_list_timeout_minutes?: unknown}} config - Server config.
  * @param {number} [now] - Epoch ms; defaults to the current time.
  * @returns {boolean}
  */
 export function isAppIdle(config, now = Date.now()) {
+  const lastHiddenAt = lastHiddenAtInTab ?? readStoredHiddenAt();
+  return isIdleExpired(lastHiddenAt, now, getIdleTimeoutMinutes(config));
+}
+
+/** @returns {number|null} Hide time persisted by the last hidden tab, if valid. */
+function readStoredHiddenAt() {
   const raw = getStorageItem(LAST_HIDDEN_KEY);
-  const lastHiddenAt = raw === null ? null : Number(raw);
-  const validLastHiddenAt = Number.isFinite(lastHiddenAt) ? lastHiddenAt : null;
-  return isIdleExpired(validLastHiddenAt, now, getIdleTimeoutMinutes(config));
+  if (raw === null) return null;
+  const lastHiddenAt = Number(raw);
+  return Number.isFinite(lastHiddenAt) ? lastHiddenAt : null;
 }

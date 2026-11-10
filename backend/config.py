@@ -39,7 +39,8 @@ BACKUP_RETAIN: int = _env_int("TICKR_BACKUP_RETAIN", 7)
 TOMBSTONE_RETAIN_DAYS: int = _env_int("TICKR_TOMBSTONE_RETAIN_DAYS", 30)
 TOMBSTONE_PURGE_INTERVAL_HOURS: int = _env_int("TICKR_TOMBSTONE_PURGE_INTERVAL_HOURS", 24)
 
-# Minutes the app must stay in the background before it reopens the default list.
+# Minutes the app must stay hidden (minimised window, other tab or app) before it
+# reopens the default list.
 # Clamped to at least 1: a value <= 0 would treat every quick app switch as idle.
 DEFAULT_LIST_TIMEOUT_MINUTES: int = max(1, _env_int("TICKR_DEFAULT_LIST_TIMEOUT_MINUTES", 30))
 

@@ -1,8 +1,10 @@
 /**
- * Reopen the default list when the app returns from a long background period.
+ * Reopen the default list when the app becomes visible after being hidden for
+ * longer than the idle timeout.
  *
- * Cold starts are handled by getInitialListId(); this covers PWAs that are
- * resumed from the background without a reload.
+ * Cold starts are handled by getInitialListId(); this covers resumes without a
+ * reload: a backgrounded PWA on mobile, but also a minimised window or another
+ * tab in front on desktop. Each tab tracks its own hide time.
  */
 
 import * as dom from "../dom.js";

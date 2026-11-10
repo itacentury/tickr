@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   isIdleExpired,
   getIdleTimeoutMinutes,
   resolveDefaultListId,
-  recordHidden,
-  isAppIdle,
 } from "./default-list.js";
 
 const MINUTE = 60_000;
@@ -63,18 +61,34 @@ describe("resolveDefaultListId", () => {
 
 describe("isAppIdle", () => {
   const config = { default_list_timeout_minutes: 30 };
+  /** @type {typeof import("./default-list.js")} */
+  let defaultList;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     localStorage.clear();
+    // Fresh module per test: the in-tab hide time is module state.
+    vi.resetModules();
+    defaultList = await import("./default-list.js");
   });
 
   it("is idle on first launch", () => {
-    expect(isAppIdle(config, 0)).toBe(true);
+    expect(defaultList.isAppIdle(config, 0)).toBe(true);
   });
 
   it("uses the recorded hide time", () => {
-    recordHidden(0);
-    expect(isAppIdle(config, 10 * MINUTE)).toBe(false);
-    expect(isAppIdle(config, 30 * MINUTE)).toBe(true);
+    defaultList.recordHidden(0);
+    expect(defaultList.isAppIdle(config, 10 * MINUTE)).toBe(false);
+    expect(defaultList.isAppIdle(config, 30 * MINUTE)).toBe(true);
+  });
+
+  it("ignores a later hide time written by another tab", () => {
+    defaultList.recordHidden(0);
+    localStorage.setItem("tickr_last_hidden_at", String(25 * MINUTE));
+    expect(defaultList.isAppIdle(config, 30 * MINUTE)).toBe(true);
+  });
+
+  it("falls back to the stored hide time on a cold start", () => {
+    localStorage.setItem("tickr_last_hidden_at", "0");
+    expect(defaultList.isAppIdle(config, 10 * MINUTE)).toBe(false);
   });
 });
