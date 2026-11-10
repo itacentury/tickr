@@ -330,6 +330,42 @@ describe("updateSettings", () => {
     expect(state.appSettings).toEqual(SERVER_SETTINGS);
   });
 
+  describe("when storage cannot clear the queue", () => {
+    beforeEach(() => {
+      vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+        throw new DOMException("denied", "SecurityError");
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      localStorage.removeItem(PENDING_KEY);
+    });
+
+    /** @param {import("vitest").Mock} fetchMock */
+    const putCount = (fetchMock) =>
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT").length;
+
+    it("stops after a 2xx instead of resending", async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+      vi.stubGlobal("fetch", fetchMock);
+
+      expect(await updateSettings({ list_sort: "custom" })).toBe(true);
+      expect(putCount(fetchMock)).toBe(1);
+    });
+
+    it("stops after a rejection instead of resending", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 422 })
+        .mockResolvedValue(okResponse(SERVER_SETTINGS));
+      vi.stubGlobal("fetch", fetchMock);
+
+      expect(await updateSettings({ list_sort: "invalid" })).toBe(false);
+      expect(putCount(fetchMock)).toBe(1);
+    });
+  });
+
   describe("rejection reporting", () => {
     /** @type {import("rxjs").Subscription} */
     let subscription;

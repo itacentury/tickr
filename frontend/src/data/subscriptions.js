@@ -205,17 +205,21 @@ async function sendPendingSettings() {
     }
 
     if (response.ok) {
-      dequeueSentSettings(pending);
+      // Storage may silently drop the write; resending the same patch would loop forever.
+      if (!dequeueSentSettings(pending)) return "queued";
       continue;
     }
     // The rest of a partly rejected patch is resent by the next iteration.
-    dequeueSentSettings(await rejectedSettings(response, pending));
+    const dequeued = dequeueSentSettings(
+      await rejectedSettings(response, pending),
+    );
     await loadSettings();
     subscribeLists();
     outcome = "rejected";
     // Emitted here, not via the return value: fire-and-forget callers and a
     // later "queued" return must not hide the rejection.
     settingsRejected$.next();
+    if (!dequeued) return outcome;
   }
 }
 
@@ -247,6 +251,7 @@ async function rejectedSettings(response, sent) {
  * request started (by this tab or another one sharing the storage).
  *
  * @param {Object} sent - The patch that was sent.
+ * @returns {boolean} Whether the stored queue shrank; false if storage dropped the write.
  */
 function dequeueSentSettings(sent) {
   const pending = getPendingSettings();
@@ -255,9 +260,11 @@ function dequeueSentSettings(sent) {
   }
   if (Object.keys(pending).length === 0) {
     removeStorageItem(PENDING_SETTINGS_KEY);
-    return;
+  } else {
+    cacheObject(PENDING_SETTINGS_KEY, pending);
   }
-  cacheObject(PENDING_SETTINGS_KEY, pending);
+  const stored = getPendingSettings();
+  return Object.keys(sent).some((key) => stored[key] !== sent[key]);
 }
 
 /**
