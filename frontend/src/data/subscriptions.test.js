@@ -437,6 +437,22 @@ describe("updateSettings", () => {
       expect(rejections).toBe(1);
     });
 
+    it("reports two rejections in one flush once", async () => {
+      await updateSettings({ default_list_id: "deleted" });
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce(errorResponse(404, "LIST_NOT_FOUND"))
+          .mockResolvedValueOnce(okResponse(SERVER_SETTINGS))
+          .mockResolvedValueOnce(errorResponse(400, "INVALID_SORT_OPTION"))
+          .mockResolvedValueOnce(okResponse(SERVER_SETTINGS)),
+      );
+
+      expect(await flushPendingSettings()).toBe("rejected");
+      expect(rejections).toBe(1);
+    });
+
     it.each([
       { outcome: "synced", response: { ok: true } },
       { outcome: "queued", response: SW_OFFLINE },

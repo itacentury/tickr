@@ -185,48 +185,52 @@ function isRetryableStatus(status) {
 async function sendPendingSettings() {
   /** @type {"synced"|"rejected"} */
   let outcome = "synced";
-  for (;;) {
-    const pending = getPendingSettings();
-    if (Object.keys(pending).length === 0) return outcome;
+  try {
+    for (;;) {
+      const pending = getPendingSettings();
+      if (Object.keys(pending).length === 0) return outcome;
 
-    let response;
-    try {
-      response = await fetch("/api/v1/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pending),
-        signal: AbortSignal.timeout(SETTINGS_FETCH_TIMEOUT_MS),
-      });
-    } catch {
-      return "queued";
-    }
-    if (isRetryableStatus(response.status)) {
-      // 503 is the service worker's offline response; other 5xx may be a server bug.
-      if (response.status >= 500 && response.status !== 503) {
-        reportError(
-          "update settings",
-          new Error(`Server responded ${response.status}; patch kept queued`),
-        );
+      let response;
+      try {
+        response = await fetch("/api/v1/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(pending),
+          signal: AbortSignal.timeout(SETTINGS_FETCH_TIMEOUT_MS),
+        });
+      } catch {
+        return "queued";
       }
-      return "queued";
-    }
+      if (isRetryableStatus(response.status)) {
+        // 503 is the service worker's offline response; other 5xx may be a server bug.
+        if (response.status >= 500 && response.status !== 503) {
+          reportError(
+            "update settings",
+            new Error(`Server responded ${response.status}; patch kept queued`),
+          );
+        }
+        return "queued";
+      }
 
-    if (response.ok) {
-      // Storage may silently drop the write; resending the same patch would loop forever.
-      if (!dequeueSentSettings(pending)) return "queued";
-      continue;
+      if (response.ok) {
+        // Storage may silently drop the write; resending the same patch would loop forever.
+        if (!dequeueSentSettings(pending)) return "queued";
+        continue;
+      }
+      // The rest of a partly rejected patch is resent by the next iteration.
+      const dequeued = dequeueSentSettings(
+        await rejectedSettings(response, pending),
+      );
+      await loadSettings();
+      subscribeLists();
+      outcome = "rejected";
+      if (!dequeued) return outcome;
     }
-    // The rest of a partly rejected patch is resent by the next iteration.
-    const dequeued = dequeueSentSettings(
-      await rejectedSettings(response, pending),
-    );
-    await loadSettings();
-    subscribeLists();
-    outcome = "rejected";
+  } finally {
     // Emitted here, not via the return value: fire-and-forget callers and a
-    // later "queued" return must not hide the rejection.
-    settingsRejected$.next();
-    if (!dequeued) return outcome;
+    // later "queued" return must not hide the rejection. Once per flush, so
+    // several rejected keys don't stack up toasts.
+    if (outcome === "rejected") settingsRejected$.next();
   }
 }
 
