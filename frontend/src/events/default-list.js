@@ -5,6 +5,7 @@
  * resumed from the background without a reload.
  */
 
+import * as dom from "../dom.js";
 import { state } from "../state.js";
 import {
   fetchSettings,
@@ -20,6 +21,11 @@ function isListBoundUiOpen() {
   return document.querySelector(".modal.open, .history-panel.open") !== null;
 }
 
+/** @returns {boolean} Whether the add-item field holds unsent text. */
+function hasAddItemDraft() {
+  return dom.addItemInput.value.trim() !== "";
+}
+
 /** Handle the app becoming visible again after being in the background. */
 async function handleResume() {
   if (!isAppIdle(state.serverConfig)) return;
@@ -32,9 +38,14 @@ async function handleResume() {
   // The user picked a list while settings were loading; their choice wins.
   if (state.currentListId !== listIdBeforeFetch) return;
   const defaultId = resolveDefaultListId(state.lists, state.appSettings);
-  // Switching under an open modal or the history drawer would retarget its
-  // actions to another list.
-  if (!defaultId || defaultId === state.currentListId || isListBoundUiOpen())
+  // Switching under an open modal, the history drawer or an unsent add-item
+  // draft would retarget it to another list.
+  if (
+    !defaultId ||
+    defaultId === state.currentListId ||
+    isListBoundUiOpen() ||
+    hasAddItemDraft()
+  )
     return;
   selectList(defaultId);
 }
