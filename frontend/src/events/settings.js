@@ -72,13 +72,25 @@ export function wireSettings() {
 }
 
 /**
+ * @param {string[]} rejectedKeys - Setting keys the server rejected.
+ * @returns {string} Toast text; specific only when the default list alone failed.
+ */
+export function rejectionMessage(rejectedKeys) {
+  const onlyDefaultList =
+    rejectedKeys.length === 1 && rejectedKeys[0] === "default_list_id";
+  return onlyDefaultList
+    ? "Failed to update default list"
+    : "Failed to update settings";
+}
+
+/**
  * The single place a rejected settings patch is reported, whichever caller
  * (save, startup, resume, reconnect) started the flush. Wired apart from
  * wireSettings() because initApp() must call it before the startup flush,
  * which can reject before setupEventListeners() runs.
  */
 export function wireSettingsRejectedToast() {
-  settingsRejected$.subscribe(() =>
-    showErrorToast("Failed to update settings"),
+  settingsRejected$.subscribe((rejectedKeys) =>
+    showErrorToast(rejectionMessage(rejectedKeys)),
   );
 }

@@ -35,8 +35,11 @@ export const sseConnected$ = new Subject();
 
 /**
  * Fires each time the server rejects a queued settings patch, after the
- * settings were restored from the server. Lets one listener report it no
+ * settings were restored from the server, with the rejected setting keys
+ * (once per flush, so keys from several rejections are combined). Lets one
+ * listener report it no
  * matter which caller started the flush. A plain Subject drops events with no
  * subscriber, so that listener is wired before the startup flush (app.js).
  */
+/** @type {Subject<string[]>} */
 export const settingsRejected$ = new Subject();

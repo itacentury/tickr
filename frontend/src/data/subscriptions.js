@@ -185,6 +185,8 @@ function isRetryableStatus(status) {
 async function sendPendingSettings() {
   /** @type {"synced"|"rejected"} */
   let outcome = "synced";
+  /** @type {Set<string>} */
+  const rejectedKeys = new Set();
   try {
     for (;;) {
       const pending = getPendingSettings();
@@ -218,9 +220,9 @@ async function sendPendingSettings() {
         continue;
       }
       // The rest of a partly rejected patch is resent by the next iteration.
-      const dequeued = dequeueSentSettings(
-        await rejectedSettings(response, pending),
-      );
+      const dropped = await rejectedSettings(response, pending);
+      for (const key of Object.keys(dropped)) rejectedKeys.add(key);
+      const dequeued = dequeueSentSettings(dropped);
       await loadSettings();
       subscribeLists();
       outcome = "rejected";
@@ -230,7 +232,7 @@ async function sendPendingSettings() {
     // Emitted here, not via the return value: fire-and-forget callers and a
     // later "queued" return must not hide the rejection. Once per flush, so
     // several rejected keys don't stack up toasts.
-    if (outcome === "rejected") settingsRejected$.next();
+    if (outcome === "rejected") settingsRejected$.next([...rejectedKeys]);
   }
 }
 

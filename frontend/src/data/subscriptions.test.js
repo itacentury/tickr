@@ -382,11 +382,14 @@ describe("updateSettings", () => {
   describe("rejection reporting", () => {
     /** @type {import("rxjs").Subscription} */
     let subscription;
-    let rejections = 0;
+    /** @type {string[][]} */
+    let rejections = [];
 
     beforeEach(async () => {
-      rejections = 0;
-      subscription = settingsRejected$.subscribe(() => rejections++);
+      rejections = [];
+      subscription = settingsRejected$.subscribe((keys) =>
+        rejections.push(keys),
+      );
       vi.stubGlobal(
         "fetch",
         vi.fn().mockRejectedValue(new TypeError("offline")),
@@ -412,7 +415,7 @@ describe("updateSettings", () => {
       // Joins the background flush fetchSettings did not await.
       await flushPendingSettings();
 
-      expect(rejections).toBe(1);
+      expect(rejections).toEqual([["list_sort"]]);
     });
 
     it("reports a rejection even when the flush ends queued", async () => {
@@ -427,7 +430,7 @@ describe("updateSettings", () => {
       );
 
       expect(await flushPendingSettings()).toBe("queued");
-      expect(rejections).toBe(1);
+      expect(rejections).toEqual([["default_list_id"]]);
     });
 
     it("reports two rejections in one flush once", async () => {
@@ -443,7 +446,7 @@ describe("updateSettings", () => {
       );
 
       expect(await flushPendingSettings()).toBe("rejected");
-      expect(rejections).toBe(1);
+      expect(rejections).toEqual([["default_list_id", "list_sort"]]);
     });
 
     it.each([
@@ -453,7 +456,7 @@ describe("updateSettings", () => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
 
       expect(await flushPendingSettings()).toBe(outcome);
-      expect(rejections).toBe(0);
+      expect(rejections).toEqual([]);
     });
   });
 
