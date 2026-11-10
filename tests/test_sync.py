@@ -9,6 +9,20 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+def _push_list_change(client, list_id: str, **overrides: Any) -> None:
+    """Push an update for an existing list on top of its current server state."""
+    pull: dict[str, Any] = client.get("/api/v1/sync/lists/pull").json()
+    current: dict[str, Any] = next(d for d in pull["documents"] if d["id"] == list_id)
+    changes: list[dict[str, Any]] = [
+        {
+            "newDocumentState": {**current, "updated_at": "2099-01-01T00:00:00", **overrides},
+            "assumedMasterState": current,
+        }
+    ]
+    resp = client.post("/api/v1/sync/lists/push", json=changes)
+    assert resp.json() == []
+
+
 class TestSyncPull:
     """Tests for GET /api/v1/sync/{collection}/pull."""
 
@@ -113,6 +127,22 @@ class TestSyncPush:
         resp = client.post("/api/v1/sync/lists/push", json=changes)
         assert resp.status_code == 200
         assert resp.json() == []
+
+    def test_push_list_tombstone_clears_default(self, client, create_list) -> None:
+        """Pushing a deleted default list removes default_list_id from settings."""
+        lst: dict = create_list()
+        client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
+        _push_list_change(client, lst["id"], _deleted=True)
+
+        assert "default_list_id" not in client.get("/api/v1/settings").json()
+
+    def test_push_list_update_keeps_default(self, client, create_list) -> None:
+        """A non-deleting push of the default list leaves the setting untouched."""
+        lst: dict = create_list()
+        client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
+        _push_list_change(client, lst["id"], name="Renamed")
+
+        assert client.get("/api/v1/settings").json()["default_list_id"] == lst["id"]
 
     def test_push_conflict_stale_state(self, client, create_list) -> None:
         """Stale assumedMasterState produces a conflict."""

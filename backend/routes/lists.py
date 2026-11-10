@@ -18,6 +18,7 @@ from ..models import (
     SuccessResponse,
     resolve_sort_sql,
 )
+from .settings import clear_default_list_if_matches
 
 logger = get_logger(__name__)
 
@@ -149,6 +150,7 @@ def delete_list(
             "UPDATE lists SET _deleted = 1, updated_at = ? WHERE id = ?",
             (timestamp, list_id),
         )
+        clear_default_list_if_matches(cursor, list_id)
 
     notify_change(bg, "lists_changed", "lists")
     bg.add_task(broadcast_sync, "items")

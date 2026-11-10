@@ -19,6 +19,7 @@ from ..logging_config import get_logger
 from ..metrics import sync_metrics
 from ..models import SyncCategoryState, SyncChange, SyncItemState, SyncListState
 from ..purge import tombstone_cutoff
+from .settings import clear_default_list_if_matches
 
 logger = get_logger(__name__)
 
@@ -380,6 +381,8 @@ def sync_push(
                     else:
                         conflicts.append(current_dict)
                         continue
+                if collection == "lists" and new_state.get("_deleted"):
+                    clear_default_list_if_matches(cursor, doc_id)
                 wrote_any = True
             except sqlite3.IntegrityError as exc:
                 logger.warning(

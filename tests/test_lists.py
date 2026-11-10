@@ -153,6 +153,23 @@ class TestDeleteList:
         assert resp.status_code == 404
         assert resp.json()["error"]["code"] == "LIST_NOT_FOUND"
 
+    def test_delete_default_list_clears_setting(self, client, create_list) -> None:
+        """Deleting the default list removes default_list_id from settings."""
+        lst: dict = create_list()
+        client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
+        client.delete(f"/api/v1/lists/{lst['id']}")
+
+        assert "default_list_id" not in client.get("/api/v1/settings").json()
+
+    def test_delete_other_list_keeps_default(self, client, create_list) -> None:
+        """Deleting a non-default list leaves the default untouched."""
+        default: dict = create_list("Default")
+        other: dict = create_list("Other")
+        client.put("/api/v1/settings", json={"default_list_id": default["id"]})
+        client.delete(f"/api/v1/lists/{other['id']}")
+
+        assert client.get("/api/v1/settings").json()["default_list_id"] == default["id"]
+
 
 class TestReorderLists:
     """Tests for POST /api/v1/lists/reorder."""
