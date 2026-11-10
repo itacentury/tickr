@@ -36,6 +36,18 @@ describe("getIdleTimeoutMinutes", () => {
     expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: "x" })).toBe(
       30,
     );
+    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: " " })).toBe(
+      30,
+    );
+  });
+
+  it("clamps zero and negative values to one minute", () => {
+    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: "0" })).toBe(
+      1,
+    );
+    expect(getIdleTimeoutMinutes({ default_list_timeout_minutes: "-5" })).toBe(
+      1,
+    );
   });
 });
 

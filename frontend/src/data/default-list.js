@@ -11,6 +11,7 @@ import { getStorageItem, setStorageItem } from "../storage.js";
 
 const LAST_HIDDEN_KEY = "tickr_last_hidden_at";
 const FALLBACK_TIMEOUT_MINUTES = 30;
+const MIN_TIMEOUT_MINUTES = 1;
 const MS_PER_MINUTE = 60_000;
 
 /**
@@ -29,17 +30,19 @@ export function isIdleExpired(lastHiddenAt, now, timeoutMinutes) {
 
 /**
  * Read the idle timeout from settings, falling back when absent or invalid.
+ * Values below one minute are clamped so a quick app switch never counts
+ * as idle.
  *
  * @param {Record<string, string>} settings - Server settings.
  * @returns {number} Timeout in minutes.
  */
 export function getIdleTimeoutMinutes(settings) {
   const raw = settings.default_list_timeout_minutes;
+  // `Number(" ")` is 0, so blank strings must be rejected before parsing.
+  if (raw === undefined || raw.trim() === "") return FALLBACK_TIMEOUT_MINUTES;
   const minutes = Number(raw);
-  if (raw === undefined || raw === "" || !Number.isFinite(minutes)) {
-    return FALLBACK_TIMEOUT_MINUTES;
-  }
-  return minutes;
+  if (!Number.isFinite(minutes)) return FALLBACK_TIMEOUT_MINUTES;
+  return Math.max(MIN_TIMEOUT_MINUTES, minutes);
 }
 
 /**

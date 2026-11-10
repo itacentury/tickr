@@ -1,5 +1,7 @@
 """Tests for settings endpoints."""
 
+import importlib
+
 import pytest
 
 from backend import config
@@ -25,6 +27,17 @@ class TestGetSettings:
         monkeypatch.setattr(config, "DEFAULT_LIST_TIMEOUT_MINUTES", 5)
         resp = client.get("/api/v1/settings")
         assert resp.json()["default_list_timeout_minutes"] == "5"
+
+    @pytest.mark.parametrize("raw", ["0", "-5"])
+    def test_timeout_config_clamped_to_one(self, raw: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A non-positive timeout is clamped so resumes aren't always idle."""
+        monkeypatch.setenv("TICKR_DEFAULT_LIST_TIMEOUT_MINUTES", raw)
+        try:
+            reloaded = importlib.reload(config)
+            assert reloaded.DEFAULT_LIST_TIMEOUT_MINUTES == 1
+        finally:
+            monkeypatch.delenv("TICKR_DEFAULT_LIST_TIMEOUT_MINUTES")
+            importlib.reload(config)
 
 
 class TestUpdateSettings:

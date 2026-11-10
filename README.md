@@ -102,7 +102,7 @@ See [`tickr.env.example`](tickr.env.example) for the full list with defaults.
 | `TICKR_SSE_HEARTBEAT_INTERVAL`       | `15`                    | SSE heartbeat interval in seconds                               |
 | `TICKR_BACKUP_DIR`                   | `data/backups`          | Backup output directory                                         |
 | `TICKR_BACKUP_RETAIN`                | `7`                     | Number of backups to keep                                       |
-| `TICKR_DEFAULT_LIST_TIMEOUT_MINUTES` | `30`                    | Minutes in the background before the default list reopens       |
+| `TICKR_DEFAULT_LIST_TIMEOUT_MINUTES` | `30`                    | Minutes in the background before the default list reopens (≥ 1) |
 | `TICKR_CORS_ORIGINS`                 | `http://localhost:8000` | Comma-separated allowed origins (also drives CSP `connect-src`) |
 | `TICKR_TRUSTED_PROXIES`              | `127.0.0.1`             | Trusted proxy IPs for `X-Forwarded-For` (Docker/uvicorn)        |
 | `TICKR_AUTH_ENABLED`                 | `false`                 | Enable the single-password login                                |
