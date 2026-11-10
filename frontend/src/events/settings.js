@@ -69,9 +69,15 @@ export function wireSettings() {
   // `online` event (iOS PWAs, flaky links).
   window.addEventListener("online", () => void flushPendingSettings());
   sseConnected$.subscribe(() => void flushPendingSettings());
+}
 
-  // The single place a rejected settings patch is reported, whichever caller
-  // (save, startup, resume, reconnect) started the flush.
+/**
+ * The single place a rejected settings patch is reported, whichever caller
+ * (save, startup, resume, reconnect) started the flush. Wired apart from
+ * wireSettings() because initApp() must call it before the startup flush,
+ * which can reject before setupEventListeners() runs.
+ */
+export function wireSettingsRejectedToast() {
   settingsRejected$.subscribe(() =>
     showErrorToast("Failed to update settings"),
   );

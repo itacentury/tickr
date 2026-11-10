@@ -16,12 +16,13 @@ import {
   subscribeItemCounts,
 } from "./data.js";
 import { initRenderSubscriptions } from "./render.js";
-import { setupEventListeners } from "./events.js";
+import { setupEventListeners, wireSettingsRejectedToast } from "./events.js";
 
 /**
  * Initialize the app: set up RxDB, replication, and render initial state.
  */
 export async function initApp() {
+  wireSettingsRejectedToast();
   state.db = await getDatabase();
   await Promise.all([fetchSettings(), fetchServerConfig()]);
   initRenderSubscriptions();
