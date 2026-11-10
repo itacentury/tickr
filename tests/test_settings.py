@@ -3,6 +3,7 @@
 import importlib
 from typing import Any
 
+import httpx
 import pytest
 
 from backend import config
@@ -128,3 +129,21 @@ class TestDefaultList:
         """An id exceeding the maximum length fails validation."""
         resp = client.put("/api/v1/settings", json={"default_list_id": "x" * (ID_MAX + 1)})
         assert resp.status_code == 422
+
+    def test_invalid_sort_does_not_save_default(self, client, create_list) -> None:
+        """A rejected list_sort aborts the whole update, including the default."""
+        lst: dict[str, Any] = create_list("Mixed")
+        resp: httpx.Response = client.put(
+            "/api/v1/settings", json={"list_sort": "bogus", "default_list_id": lst["id"]}
+        )
+        assert resp.status_code == 400
+        assert client.get("/api/v1/settings").json() == {"list_sort": "alphabetical"}
+
+    def test_overlong_default_does_not_save_sort(self, client) -> None:
+        """A rejected default_list_id aborts the whole update, including list_sort."""
+        resp: httpx.Response = client.put(
+            "/api/v1/settings",
+            json={"list_sort": "custom", "default_list_id": "x" * (ID_MAX + 1)},
+        )
+        assert resp.status_code == 422
+        assert client.get("/api/v1/settings").json() == {"list_sort": "alphabetical"}
