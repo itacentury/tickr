@@ -14,6 +14,10 @@ def clear_orphaned_default_list(cursor: sqlite3.Cursor) -> None:
     Runs from the tombstone purge: once a list is hard-deleted its id is unknown,
     and ``_save_default_list`` accepts unknown ids, so a stale client could re-set
     a purged list as default with nothing else ever clearing it.
+
+    Trade-off: an offline-created list may reach the server via replication a few
+    seconds after its settings PUT; a purge in that window also clears that
+    default. Accepted as rare, since telling the two apart would need extra state.
     """
     cursor.execute(
         "DELETE FROM settings WHERE key = 'default_list_id' "
