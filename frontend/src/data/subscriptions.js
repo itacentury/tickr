@@ -22,7 +22,7 @@ import {
   removeStorageItem,
 } from "../storage.js";
 import { sortLists, sortItems } from "./sorting.js";
-import { isAppIdle, resolveDefaultListId } from "./default-list.js";
+import { consumeIdle, resolveDefaultListId } from "./default-list.js";
 
 // ---- Settings ----
 
@@ -372,8 +372,11 @@ export async function refreshItemCounts() {
  * @returns {string|null} The list ID to select initially.
  */
 export function getInitialListId() {
+  // Consumed even without a default so a later call in this session does not
+  // measure idleness against a hide time from before the app was in use.
+  const isIdle = consumeIdle(state.serverConfig);
   const defaultId = resolveDefaultListId(state.lists, state.appSettings);
-  if (defaultId && isAppIdle(state.serverConfig)) return defaultId;
+  if (defaultId && isIdle) return defaultId;
 
   const savedId = getStorageItem("tickr_current_list");
   if (savedId && state.lists.some((l) => l.id === savedId)) {

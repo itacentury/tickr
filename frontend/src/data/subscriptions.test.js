@@ -301,4 +301,12 @@ describe("getInitialListId", () => {
 
     expect(getInitialListId()).toBe("list-1");
   });
+
+  it("reopens the last viewed list on a later call in the same session", () => {
+    recordHidden(Date.now() - 31 * MINUTE);
+    localStorage.setItem("tickr_current_list", "list-2");
+
+    expect(getInitialListId()).toBe("list-3");
+    expect(getInitialListId()).toBe("list-2");
+  });
 });

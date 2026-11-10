@@ -11,7 +11,7 @@ import * as dom from "../dom.js";
 import { state } from "../state.js";
 import {
   fetchSettings,
-  isAppIdle,
+  consumeIdle,
   recordHidden,
   resolveDefaultListId,
   selectList,
@@ -33,7 +33,7 @@ function hasAddItemDraft() {
 
 /** Handle the app becoming visible again after being in the background. */
 async function handleResume() {
-  if (!isAppIdle(state.serverConfig)) return;
+  if (!consumeIdle(state.serverConfig)) return;
   try {
     const listIdBeforeFetch = state.currentListId;
     // Settings are HTTP-only (no SSE), so refetch to pick up a default changed

@@ -12,7 +12,7 @@ import { state } from "../state.js";
 import * as dom from "../dom.js";
 import {
   fetchSettings,
-  isAppIdle,
+  consumeIdle,
   recordHidden,
   resolveDefaultListId,
   selectList,
@@ -24,7 +24,7 @@ import { saveDefaultListChoice, wireDefaultList } from "./default-list.js";
 
 vi.mock("../data.js", () => ({
   fetchSettings: vi.fn(),
-  isAppIdle: vi.fn(),
+  consumeIdle: vi.fn(),
   recordHidden: vi.fn(),
   resolveDefaultListId: vi.fn(),
   selectList: vi.fn(),
@@ -64,7 +64,7 @@ describe("handleResume", () => {
     state.currentListId = CURRENT_ID;
     dom.addItemInput.value = "";
     document.body.replaceChildren();
-    vi.mocked(isAppIdle).mockReturnValue(true);
+    vi.mocked(consumeIdle).mockReturnValue(true);
     vi.mocked(fetchSettings).mockResolvedValue(undefined);
     vi.mocked(resolveDefaultListId).mockReturnValue(DEFAULT_ID);
   });
@@ -81,7 +81,7 @@ describe("handleResume", () => {
   });
 
   it("does nothing when the app was not idle", async () => {
-    vi.mocked(isAppIdle).mockReturnValue(false);
+    vi.mocked(consumeIdle).mockReturnValue(false);
 
     await changeVisibility("visible");
 
