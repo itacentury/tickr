@@ -78,10 +78,11 @@ export function recordHidden(now = Date.now()) {
 }
 
 /**
- * Whether the app has been idle long enough to reopen the default list.
+ * Consume the current hide and report whether the app was idle long enough
+ * to reopen the default list.
  * Prefers this tab's own hide time; falls back to storage on a cold start.
- * Answers at most once per hide: later calls return false, because the app has
- * been in use since and the old hide time no longer reflects idleness.
+ * Later calls return false until the next hide, because the app has been in
+ * use since and the old hide time no longer reflects idleness.
  *
  * @param {{default_list_timeout_minutes?: unknown}} config - Server config.
  * @param {number} [now] - Epoch ms; defaults to the current time.
