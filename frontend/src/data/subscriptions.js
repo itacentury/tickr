@@ -87,12 +87,14 @@ async function fetchCachedObject(url, cacheKey) {
 
 /**
  * Fetch settings from the server, keeping the current ones if neither the
- * server nor the cache has any.
+ * server nor the cache has any. Queued edits are sent in the background.
  * Settings are not stored in RxDB since they're lightweight global config.
  */
 export async function fetchSettings() {
-  await flushPendingSettings();
   await loadSettings();
+  // Not awaited: loadSettings() already applies the queued edits, so a
+  // stalled PUT must not add its timeout to the caller's wait.
+  void flushPendingSettings();
 }
 
 /** Load settings from the server or cache, keeping edits still pending. */
@@ -197,7 +199,6 @@ async function sendPendingSettings() {
     }
     // The rest of a partly rejected patch is resent by the next iteration.
     dequeueSentSettings(await rejectedSettings(response, pending));
-    // Not fetchSettings(): its flush would await this very flush and deadlock.
     await loadSettings();
     subscribeLists();
     outcome = "rejected";

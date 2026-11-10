@@ -371,20 +371,52 @@ describe("updateSettings", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
     await updateSettings({ default_list_id: "list-2" });
 
-    // PUT still fails, GET is answered (e.g. flaky connection).
+    // GET is answered, PUT still fails (e.g. flaky connection).
     vi.stubGlobal(
       "fetch",
       vi
         .fn()
-        .mockResolvedValueOnce(SW_OFFLINE)
-        .mockResolvedValueOnce(okResponse(SERVER_SETTINGS)),
+        .mockResolvedValueOnce(okResponse(SERVER_SETTINGS))
+        .mockResolvedValueOnce(SW_OFFLINE),
     );
+    await fetchSettings();
+    await flushPendingSettings();
+
+    expect(state.appSettings).toEqual({
+      ...SERVER_SETTINGS,
+      default_list_id: "list-2",
+    });
+    expect(readPending()).toEqual({ default_list_id: "list-2" });
+  });
+
+  it("does not wait for queued settings to flush", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    await updateSettings({ default_list_id: "list-2" });
+
+    /** @type {(response: Object) => void} */
+    let resolvePut = () => {};
+    const stalledPut = new Promise((resolve) => {
+      resolvePut = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url, init) =>
+        init?.method === "PUT"
+          ? stalledPut
+          : Promise.resolve(okResponse(SERVER_SETTINGS)),
+      ),
+    );
+
     await fetchSettings();
 
     expect(state.appSettings).toEqual({
       ...SERVER_SETTINGS,
       default_list_id: "list-2",
     });
+
+    // Settle the background flush so it doesn't leak into later tests.
+    resolvePut(SW_OFFLINE);
+    expect(await flushPendingSettings()).toBe("queued");
     expect(readPending()).toEqual({ default_list_id: "list-2" });
   });
 
@@ -412,10 +444,11 @@ describe("updateSettings", () => {
       "fetch",
       vi
         .fn()
-        .mockResolvedValueOnce(SW_OFFLINE)
-        .mockResolvedValueOnce(okResponse(SERVER_SETTINGS)),
+        .mockResolvedValueOnce(okResponse(SERVER_SETTINGS))
+        .mockResolvedValueOnce(SW_OFFLINE),
     );
     await fetchSettings();
+    await flushPendingSettings();
 
     expect(state.appSettings).toEqual({ list_sort: "custom" });
     expect(readPending()).toEqual({ default_list_id: "" });
