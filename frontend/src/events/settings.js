@@ -64,8 +64,9 @@ export function wireSettings() {
 
   makeBackdropDismiss(dom.settingsModal);
 
-  // Settings edited offline are queued; send them once the connection returns.
-  // The SSE reopen covers a missed `online` event (iOS PWAs, flaky links).
+  // Flushes every queued setting, not just this modal's: the edit-list default
+  // (events/default-list.js) queues here too. The SSE reopen covers a missed
+  // `online` event (iOS PWAs, flaky links).
   const flushQueuedSettings = async () => {
     if ((await flushPendingSettings()) === "rejected") {
       showErrorToast("Failed to update settings");
