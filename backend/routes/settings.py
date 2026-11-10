@@ -4,9 +4,10 @@ import sqlite3
 
 from fastapi import APIRouter, Depends
 
+from .. import config
 from ..database import get_db
 from ..errors import AppError, ErrorCode
-from ..models import VALID_LIST_SORT_OPTIONS, SettingsUpdate, SuccessResponse
+from ..models import VALID_LIST_SORT_OPTIONS, ServerConfig, SettingsUpdate, SuccessResponse
 
 router = APIRouter(prefix="/api/v1")
 
@@ -18,6 +19,33 @@ def get_settings(db: sqlite3.Connection = Depends(get_db)) -> dict[str, str]:
     cursor.execute("SELECT key, value FROM settings")
     rows: list[sqlite3.Row] = cursor.fetchall()
     return {row["key"]: row["value"] for row in rows}
+
+
+@router.get("/config", response_model=ServerConfig)
+def get_config() -> ServerConfig:
+    """Return the read-only server configuration."""
+    return ServerConfig(default_list_timeout_minutes=config.DEFAULT_LIST_TIMEOUT_MINUTES)
+
+
+def _save_default_list(cursor: sqlite3.Cursor, list_id: str) -> None:
+    """Set the default list, or clear it when ``list_id`` is empty.
+
+    Unknown ids are accepted: a list created offline may not have replicated yet,
+    and the client ignores default ids it cannot resolve. Only ids of soft-deleted
+    lists are rejected, since clean-up on deletion would never remove them.
+    """
+    if not list_id:
+        cursor.execute("DELETE FROM settings WHERE key = 'default_list_id'")
+        return
+
+    cursor.execute("SELECT 1 FROM lists WHERE id = ? AND _deleted = 1", (list_id,))
+    if cursor.fetchone() is not None:
+        raise AppError(ErrorCode.LIST_NOT_FOUND, "List has been deleted", 404)
+
+    cursor.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+        ("default_list_id", list_id),
+    )
 
 
 @router.put("/settings", response_model=SuccessResponse)
@@ -38,6 +66,9 @@ def update_settings(
             "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
             ("list_sort", settings_data.list_sort),
         )
+
+    if settings_data.default_list_id is not None:
+        _save_default_list(cursor, settings_data.default_list_id)
 
     db.commit()
     return {"success": True}

@@ -25,3 +25,21 @@ export const categoriesChanged$ = new Subject();
  * which owns the login gate and re-renders the login view).
  */
 export const authExpired$ = new Subject();
+
+/**
+ * Fires each time the SSE sync stream opens, i.e. the server is reachable
+ * again. A fallback for the browser's `online` event, which iOS PWAs and
+ * flaky connections can miss.
+ */
+export const sseConnected$ = new Subject();
+
+/**
+ * Fires each time the server rejects a queued settings patch, after the
+ * settings were restored from the server, with the rejected setting keys
+ * (once per flush, so keys from several rejections are combined). Lets one
+ * listener report it no
+ * matter which caller started the flush. A plain Subject drops events with no
+ * subscriber, so that listener is wired before the startup flush (app.js).
+ */
+/** @type {Subject<string[]>} */
+export const settingsRejected$ = new Subject();

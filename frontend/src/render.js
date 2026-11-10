@@ -62,16 +62,22 @@ export function updateNoListsState() {
 export function renderNavigation() {
   updateNoListsState();
   const isCustomSort = state.appSettings.list_sort === "custom";
+  const defaultListId = state.appSettings.default_list_id;
 
   dom.navList.innerHTML = state.lists
     .map((list) => {
       const remaining = state.itemCounts[list.id] || 0;
+      const defaultMarker =
+        list.id === defaultListId
+          ? `<span class="nav-default" role="img" aria-label="Default list" title="Default list">${uiIcons.pin}</span>`
+          : "";
       return `
             <li class="nav-item" data-list-id="${list.id}" ${isCustomSort ? 'draggable="true"' : ""}>
                 <button class="nav-link ${list.id === state.currentListId ? "active" : ""}"
                         data-id="${list.id}">
                     <span class="nav-icon">${icons[list.icon] || icons.list}</span>
                     <span class="nav-text">${escapeHtml(list.name)}</span>
+                    ${defaultMarker}
                     ${remaining > 0 ? `<span class="nav-count">${remaining}</span>` : ""}
                 </button>
             </li>
@@ -495,6 +501,7 @@ export function openEditListModal() {
   dom.editListName.value = list.name;
   state.editSelectedIcon = list.icon || "list";
   setDropdownValue(dom.editListSortDropdown, list.itemSort || "alphabetical");
+  dom.editListDefault.checked = state.appSettings.default_list_id === list.id;
   applyIconSelection(
     dom.editIconOptionsContainer,
     dom.editIconPickerToggle,

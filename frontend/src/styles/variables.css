@@ -35,6 +35,9 @@
   --radius-lg: 16px;
   --radius-full: 50%;
 
+  /* Stadium shape for non-square boxes; 50% would turn them into ellipses. */
+  --radius-pill: 999px;
+
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);

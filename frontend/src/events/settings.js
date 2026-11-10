@@ -8,7 +8,8 @@
 import { state } from "../state.js";
 import * as dom from "../dom.js";
 import { setDropdownValue } from "../dropdown.js";
-import { updateSettings } from "../data.js";
+import { flushPendingSettings, updateSettings } from "../data.js";
+import { settingsRejected$, sseConnected$ } from "../bus.js";
 import { logout } from "../auth.js";
 import { reportError } from "../error-reporting.js";
 import { showErrorToast } from "../toast.js";
@@ -62,4 +63,36 @@ export function wireSettings() {
   });
 
   makeBackdropDismiss(dom.settingsModal);
+
+  // Flushes every queued setting, not just this modal's: the edit-list default
+  // (events/default-list.js) queues here too. The SSE reopen covers a missed
+  // `online` event (iOS PWAs, flaky links).
+  window.addEventListener("online", () => void flushPendingSettings());
+  sseConnected$.subscribe(() => void flushPendingSettings());
+}
+
+/**
+ * Toast text for a rejected settings patch.
+ *
+ * @param {string[]} rejectedKeys - Setting keys the server rejected.
+ * @returns {string} Toast text; specific only when the default list alone failed.
+ */
+function rejectionMessage(rejectedKeys) {
+  const onlyDefaultList =
+    rejectedKeys.length === 1 && rejectedKeys[0] === "default_list_id";
+  return onlyDefaultList
+    ? "Failed to update default list"
+    : "Failed to update settings";
+}
+
+/**
+ * The single place a rejected settings patch is reported, whichever caller
+ * (save, startup, resume, reconnect) started the flush. Wired apart from
+ * wireSettings() because initApp() must call it before the startup flush,
+ * which can reject before setupEventListeners() runs.
+ */
+export function wireSettingsRejectedToast() {
+  settingsRejected$.subscribe((rejectedKeys) =>
+    showErrorToast(rejectionMessage(rejectedKeys)),
+  );
 }

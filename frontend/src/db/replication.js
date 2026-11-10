@@ -7,7 +7,7 @@
 
 import { replicateRxCollection } from "rxdb/plugins/replication";
 import { Subject } from "rxjs";
-import { authExpired$ } from "../bus.js";
+import { authExpired$, sseConnected$ } from "../bus.js";
 import { reportError } from "../error-reporting.js";
 import { resetDatabase, CHECKPOINT_RESET_KEY } from "./index.js";
 import {
@@ -117,6 +117,8 @@ function connectSharedStream() {
       }
     }
   });
+
+  eventSource.addEventListener("open", () => sseConnected$.next());
 
   // Keepalive frames carry no payload; they exist only to prove liveness.
   eventSource.addEventListener("heartbeat", resetStaleTimer);

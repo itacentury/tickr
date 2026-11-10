@@ -15,6 +15,7 @@ services:
     #   - TICKR_DATABASE=data/tickr.db
     #   - TICKR_RATE_LIMIT_REQUESTS=100
     #   - TICKR_MAX_SSE_CLIENTS=10
+    #   - TICKR_DEFAULT_LIST_TIMEOUT_MINUTES=30
     #   - TICKR_CORS_ORIGINS=https://app.example.com,https://admin.example.com
     #   # --- Authentication (single password) ---
     #   - TICKR_AUTH_ENABLED=true

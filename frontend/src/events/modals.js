@@ -43,6 +43,7 @@ import { createCategoryAutocomplete } from "../add-item-autocomplete.js";
 import { closeMetrics } from "../metrics.js";
 import { makeBackdropDismiss } from "./modal-helpers.js";
 import { MODAL_FOCUS_DELAY_MS } from "../timing.js";
+import { saveDefaultListChoice } from "./default-list.js";
 
 /** Close every modal/panel/overlay and reset transient UI state. */
 export function closeAllModals() {
@@ -325,6 +326,7 @@ export function wireListModals() {
         dom.editListSort.value,
       );
       dom.editListModal.classList.remove("open");
+      await saveDefaultListChoice(state.currentListId);
     }
   });
 

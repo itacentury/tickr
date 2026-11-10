@@ -92,6 +92,30 @@
   color: var(--text-secondary);
 }
 
+/* Toggle row: mirrors the .dropdown-toggle surface so it reads as a field.
+   Scoped under .setting-group to beat the generic `.setting-group label`. */
+.setting-group .toggle-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  margin-bottom: 0;
+  font-size: 1rem;
+  line-height: normal;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast);
+}
+
+.setting-group .toggle-row:hover {
+  border-color: var(--border-light);
+}
+
 .setting-select {
   width: 100%;
   padding: 14px 16px;

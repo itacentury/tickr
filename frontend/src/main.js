@@ -17,6 +17,7 @@ import "./styles/empty-state.css";
 import "./styles/history.css";
 import "./styles/modal.css";
 import "./styles/dropdown.css";
+import "./styles/toggle.css";
 import "./styles/toast.css";
 import "./styles/metrics.css";
 import "./styles/animations.css";
@@ -27,6 +28,7 @@ import { reportError } from "./error-reporting.js";
 import { initApp } from "./app.js";
 import { getAuthStatus, renderLoginView } from "./auth.js";
 import { resumeReplication } from "./db/replication.js";
+import { flushPendingSettings } from "./data.js";
 import { authExpired$ } from "./bus.js";
 import { accountSettingGroup } from "./dom.js";
 import { SW_UPDATE_CHECK_INTERVAL_MS } from "./timing.js";
@@ -71,7 +73,13 @@ if (!inRecovery) {
   // Session expired/revoked mid-session: drop back to the login view, then
   // resume sync in place once re-login succeeds — no full reload needed.
   authExpired$.subscribe(() => {
-    renderLoginView(() => resumeReplication());
+    renderLoginView(() => {
+      resumeReplication();
+      // Settings kept queued by the 401 that expired the session. The reopened
+      // SSE stream flushes too (sseConnected$); this call doesn't wait for it,
+      // and the overlap is harmless (shared in-flight promise / empty queue).
+      void flushPendingSettings();
+    });
   });
 }
 

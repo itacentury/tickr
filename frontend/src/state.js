@@ -20,6 +20,8 @@ export const state = {
   editingCategoryId: null,
   editSelectedIcon: "list",
   appSettings: { list_sort: "alphabetical" },
+  // Read-only server configuration from /api/v1/config.
+  serverConfig: {},
   itemCounts: {},
   // In-memory working copy of categories while a category-managing modal is
   // open. null = no draft active (normal operation reads state.categories).

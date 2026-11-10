@@ -10,6 +10,8 @@ stale-checkpoint guard. This module deletes such rows for good.
 import sqlite3
 from datetime import UTC, datetime, timedelta
 
+from .settings_store import clear_orphaned_default_list
+
 # Synced collections carrying a ``_deleted`` tombstone flag. Mirrors the keys of
 # ``backend.routes.sync.COLLECTIONS``; kept local to avoid importing the route
 # module (and its FastAPI dependencies) into this standalone-friendly helper.
@@ -36,7 +38,8 @@ def purge_tombstones(conn: sqlite3.Connection, retain_days: int) -> int:
     """Delete soft-deleted rows older than the retention window.
 
     ``updated_at`` is the deletion time: a soft-delete sets ``_deleted = 1`` and
-    bumps ``updated_at``, and tombstones are never modified again.
+    bumps ``updated_at``, and tombstones are never modified again. Afterwards the
+    default-list setting is cleared if it no longer references a live list.
 
     Args:
         conn: Open SQLite connection to the sync database.
@@ -58,5 +61,6 @@ def purge_tombstones(conn: sqlite3.Connection, retain_days: int) -> int:
             (cutoff,),
         )
         deleted += cursor.rowcount
+    clear_orphaned_default_list(cursor)
     conn.commit()
     return deleted

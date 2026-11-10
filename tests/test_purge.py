@@ -242,6 +242,52 @@ class TestPurgeForeignKeyCascades:
         assert row["item_text"] == "Buy milk"
 
 
+def _set_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
+    """Store one settings row."""
+    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+
+
+def _get_setting(conn: sqlite3.Connection, key: str) -> str | None:
+    """Return a settings value, or ``None`` when the key is absent."""
+    row: sqlite3.Row | None = conn.execute(
+        "SELECT value FROM settings WHERE key = ?", (key,)
+    ).fetchone()
+    return None if row is None else row[0]
+
+
+class TestPurgeDefaultListSweep:
+    """The purge clears a default_list_id that no longer points at a live list."""
+
+    def test_clears_default_pointing_at_missing_list(self, db_connection) -> None:
+        """A stale client re-set a purged list id: the next purge clears it."""
+        _set_setting(db_connection, "default_list_id", "list-already-purged")
+
+        purge_tombstones(db_connection, retain_days=30)
+
+        assert _get_setting(db_connection, "default_list_id") is None
+
+    def test_clears_default_pointing_at_purged_tombstone(self, db_connection) -> None:
+        """A default pointing at a tombstone purged in the same run is cleared."""
+        list_id: str = _insert_list(db_connection, "old", deleted=1, updated_at=_days_ago(40))
+        _set_setting(db_connection, "default_list_id", list_id)
+
+        purge_tombstones(db_connection, retain_days=30)
+
+        assert _get_setting(db_connection, "default_list_id") is None
+
+    def test_keeps_default_pointing_at_live_list(self, db_connection) -> None:
+        """A default referencing a live list survives, as do unrelated settings."""
+        list_id: str = _insert_list(db_connection, "live", deleted=0, updated_at=_days_ago(40))
+        _set_setting(db_connection, "default_list_id", list_id)
+        _set_setting(db_connection, "list_sort", "custom")
+
+        purge_tombstones(db_connection, retain_days=30)
+
+        assert _get_setting(db_connection, "default_list_id") == list_id
+        assert _get_setting(db_connection, "list_sort") == "custom"
+
+
 class TestHistoryItemFkMigration:
     """``_ensure_history_item_fk`` rebuilds legacy history tables idempotently."""
 

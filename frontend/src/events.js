@@ -1,9 +1,11 @@
 /**
  * Event listener wiring for the entire application.
  *
- * Barrel composing the per-feature wire*() helpers from ./events/. Exports a
- * single setupEventListeners() that calls them in order during initialization.
- * Importers keep using "./events.js" so the split stays internal.
+ * Barrel composing the per-feature wire*() helpers from ./events/. Exports
+ * setupEventListeners(), which calls them in order during initialization, and
+ * wireSettingsRejectedToast() separately because initApp() must wire it before
+ * the startup settings flush. Importers keep using "./events.js" so the split
+ * stays internal.
  */
 
 import {
@@ -17,11 +19,14 @@ import { wireMetrics } from "./events/metrics.js";
 import { wireSettings } from "./events/settings.js";
 import { wireCategories } from "./events/categories.js";
 import { wireHistory } from "./events/history.js";
+import { wireDefaultList } from "./events/default-list.js";
 import {
   wireKeyboardShortcuts,
   wireSwipeNavigation,
   wireVisualViewport,
 } from "./events/gestures.js";
+
+export { wireSettingsRejectedToast } from "./events/settings.js";
 
 /** Attach all application event listeners. */
 export function setupEventListeners() {
@@ -34,6 +39,7 @@ export function setupEventListeners() {
   wireHistory();
   wireMetrics();
   wireSettings();
+  wireDefaultList();
   wireKeyboardShortcuts();
   wireSwipeNavigation();
   wireVisualViewport();
