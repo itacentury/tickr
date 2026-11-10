@@ -15,9 +15,9 @@ import {
   subscribeLists,
 } from "../data.js";
 
-/** @returns {boolean} Whether any modal is currently open. */
-function isModalOpen() {
-  return document.querySelector(".modal.open") !== null;
+/** @returns {boolean} Whether a modal or the history drawer is currently open. */
+function isListBoundUiOpen() {
+  return document.querySelector(".modal.open, .history-panel.open") !== null;
 }
 
 /** Handle the app becoming visible again after being in the background. */
@@ -32,8 +32,10 @@ async function handleResume() {
   // The user picked a list while settings were loading; their choice wins.
   if (state.currentListId !== listIdBeforeFetch) return;
   const defaultId = resolveDefaultListId(state.lists, state.appSettings);
-  // Switching under an open modal would retarget its edits to another list.
-  if (!defaultId || defaultId === state.currentListId || isModalOpen()) return;
+  // Switching under an open modal or the history drawer would retarget its
+  // actions to another list.
+  if (!defaultId || defaultId === state.currentListId || isListBoundUiOpen())
+    return;
   selectList(defaultId);
 }
 
