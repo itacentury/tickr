@@ -282,15 +282,17 @@ function dequeueSentSettings(sent) {
  * Apply settings locally right away and send them to the server, queueing
  * them for a later retry while the server is unreachable.
  *
+ * A rejection is reported via settingsRejected$ only, so callers must not toast it.
+ *
  * @param {Object} settings - Key-value pairs to update.
- * @returns {Promise<boolean>} False only if the server rejected the update.
+ * @returns {Promise<void>}
  */
 export async function updateSettings(settings) {
   cacheObject(PENDING_SETTINGS_KEY, { ...getPendingSettings(), ...settings });
   state.appSettings = mergeSettings(state.appSettings, settings);
   cacheObject(SETTINGS_CACHE_KEY, state.appSettings);
   subscribeLists();
-  return (await flushPendingSettings()) !== "rejected";
+  await flushPendingSettings();
 }
 
 // ---- Subscriptions ----

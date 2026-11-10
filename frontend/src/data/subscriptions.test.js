@@ -178,9 +178,8 @@ describe("updateSettings", () => {
   it("applies and queues the update while offline", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
 
-    const saved = await updateSettings({ default_list_id: "list-2" });
+    await updateSettings({ default_list_id: "list-2" });
 
-    expect(saved).toBe(true);
     expect(state.appSettings.default_list_id).toBe("list-2");
     expect(readPending()).toEqual({ default_list_id: "list-2" });
   });
@@ -189,9 +188,8 @@ describe("updateSettings", () => {
     const fetchMock = vi.fn().mockRejectedValue(TIMEOUT_ERROR);
     vi.stubGlobal("fetch", fetchMock);
 
-    const saved = await updateSettings({ list_sort: "custom" });
+    await updateSettings({ list_sort: "custom" });
 
-    expect(saved).toBe(true);
     expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
     expect(readPending()).toEqual({ list_sort: "custom" });
   });
@@ -199,9 +197,8 @@ describe("updateSettings", () => {
   it("treats the service worker's offline 503 as offline", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(SW_OFFLINE));
 
-    const saved = await updateSettings({ list_sort: "custom" });
+    await updateSettings({ list_sort: "custom" });
 
-    expect(saved).toBe(true);
     expect(readPending()).toEqual({ list_sort: "custom" });
     expect(reportError).not.toHaveBeenCalled();
   });
@@ -211,9 +208,8 @@ describe("updateSettings", () => {
     async (status) => {
       vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status }));
 
-      const saved = await updateSettings({ list_sort: "custom" });
+      await updateSettings({ list_sort: "custom" });
 
-      expect(saved).toBe(true);
       expect(readPending()).toEqual({ list_sort: "custom" });
       expect(reportError).toHaveBeenCalledWith(
         "update settings",
@@ -228,9 +224,8 @@ describe("updateSettings", () => {
       vi.fn().mockResolvedValue({ ok: false, status: 401 }),
     );
 
-    const saved = await updateSettings({ list_sort: "custom" });
+    await updateSettings({ list_sort: "custom" });
 
-    expect(saved).toBe(true);
     expect(readPending()).toEqual({ list_sort: "custom" });
     expect(reportError).not.toHaveBeenCalled();
   });
@@ -242,9 +237,8 @@ describe("updateSettings", () => {
       .mockResolvedValueOnce(okResponse(SERVER_SETTINGS));
     vi.stubGlobal("fetch", fetchMock);
 
-    const saved = await updateSettings({ list_sort: "invalid" });
+    await updateSettings({ list_sort: "invalid" });
 
-    expect(saved).toBe(false);
     expect(readPending()).toBeNull();
     expect(state.appSettings).toEqual(SERVER_SETTINGS);
   });
@@ -273,9 +267,8 @@ describe("updateSettings", () => {
       .mockResolvedValueOnce(okResponse(SERVER_SETTINGS));
     vi.stubGlobal("fetch", fetchMock);
 
-    const saved = await updateSettings({ default_list_id: "deleted" });
+    await updateSettings({ default_list_id: "deleted" });
 
-    expect(saved).toBe(false);
     expect(readPending()).toBeNull();
     expect(state.appSettings).toEqual(SERVER_SETTINGS);
   });
@@ -370,7 +363,7 @@ describe("updateSettings", () => {
       const fetchMock = vi.fn().mockResolvedValue({ ok: true });
       vi.stubGlobal("fetch", fetchMock);
 
-      expect(await updateSettings({ list_sort: "custom" })).toBe(true);
+      await updateSettings({ list_sort: "custom" });
       expect(putCount(fetchMock)).toBe(1);
     });
 
@@ -381,7 +374,7 @@ describe("updateSettings", () => {
         .mockResolvedValue(okResponse(SERVER_SETTINGS));
       vi.stubGlobal("fetch", fetchMock);
 
-      expect(await updateSettings({ list_sort: "invalid" })).toBe(false);
+      await updateSettings({ list_sort: "invalid" });
       expect(putCount(fetchMock)).toBe(1);
     });
   });
@@ -488,8 +481,8 @@ describe("updateSettings", () => {
       const second = updateSettings({ default_list_id: "list-9" });
       resolveFirst({ ok: true });
 
-      expect(await first).toBe(true);
-      expect(await second).toBe(true);
+      await Promise.all([first, second]);
+
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(sentBody(0)).toEqual({ list_sort: "custom" });
       expect(sentBody(1)).toEqual({ default_list_id: "list-9" });

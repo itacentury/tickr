@@ -154,7 +154,7 @@ describe("handleResume", () => {
 describe("saveDefaultListChoice", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(updateSettings).mockResolvedValue(true);
+    vi.mocked(updateSettings).mockResolvedValue();
   });
 
   it.each([
