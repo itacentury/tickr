@@ -26,8 +26,30 @@ import { isAppIdle, resolveDefaultListId } from "./default-list.js";
 
 // ---- Settings ----
 
+const SETTINGS_CACHE_KEY = "tickr_settings";
+
+/** Persist the current settings so an offline cold start can restore them. */
+function cacheSettings() {
+  setStorageItem(SETTINGS_CACHE_KEY, JSON.stringify(state.appSettings));
+}
+
+/** Restore the last cached settings; keeps the current ones if none are usable. */
+function restoreCachedSettings() {
+  const raw = getStorageItem(SETTINGS_CACHE_KEY);
+  if (raw === null) return;
+  try {
+    const cached = JSON.parse(raw);
+    if (cached && typeof cached === "object" && !Array.isArray(cached)) {
+      state.appSettings = cached;
+    }
+  } catch {
+    // Corrupt cache: keep the current settings.
+  }
+}
+
 /**
- * Fetch settings from the server.
+ * Fetch settings from the server, falling back to the last cached settings
+ * when the server is unreachable (e.g. offline cold start).
  * Settings are not stored in RxDB since they're lightweight global config.
  */
 export async function fetchSettings() {
@@ -35,10 +57,13 @@ export async function fetchSettings() {
     const response = await fetch("/api/v1/settings");
     if (response.ok) {
       state.appSettings = await response.json();
+      cacheSettings();
+      return;
     }
   } catch {
-    // Use defaults if offline
+    // Offline: fall through to the cache.
   }
+  restoreCachedSettings();
 }
 
 /**
@@ -56,6 +81,7 @@ export async function updateSettings(settings) {
     });
     if (!response.ok) return false;
     Object.assign(state.appSettings, settings);
+    cacheSettings();
     subscribeLists();
     return true;
   } catch {
