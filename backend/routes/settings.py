@@ -24,14 +24,15 @@ def get_settings(db: sqlite3.Connection = Depends(get_db)) -> dict[str, str]:
 
 
 def _save_default_list(cursor: sqlite3.Cursor, list_id: str) -> None:
-    """Set the default list, or clear it when ``list_id`` is empty."""
+    """Set the default list, or clear it when ``list_id`` is empty.
+
+    The id is not checked against ``lists``: a list created offline may not have
+    replicated yet, and the client ignores default ids it cannot resolve.
+    """
     if not list_id:
         cursor.execute("DELETE FROM settings WHERE key = 'default_list_id'")
         return
 
-    cursor.execute("SELECT 1 FROM lists WHERE id = ? AND _deleted = 0", (list_id,))
-    if cursor.fetchone() is None:
-        raise AppError(ErrorCode.LIST_NOT_FOUND, "List not found", 404)
     cursor.execute(
         "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
         ("default_list_id", list_id),

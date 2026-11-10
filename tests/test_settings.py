@@ -3,6 +3,7 @@
 import pytest
 
 from backend import config
+from backend.constants import ID_MAX
 
 
 class TestGetSettings:
@@ -99,15 +100,13 @@ class TestDefaultList:
         client.put("/api/v1/settings", json={"list_sort": "created_asc"})
         assert client.get("/api/v1/settings").json()["default_list_id"] == lst["id"]
 
-    def test_unknown_list_rejected(self, client) -> None:
-        """An unknown list id returns 404 LIST_NOT_FOUND."""
-        resp = client.put("/api/v1/settings", json={"default_list_id": "missing"})
-        assert resp.status_code == 404
-        assert resp.json()["error"]["code"] == "LIST_NOT_FOUND"
+    def test_unknown_list_accepted(self, client) -> None:
+        """A list not yet replicated to the server can still become the default."""
+        resp = client.put("/api/v1/settings", json={"default_list_id": "not-synced-yet"})
+        assert resp.status_code == 200
+        assert client.get("/api/v1/settings").json()["default_list_id"] == "not-synced-yet"
 
-    def test_deleted_list_rejected(self, client, create_list) -> None:
-        """A soft-deleted list cannot become the default."""
-        lst: dict = create_list("Gone")
-        client.delete(f"/api/v1/lists/{lst['id']}")
-        resp = client.put("/api/v1/settings", json={"default_list_id": lst["id"]})
-        assert resp.status_code == 404
+    def test_overlong_id_rejected(self, client) -> None:
+        """An id exceeding the maximum length fails validation."""
+        resp = client.put("/api/v1/settings", json={"default_list_id": "x" * (ID_MAX + 1)})
+        assert resp.status_code == 422
