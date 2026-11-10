@@ -72,10 +72,12 @@ export function wireSettings() {
 }
 
 /**
+ * Toast text for a rejected settings patch.
+ *
  * @param {string[]} rejectedKeys - Setting keys the server rejected.
  * @returns {string} Toast text; specific only when the default list alone failed.
  */
-export function rejectionMessage(rejectedKeys) {
+function rejectionMessage(rejectedKeys) {
   const onlyDefaultList =
     rejectedKeys.length === 1 && rejectedKeys[0] === "default_list_id";
   return onlyDefaultList
