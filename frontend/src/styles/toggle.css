@@ -16,7 +16,7 @@
   cursor: pointer;
   background: var(--text-muted);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   transition: background var(--transition-fast);
 }
 
