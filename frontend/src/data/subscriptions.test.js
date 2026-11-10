@@ -5,12 +5,19 @@ import { removeStorageItem } from "../storage.js";
 import {
   fetchSettings,
   fetchServerConfig,
+  flushPendingSettings,
   getInitialListId,
   updateSettings,
 } from "./subscriptions.js";
 import { recordHidden } from "./default-list.js";
 
 const CACHE_KEY = "tickr_settings";
+const PENDING_KEY = "tickr_pending_settings";
+const SW_OFFLINE = { ok: false, status: 503 };
+
+/** @returns {Object|null} The queued settings patch. */
+const readPending = () =>
+  JSON.parse(localStorage.getItem(PENDING_KEY) ?? "null");
 const DEFAULTS = { list_sort: "alphabetical" };
 const SERVER_SETTINGS = { list_sort: "custom", default_list_id: "list-1" };
 
@@ -21,6 +28,7 @@ describe("fetchSettings", () => {
   beforeEach(() => {
     // Also clears storage.js's in-memory mirror, which localStorage.clear() misses.
     removeStorageItem(CACHE_KEY);
+    removeStorageItem(PENDING_KEY);
     state.appSettings = { ...DEFAULTS };
   });
 
@@ -126,6 +134,7 @@ describe("updateSettings", () => {
   beforeEach(() => {
     // Also clears storage.js's in-memory mirror, which localStorage.clear() misses.
     removeStorageItem(CACHE_KEY);
+    removeStorageItem(PENDING_KEY);
     state.appSettings = { ...DEFAULTS };
     const subscription = { unsubscribe() {} };
     state.db = /** @type {any} */ ({
@@ -146,6 +155,78 @@ describe("updateSettings", () => {
       ...DEFAULTS,
       default_list_id: "list-2",
     });
+    expect(readPending()).toBeNull();
+  });
+
+  it("applies and queues the update while offline", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+
+    const saved = await updateSettings({ default_list_id: "list-2" });
+
+    expect(saved).toBe(true);
+    expect(state.appSettings.default_list_id).toBe("list-2");
+    expect(readPending()).toEqual({ default_list_id: "list-2" });
+  });
+
+  it("treats the service worker's offline 503 as offline", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(SW_OFFLINE));
+
+    const saved = await updateSettings({ list_sort: "custom" });
+
+    expect(saved).toBe(true);
+    expect(readPending()).toEqual({ list_sort: "custom" });
+  });
+
+  it("sends merged offline edits once when flushed", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    await updateSettings({ default_list_id: "list-2" });
+    await updateSettings({ default_list_id: "list-3", list_sort: "custom" });
+
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await flushPendingSettings()).toBe("synced");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      default_list_id: "list-3",
+      list_sort: "custom",
+    });
+    expect(readPending()).toBeNull();
+  });
+
+  it("drops the patch and restores server settings on rejection", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce(okResponse(SERVER_SETTINGS));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const saved = await updateSettings({ default_list_id: "deleted" });
+
+    expect(saved).toBe(false);
+    expect(readPending()).toBeNull();
+    expect(state.appSettings).toEqual(SERVER_SETTINGS);
+  });
+
+  it("keeps pending edits over fetched settings while still offline", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
+    await updateSettings({ default_list_id: "list-2" });
+
+    // PUT still fails, GET is answered (e.g. flaky connection).
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(SW_OFFLINE)
+        .mockResolvedValueOnce(okResponse(SERVER_SETTINGS)),
+    );
+    await fetchSettings();
+
+    expect(state.appSettings).toEqual({
+      ...SERVER_SETTINGS,
+      default_list_id: "list-2",
+    });
+    expect(readPending()).toEqual({ default_list_id: "list-2" });
   });
 });
 

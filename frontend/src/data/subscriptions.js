@@ -28,6 +28,7 @@ import { isAppIdle, resolveDefaultListId } from "./default-list.js";
 
 const SETTINGS_CACHE_KEY = "tickr_settings";
 const SERVER_CONFIG_CACHE_KEY = "tickr_server_config";
+const PENDING_SETTINGS_KEY = "tickr_pending_settings";
 
 /**
  * Persist an object so an offline cold start can restore it.
@@ -87,11 +88,18 @@ async function fetchCachedObject(url, cacheKey) {
  * Settings are not stored in RxDB since they're lightweight global config.
  */
 export async function fetchSettings() {
+  await flushPendingSettings();
+  await loadSettings();
+}
+
+/** Load settings from the server or cache, keeping edits still pending. */
+async function loadSettings() {
   const settings = await fetchCachedObject(
     "/api/v1/settings",
     SETTINGS_CACHE_KEY,
   );
-  if (settings) state.appSettings = settings;
+  // Edits still waiting for the server must not be overwritten by stale values.
+  if (settings) state.appSettings = { ...settings, ...getPendingSettings() };
 }
 
 /** Fetch the read-only server configuration (e.g. the default-list timeout). */
@@ -103,27 +111,71 @@ export async function fetchServerConfig() {
   if (config) state.serverConfig = config;
 }
 
+/** @returns {Object} Settings edits not yet accepted by the server. */
+function getPendingSettings() {
+  return restoreCachedObject(PENDING_SETTINGS_KEY) ?? {};
+}
+
+/** @type {Promise<"synced"|"queued"|"rejected">|null} */
+let flushInFlight = null;
+
 /**
- * Update settings on the server and refresh local state.
+ * Send the pending settings patch to the server.
  *
- * @param {Object} settings - Key-value pairs to update.
- * @returns {Promise<boolean>} Whether the update succeeded.
+ * An unreachable server keeps the patch for a later retry; the service worker
+ * answers offline API requests with a synthetic 503, so that counts as
+ * unreachable too. Any other error drops the patch, since resending cannot
+ * succeed, and restores the server's settings over the optimistic ones.
+ *
+ * @returns {Promise<"synced"|"queued"|"rejected">} Outcome of the attempt.
  */
-export async function updateSettings(settings) {
+export function flushPendingSettings() {
+  // The online event and an app resume can both trigger a flush at once.
+  flushInFlight ??= sendPendingSettings().finally(() => {
+    flushInFlight = null;
+  });
+  return flushInFlight;
+}
+
+/** @returns {Promise<"synced"|"queued"|"rejected">} */
+async function sendPendingSettings() {
+  const pending = getPendingSettings();
+  if (Object.keys(pending).length === 0) return "synced";
+
+  let response;
   try {
-    const response = await fetch("/api/v1/settings", {
+    response = await fetch("/api/v1/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
+      body: JSON.stringify(pending),
     });
-    if (!response.ok) return false;
-    Object.assign(state.appSettings, settings);
-    cacheObject(SETTINGS_CACHE_KEY, state.appSettings);
-    subscribeLists();
-    return true;
   } catch {
-    return false;
+    return "queued";
   }
+  if (response.status === 503) return "queued";
+
+  removeStorageItem(PENDING_SETTINGS_KEY);
+  if (response.ok) return "synced";
+
+  // Not fetchSettings(): its flush would await this very flush and deadlock.
+  await loadSettings();
+  subscribeLists();
+  return "rejected";
+}
+
+/**
+ * Apply settings locally right away and send them to the server, queueing
+ * them for a later retry while the server is unreachable.
+ *
+ * @param {Object} settings - Key-value pairs to update.
+ * @returns {Promise<boolean>} False only if the server rejected the update.
+ */
+export async function updateSettings(settings) {
+  cacheObject(PENDING_SETTINGS_KEY, { ...getPendingSettings(), ...settings });
+  Object.assign(state.appSettings, settings);
+  cacheObject(SETTINGS_CACHE_KEY, state.appSettings);
+  subscribeLists();
+  return (await flushPendingSettings()) !== "rejected";
 }
 
 // ---- Subscriptions ----

@@ -8,7 +8,7 @@
 import { state } from "../state.js";
 import * as dom from "../dom.js";
 import { setDropdownValue } from "../dropdown.js";
-import { updateSettings } from "../data.js";
+import { flushPendingSettings, updateSettings } from "../data.js";
 import { logout } from "../auth.js";
 import { reportError } from "../error-reporting.js";
 import { showErrorToast } from "../toast.js";
@@ -62,4 +62,11 @@ export function wireSettings() {
   });
 
   makeBackdropDismiss(dom.settingsModal);
+
+  // Settings edited offline are queued; send them once the connection returns.
+  window.addEventListener("online", async () => {
+    if ((await flushPendingSettings()) === "rejected") {
+      showErrorToast("Failed to update settings");
+    }
+  });
 }
