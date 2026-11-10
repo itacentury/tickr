@@ -145,6 +145,7 @@ let flushInFlight = null;
  * answers offline API requests with a synthetic 503, so that counts as
  * unreachable too. Any other error drops the patch, since resending cannot
  * succeed, and restores the server's settings over the optimistic ones.
+ * Changes queued while a request is in flight are sent in a follow-up request.
  *
  * @returns {Promise<"synced"|"queued"|"rejected">} Outcome of the attempt.
  */
@@ -158,29 +159,51 @@ export function flushPendingSettings() {
 
 /** @returns {Promise<"synced"|"queued"|"rejected">} */
 async function sendPendingSettings() {
-  const pending = getPendingSettings();
-  if (Object.keys(pending).length === 0) return "synced";
+  /** @type {"synced"|"rejected"} */
+  let outcome = "synced";
+  for (;;) {
+    const pending = getPendingSettings();
+    if (Object.keys(pending).length === 0) return outcome;
 
-  let response;
-  try {
-    response = await fetch("/api/v1/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(pending),
-      signal: AbortSignal.timeout(SETTINGS_FETCH_TIMEOUT_MS),
-    });
-  } catch {
-    return "queued";
+    let response;
+    try {
+      response = await fetch("/api/v1/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pending),
+        signal: AbortSignal.timeout(SETTINGS_FETCH_TIMEOUT_MS),
+      });
+    } catch {
+      return "queued";
+    }
+    if (response.status === 503) return "queued";
+
+    dequeueSentSettings(pending);
+    if (response.ok) continue;
+
+    // Not fetchSettings(): its flush would await this very flush and deadlock.
+    await loadSettings();
+    subscribeLists();
+    outcome = "rejected";
   }
-  if (response.status === 503) return "queued";
+}
 
-  removeStorageItem(PENDING_SETTINGS_KEY);
-  if (response.ok) return "synced";
-
-  // Not fetchSettings(): its flush would await this very flush and deadlock.
-  await loadSettings();
-  subscribeLists();
-  return "rejected";
+/**
+ * Remove the sent settings from the queue, keeping any queued after the
+ * request started (by this tab or another one sharing the storage).
+ *
+ * @param {Object} sent - The patch that was sent.
+ */
+function dequeueSentSettings(sent) {
+  const pending = getPendingSettings();
+  for (const [key, value] of Object.entries(sent)) {
+    if (pending[key] === value) delete pending[key];
+  }
+  if (Object.keys(pending).length === 0) {
+    removeStorageItem(PENDING_SETTINGS_KEY);
+    return;
+  }
+  cacheObject(PENDING_SETTINGS_KEY, pending);
 }
 
 /**

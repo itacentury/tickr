@@ -231,6 +231,66 @@ describe("updateSettings", () => {
     expect(state.appSettings).toEqual(SERVER_SETTINGS);
   });
 
+  describe("with a change made while a request is in flight", () => {
+    /** @type {(response: Object) => void} */
+    let resolveFirst;
+    /** @type {import("vitest").Mock} */
+    let fetchMock;
+
+    beforeEach(() => {
+      fetchMock = vi.fn().mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+    });
+
+    /** @param {number} call */
+    const sentBody = (call) => JSON.parse(fetchMock.mock.calls[call][1].body);
+
+    it("sends the later change in a follow-up request", async () => {
+      fetchMock.mockResolvedValue({ ok: true });
+      const first = updateSettings({ list_sort: "custom" });
+      const second = updateSettings({ default_list_id: "list-9" });
+      resolveFirst({ ok: true });
+
+      expect(await first).toBe(true);
+      expect(await second).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(sentBody(0)).toEqual({ list_sort: "custom" });
+      expect(sentBody(1)).toEqual({ default_list_id: "list-9" });
+      expect(readPending()).toBeNull();
+    });
+
+    it("re-sends a key changed since it was sent", async () => {
+      fetchMock.mockResolvedValue({ ok: true });
+      const first = updateSettings({ list_sort: "custom" });
+      const second = updateSettings({ list_sort: "alphabetical" });
+      resolveFirst({ ok: true });
+      await Promise.all([first, second]);
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(sentBody(1)).toEqual({ list_sort: "alphabetical" });
+      expect(readPending()).toBeNull();
+    });
+
+    it("keeps the later change when the first request is rejected", async () => {
+      fetchMock
+        .mockResolvedValueOnce(okResponse(SERVER_SETTINGS))
+        .mockResolvedValueOnce({ ok: true });
+      const first = updateSettings({ list_sort: "custom" });
+      const second = updateSettings({ default_list_id: "list-9" });
+      resolveFirst({ ok: false, status: 404 });
+      await Promise.all([first, second]);
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(sentBody(2)).toEqual({ default_list_id: "list-9" });
+      expect(readPending()).toBeNull();
+      expect(state.appSettings.default_list_id).toBe("list-9");
+    });
+  });
+
   it("keeps pending edits over fetched settings while still offline", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("offline")));
     await updateSettings({ default_list_id: "list-2" });
